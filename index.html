@@ -14,14 +14,15 @@
   :root{
     --bg:#0f141b; --panel:#171e28; --panel2:#1f2835; --line:#2a3544;
     --text:#e8edf3; --muted:#8a97a8; --amber:#f5a524; --amber-ink:#1a1204;
-    --ok:#34d399; --err:#f87171;
+    --ok:#22c55e; --edit:#f59e0b; --err:#ef4444;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
        -webkit-font-smoothing:antialiased;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
-  .wrap{max-width:440px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+  .wrap{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
   .hidden{display:none!important}
+  button{font:inherit}
 
   /* Sign in */
   #login{flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 0}
@@ -31,16 +32,14 @@
   .brand p{color:var(--muted);font-size:13px;margin-top:2px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
   label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
-  input{width:100%;height:48px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);
+  .field{width:100%;height:48px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);
         color:var(--text);font-size:16px;padding:0 14px;outline:none;margin-bottom:16px}
-  input:focus{border-color:var(--amber)}
+  .field:focus{border-color:var(--amber)}
   #pin{letter-spacing:6px}
-  button.primary{width:100%;height:50px;border:0;border-radius:10px;background:var(--amber);color:var(--amber-ink);
+  .primary{width:100%;height:50px;border:0;border-radius:10px;background:var(--amber);color:var(--amber-ink);
         font-weight:700;font-size:16px;cursor:pointer}
-  button.primary:disabled{opacity:.6}
+  .primary:disabled{opacity:.6}
   .msg{min-height:20px;font-size:14px;color:var(--err);margin-top:12px;text-align:center}
-  .demo{margin-top:18px;font-size:12px;color:var(--muted);text-align:center;line-height:1.6}
-  .demo code{color:var(--amber)}
 
   /* Home */
   #home{padding:20px 0 32px}
@@ -61,9 +60,52 @@
   .tile b{font-size:15px;display:block;margin-top:12px}
   .tile span{font-size:12px;color:var(--muted)}
   .tile.one{grid-column:1/-1}
+  .tile .done{font-size:11px;color:var(--ok);margin-top:4px;display:block}
   .empty{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:22px;color:var(--muted);text-align:center;font-size:14px}
-  .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);
-         background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:.2s;pointer-events:none}
+
+  /* Record page */
+  #rec{padding-bottom:110px}
+  .rhead{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 0 10px;border-bottom:1px solid var(--line)}
+  .rtop{display:flex;align-items:center;gap:10px}
+  .back{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;cursor:pointer;flex:none}
+  .rtitle{flex:1;min-width:0}
+  .rtitle h2{font-size:18px}
+  .rtitle small{color:var(--muted);font-size:12px}
+  .count{font-size:13px;color:var(--muted);white-space:nowrap}
+  .count b{color:var(--text)}
+  .bar{height:4px;background:var(--panel2);border-radius:4px;margin-top:10px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:8px}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .banner{margin-top:12px;padding:10px 12px;border-radius:10px;font-size:13px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:#86efac}
+  .colhead{display:grid;grid-template-columns:1fr 64px 112px;gap:8px;padding:12px 4px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .colhead span:nth-child(2){text-align:right}
+  .colhead span:nth-child(3){text-align:center}
+  .section{font-size:12px;font-weight:700;color:var(--amber);padding:14px 4px 6px;text-transform:uppercase;letter-spacing:.6px}
+  .row{display:grid;grid-template-columns:1fr 64px 112px;gap:8px;align-items:center;background:var(--panel);
+       border:1px solid var(--line);border-radius:12px;padding:10px 10px 10px 12px;margin-bottom:6px}
+  .row .id{font-weight:700;font-size:14px}
+  .row .ds{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.3}
+  .row .ref{text-align:right;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .inwrap{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .rin{width:84px;height:42px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+       font-size:16px;text-align:center;outline:none;font-variant-numeric:tabular-nums}
+  .rin:focus{border-color:var(--amber)}
+  .dot{width:12px;height:12px;border-radius:50%;flex:none;border:2px solid var(--line);background:transparent;cursor:default}
+  .dot.ok{background:var(--ok);border-color:var(--ok)}
+  .dot.edit{background:var(--edit);border-color:var(--edit)}
+  .dot.saving{background:var(--edit);border-color:var(--edit);animation:pulse .8s infinite alternate}
+  .dot.err{background:var(--err);border-color:var(--err);cursor:pointer}
+  @keyframes pulse{from{opacity:1}to{opacity:.35}}
+  .foot{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+        background:linear-gradient(to top,var(--bg) 70%,transparent)}
+  .foot .inner{max-width:520px;margin:0 auto}
+  .foot .note{font-size:13px;color:var(--edit);text-align:center;margin-bottom:8px;min-height:0}
+  .primary.green{background:var(--ok);color:#052e16}
+  .loading{padding:40px 0;text-align:center;color:var(--muted)}
+
+  .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:90%;
+         background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:20}
   .toast.show{opacity:1}
 </style>
 </head>
@@ -78,20 +120,14 @@
       </div>
       <div><h1>Holoul Maintenance</h1><p>Sign in to continue</p></div>
     </div>
-
     <form class="card" id="form" autocomplete="on">
       <label for="username">Username</label>
-      <input id="username" autocapitalize="none" autocomplete="username" spellcheck="false" required>
+      <input class="field" id="username" autocapitalize="none" autocomplete="username" spellcheck="false" required>
       <label for="pin">PIN</label>
-      <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" required>
+      <input class="field" id="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" required>
       <button class="primary" id="btn" type="submit">Sign in</button>
       <div class="msg" id="msg"></div>
     </form>
-
-    <div class="demo hidden" id="demoNote">
-      Demo mode — not connected to Google Sheets yet.<br>
-      Try <code>tech1 / 1111</code> · <code>op1 / 3333</code> · <code>op2 / 4444</code>
-    </div>
   </section>
 
   <!-- HOME -->
@@ -109,57 +145,82 @@
     <div class="grid" id="tiles"></div>
   </section>
 
+  <!-- RECORD PAGE -->
+  <section id="rec" class="hidden">
+    <div class="rhead">
+      <div class="rtop">
+        <button class="back" id="back" aria-label="Back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="rtitle"><h2 id="rTitle"></h2><small id="rDate"></small></div>
+        <div class="count"><b id="rDone">0</b> / <span id="rTotal">0</span></div>
+      </div>
+      <div class="bar"><i id="rBar"></i></div>
+      <div class="legend">
+        <span><i class="dot ok"></i>Saved</span>
+        <span><i class="dot edit"></i>Editing / saving</span>
+        <span><i class="dot err"></i>Not saved – tap to retry</span>
+      </div>
+      <div class="banner hidden" id="rBanner"></div>
+    </div>
+    <div class="colhead"><span>Cable ID / Description</span><span id="rRefHead">Ref</span><span>Reading</span></div>
+    <div id="rList"><div class="loading">Loading…</div></div>
+    <div class="foot">
+      <div class="inner">
+        <div class="note" id="rNote"></div>
+        <button class="primary" id="rComplete">Complete task</button>
+      </div>
+    </div>
+  </section>
+
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-/* ===== CONFIG ===== paste your Apps Script Web app URL here */
 const API_URL = 'https://script.google.com/macros/s/AKfycby6cn2Os6fkkireTwP8QJqV-8E45gf5V6wovl_8fz28RL_vEG3Rg0nuuEKFv3kwdYWMCw/exec';
 
-/* Page catalogue — later each "page" gets its own form */
+/* Pages. `ready: true` = the record page is built. */
 const MODULES = {
-  'Amp Rec':       { sub:'Motor current readings',   icon:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>' },
-  'Vibration Rec': { sub:'Bearing & motor vibration',icon:'<path d="M2 12h3l2-6 4 12 4-12 2 6h5"/>' },
-  'Thermo Rec':    { sub:'Motor & gearbox temps',    icon:'<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>' },
-  'Forklift':      { sub:'Daily forklift check',     icon:'<path d="M3 18V8h6l3 6v4M12 18h3M16 4v14h5M3 18h1"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>' },
-  'Bobcat':        { sub:'Daily bobcat check',       icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' }
+  'Amp Rec':       { sub:'Motor current readings',   ready:true,  icon:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>' },
+  'Vibration Rec': { sub:'Bearing & motor vibration',              icon:'<path d="M2 12h3l2-6 4 12 4-12 2 6h5"/>' },
+  'Thermo Rec':    { sub:'Motor & gearbox temps',                  icon:'<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>' },
+  'Forklift':      { sub:'Daily forklift check',                   icon:'<path d="M3 18V8h6l3 6v4M12 18h3M16 4v14h5M3 18h1"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>' },
+  'Bobcat':        { sub:'Daily bobcat check',                     icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' }
 };
-
-/* Demo users (used only while API_URL is empty) */
-const DEMO = [
-  {u:'tech1',p:'1111',id:'U001',name:'Technician 1',role:'Maintenance Technician',equipment:''},
-  {u:'tech2',p:'2222',id:'U002',name:'Technician 2',role:'Maintenance Technician',equipment:''},
-  {u:'op1',p:'3333',id:'U003',name:'Operator 1',role:'Operator',equipment:'Forklift'},
-  {u:'op2',p:'4444',id:'U004',name:'Operator 2',role:'Operator',equipment:'Bobcat'}
-];
-function accessFor(role, eq){
-  if(role==='Maintenance Technician') return ['Amp Rec','Vibration Rec','Thermo Rec'];
-  if(role==='Operator' && (eq==='Forklift'||eq==='Bobcat')) return [eq];
-  return [];
-}
 
 const $ = id => document.getElementById(id);
-const store = {
-  get(){ try{ return JSON.parse(localStorage.getItem('holoul_user')); }catch(e){ return null; } },
-  set(u){ try{ localStorage.setItem('holoul_user', JSON.stringify(u)); }catch(e){} },
-  clear(){ try{ localStorage.removeItem('holoul_user'); }catch(e){} }
-};
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-async function login(username, pin){
-  if(!API_URL){
-    const d = DEMO.find(x => x.u === username.toLowerCase() && x.p === pin);
-    if(!d) return {ok:false, error:'Wrong username or PIN'};
-    return {ok:true, user:{id:d.id,name:d.name,role:d.role,equipment:d.equipment,access:accessFor(d.role,d.equipment)}};
-  }
+/* ---------- session ---------- */
+const store = {
+  get(){ try{ const s = JSON.parse(localStorage.getItem('holoul_session')); return s && s.token ? s : null; }catch(e){ return null; } },
+  set(s){ try{ localStorage.setItem('holoul_session', JSON.stringify(s)); }catch(e){} },
+  clear(){ try{ localStorage.removeItem('holoul_session'); localStorage.removeItem('holoul_user'); }catch(e){} }
+};
+let session = null;
+
+async function api(action, data = {}){
   // text/plain avoids the CORS preflight that Apps Script can't answer
   const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'login', username, pin})});
-  return res.json();
+    body: JSON.stringify({action, token: session && session.token, ...data})});
+  const r = await res.json();
+  if(r.auth){ expired(); throw new Error(r.error); }
+  return r;
+}
+function expired(){
+  store.clear(); session = null; showView('login');
+  $('msg').textContent = 'Session expired — please sign in again';
 }
 
-function showHome(u){
-  $('login').classList.add('hidden');
-  $('home').classList.remove('hidden');
+/* ---------- views ---------- */
+function showView(v){
+  ['login','home','rec'].forEach(id => $(id).classList.toggle('hidden', id !== v));
+  window.scrollTo(0,0);
+}
+
+function showHome(){
+  const u = session.user;
+  showView('home');
   $('uName').textContent = u.name;
   $('uId').textContent = u.id;
   $('uRole').textContent = u.role;
@@ -176,28 +237,151 @@ function showHome(u){
     const b = document.createElement('button');
     b.className = 'tile' + (u.access.length === 1 ? ' one' : '');
     b.innerHTML = `<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m.icon}</svg></div>
-                   <div><b>${name}</b><span>${m.sub}</span></div>`;
-    b.onclick = () => toast(name + ' page — coming next');
+                   <div><b>${esc(name)}</b><span>${esc(m.sub)}</span></div>`;
+    b.onclick = () => m.ready ? openRecord(name) : toast(name + ' page — coming next');
     t.appendChild(b);
   });
 }
 
-function showLogin(){
-  $('home').classList.add('hidden');
-  $('login').classList.remove('hidden');
-  $('pin').value = '';
+/* ---------- record page ---------- */
+let rec = null;   // { sheet, items: [{row, input, dot, saved, timer, busy}], completed }
+
+async function openRecord(sheet){
+  showView('rec');
+  $('rTitle').textContent = sheet;
+  $('rDate').textContent = '';
+  $('rList').innerHTML = '<div class="loading">Loading…</div>';
+  $('rBanner').classList.add('hidden');
+  $('rNote').textContent = '';
+  resetComplete();
+  rec = { sheet, items: [] };
+  try{
+    const d = await api('getSheet', {sheet});
+    if(!d.ok){ $('rList').innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+    $('rDate').textContent = d.date;
+    $('rRefHead').textContent = shortRef(d.refHeader);
+    renderRows(d.rows);
+    setCompleted(d.completed);
+    updateCount();
+  }catch(e){
+    if(session) $('rList').innerHTML = '<div class="empty">No connection — go back and try again.</div>';
+  }
+}
+function shortRef(h){ h = String(h||'').trim(); return h.length > 8 ? 'Ref' : (h || 'Ref'); }
+
+function renderRows(rows){
+  const list = $('rList'); list.innerHTML = '';
+  rows.forEach(r => {
+    if(r.section){
+      const s = document.createElement('div'); s.className = 'section'; s.textContent = r.section; list.appendChild(s); return;
+    }
+    const el = document.createElement('div'); el.className = 'row';
+    el.innerHTML = `<div><div class="id">${esc(r.id)}</div><div class="ds">${esc(r.desc)}</div></div>
+      <div class="ref">${esc(r.ref)}</div>
+      <div class="inwrap"><input class="rin" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Reading for ${esc(r.id)}"><i class="dot"></i></div>`;
+    list.appendChild(el);
+    const item = { row: r.row, input: el.querySelector('.rin'), dot: el.querySelector('.dot'), saved: r.value || '', timer: null, busy: false };
+    item.input.value = item.saved;
+    setDot(item, item.saved ? 'ok' : '');
+    item.input.addEventListener('input', () => {
+      clearTimeout(item.timer);
+      if(item.input.value.trim() !== item.saved){ setDot(item, 'edit'); item.timer = setTimeout(() => save(item), 1500); }
+      else setDot(item, item.saved ? 'ok' : '');
+    });
+    item.input.addEventListener('blur', () => { clearTimeout(item.timer); save(item); });
+    item.input.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){ e.preventDefault(); const i = rec.items.indexOf(item); const nx = rec.items[i+1]; nx ? nx.input.focus() : item.input.blur(); }
+    });
+    item.dot.addEventListener('click', () => { if(item.dot.classList.contains('err')) save(item); });
+    rec.items.push(item);
+  });
+  if(!rec.items.length) list.innerHTML = '<div class="empty">No rows found in this sheet.</div>';
 }
 
+function setDot(item, state){ item.dot.className = 'dot' + (state ? ' ' + state : ''); }
+
+async function save(item){
+  const v = item.input.value.trim();
+  if(v === item.saved){ if(!item.busy) setDot(item, v ? 'ok' : ''); return; }
+  if(item.busy){ item.again = true; return; }       // save again once the current save finishes
+  item.busy = true; setDot(item, 'saving');
+  try{
+    const r = await api('saveReading', {sheet: rec.sheet, row: item.row, value: v});
+    if(!r.ok) throw new Error(r.error);
+    item.saved = v;
+    if(r.column) $('rDate').dataset.col = r.column;
+  }catch(e){
+    item.busy = false; setDot(item, 'err');
+    if(session) toast('Not saved: ' + (e.message || 'no connection') + ' — tap the red dot to retry');
+    return;
+  }
+  item.busy = false;
+  if(item.again || item.input.value.trim() !== item.saved){ item.again = false; return save(item); }
+  setDot(item, item.saved ? 'ok' : '');
+  updateCount();
+}
+
+function updateCount(){
+  const total = rec.items.length, done = rec.items.filter(i => i.saved !== '').length;
+  $('rDone').textContent = done; $('rTotal').textContent = total;
+  $('rBar').style.width = total ? (done / total * 100) + '%' : 0;
+}
+
+function setCompleted(c){
+  const b = $('rBanner');
+  if(c){ b.textContent = `✓ Completed today by ${c.by} at ${c.at} (${c.filled}/${c.total} readings)`; b.classList.remove('hidden'); }
+  else b.classList.add('hidden');
+}
+
+let confirmMissing = false;
+function resetComplete(){ confirmMissing = false; const b = $('rComplete'); b.textContent = 'Complete task'; b.className = 'primary'; b.disabled = false; }
+
+$('rComplete').onclick = async () => {
+  const b = $('rComplete');
+  // finish any pending edits first
+  rec.items.forEach(i => { clearTimeout(i.timer); if(i.input.value.trim() !== i.saved) save(i); });
+  if(rec.items.some(i => i.busy || i.dot.classList.contains('edit'))){ $('rNote').textContent = 'Saving your last readings… tap again in a moment.'; return; }
+  if(rec.items.some(i => i.dot.classList.contains('err'))){ $('rNote').textContent = 'Some readings are not saved (red dots). Tap them to retry first.'; return; }
+  const missing = rec.items.filter(i => i.saved === '').length;
+  if(missing && !confirmMissing){
+    confirmMissing = true;
+    $('rNote').textContent = `${missing} reading${missing > 1 ? 's are' : ' is'} empty. Tap again to complete anyway.`;
+    b.textContent = 'Complete anyway';
+    const first = rec.items.find(i => i.saved === '');
+    first && first.input.scrollIntoView({block:'center', behavior:'smooth'});
+    return;
+  }
+  b.disabled = true; b.textContent = 'Submitting…'; $('rNote').textContent = '';
+  try{
+    const r = await api('complete', {sheet: rec.sheet});
+    if(!r.ok) throw new Error(r.error);
+    setCompleted(r.completed);
+    b.className = 'primary green'; b.textContent = `✓ Task completed (${r.filled}/${r.total})`;
+    toast('Task recorded — thank you');
+    setTimeout(() => { resetComplete(); showHome(); }, 1800);
+  }catch(e){
+    b.disabled = false; b.textContent = 'Complete task';
+    if(session) $('rNote').textContent = 'Could not submit: ' + (e.message || 'no connection');
+  }
+};
+
+$('back').onclick = () => {
+  const pending = rec && rec.items.some(i => i.busy || i.input.value.trim() !== i.saved);
+  if(pending){ rec.items.forEach(i => { clearTimeout(i.timer); save(i); }); toast('Saving… try Back again in a moment'); return; }
+  showHome();
+};
+
+/* ---------- sign in / out ---------- */
 let tt;
-function toast(s){ const e=$('toast'); e.textContent=s; e.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('show'),1800); }
+function toast(s){ const e=$('toast'); e.textContent=s; e.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('show'),2600); }
 
 $('form').addEventListener('submit', async ev => {
   ev.preventDefault();
   const btn = $('btn'); $('msg').textContent = '';
   btn.disabled = true; btn.textContent = 'Signing in…';
   try{
-    const r = await login($('username').value.trim(), $('pin').value.trim());
-    if(r.ok){ store.set(r.user); showHome(r.user); }
+    const r = await api('login', {username: $('username').value.trim(), pin: $('pin').value.trim()});
+    if(r.ok){ session = {token: r.token, user: r.user}; store.set(session); $('pin').value = ''; showHome(); }
     else $('msg').textContent = r.error || 'Sign in failed';
   }catch(e){
     $('msg').textContent = 'No connection — check internet and try again';
@@ -205,11 +389,10 @@ $('form').addEventListener('submit', async ev => {
     btn.disabled = false; btn.textContent = 'Sign in';
   }
 });
-$('logout').onclick = () => { store.clear(); showLogin(); };
+$('logout').onclick = () => { store.clear(); session = null; showView('login'); };
 
-if(!API_URL) $('demoNote').classList.remove('hidden');
-const saved = store.get();
-if(saved) showHome(saved);
+session = store.get();
+session ? showHome() : showView('login');
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
