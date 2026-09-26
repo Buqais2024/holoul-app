@@ -120,6 +120,37 @@
   .cell > span{font-size:10px;color:var(--muted);letter-spacing:.5px}
   .cell .rin{width:100%;max-width:90px}
   .cell .dot{position:absolute;top:14px;right:-3px;width:10px;height:10px;background:var(--bg)}
+  /* Daily check page */
+  #chk{padding-bottom:110px}
+  .unitrow{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:var(--muted)}
+  .unitrow select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;height:34px;padding:0 10px;font-size:14px}
+  .sect{font-size:12px;font-weight:700;color:var(--amber);padding:16px 4px 6px;text-transform:uppercase;letter-spacing:.6px;display:flex;justify-content:space-between}
+  .sect span{color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0}
+  .ci{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:6px}
+  .ci.fault{border-color:rgba(239,68,68,.55)}
+  .ci .top{display:flex;align-items:center;gap:10px;margin-bottom:0}
+  .ci .nm{flex:1;min-width:0;font-size:14px;line-height:1.3}
+  .ci .nm small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:none}
+  .seg button{height:40px;min-width:54px;padding:0 10px;border:0;background:var(--panel2);color:var(--muted);font-size:14px;font-weight:600;cursor:pointer}
+  .seg button + button{border-left:1px solid var(--line)}
+  .seg .ok.on{background:var(--ok);color:#052e16}
+  .seg .bad.on{background:var(--err);color:#fff}
+  .fx{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+  .fx textarea{width:100%;min-height:62px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;font-size:15px;padding:10px;resize:vertical;outline:none}
+  .fx textarea:focus{border-color:var(--amber)}
+  .rd{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .rd input{flex:1;min-width:0;height:46px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:18px;padding:0 12px;outline:none;font-variant-numeric:tabular-nums}
+  .rd input:focus{border-color:var(--amber)}
+  .rd .unit{color:var(--muted);font-size:14px}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  .hint.warn{color:var(--edit)}
+  .pbtn{display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:9px;border:1px dashed var(--line);background:none;color:var(--text);font-size:14px;cursor:pointer;align-self:flex-start}
+  .pbtn svg{width:18px;height:18px;stroke:var(--amber)}
+  .pbtn.req{border-color:var(--amber)}
+  .thumb{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .thumb img{width:84px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .thumb small{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
   .gline{grid-template-columns:92px 1fr}
   .gline .pos b{font-size:14px;line-height:1.2}
   .cell .dot.ok{background:var(--ok)} .cell .dot.edit,.cell .dot.saving{background:var(--edit)} .cell .dot.err{background:var(--err)}
@@ -204,7 +235,31 @@
     </div>
   </section>
 
+  <!-- DAILY CHECK (Bobcat / Forklift) -->
+  <section id="chk" class="hidden">
+    <div class="rhead">
+      <div class="rtop">
+        <button class="back" id="cBack" aria-label="Back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="rtitle"><h2 id="cTitle"></h2><small id="cDate"></small></div>
+        <div class="count"><b id="cDone">0</b> / <span id="cTotal">0</span></div>
+      </div>
+      <div class="bar"><i id="cBar"></i></div>
+      <div class="unitrow"><span>Unit</span><select id="cUnit"></select></div>
+      <div class="banner hidden" id="cBanner"></div>
+    </div>
+    <div id="cList"><div class="loading">Loading…</div></div>
+    <div class="foot">
+      <div class="inner">
+        <div class="note" id="cNote"></div>
+        <button class="primary" id="cSubmit">Submit daily check</button>
+      </div>
+    </div>
+  </section>
+
 </div>
+<input type="file" id="photoPick" accept="image/*" class="hidden">
 <div class="toast" id="toast"></div>
 
 <script>
@@ -216,7 +271,7 @@ const MODULES = {
   'Vibration Rec': { sub:'Bearing & motor vibration', ready:true, icon:'<path d="M2 12h3l2-6 4 12 4-12 2 6h5"/>' },
   'Thermo Rec':    { sub:'Motor & gearbox temps',    ready:true,  icon:'<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>' },
   'Forklift':      { sub:'Daily forklift check',                   icon:'<path d="M3 18V8h6l3 6v4M12 18h3M16 4v14h5M3 18h1"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>' },
-  'Bobcat':        { sub:'Daily bobcat check',                     icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' }
+  'Bobcat':        { sub:'Daily bobcat check', checklist:true,     icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' }
 };
 
 const $ = id => document.getElementById(id);
@@ -269,7 +324,7 @@ function expired(){
 
 /* ---------- views ---------- */
 function showView(v){
-  ['login','home','rec'].forEach(id => $(id).classList.toggle('hidden', id !== v));
+  ['login','home','rec','chk'].forEach(id => $(id).classList.toggle('hidden', id !== v));
   window.scrollTo(0,0);
 }
 
@@ -293,7 +348,7 @@ function showHome(){
     b.className = 'tile' + (u.access.length === 1 ? ' one' : '');
     b.innerHTML = `<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m.icon}</svg></div>
                    <div><b>${esc(name)}</b><span>${esc(m.sub)}</span></div>`;
-    b.onclick = () => m.ready ? openRecord(name) : toast(name + ' page — coming next');
+    b.onclick = () => m.checklist ? openChecklist(name) : m.ready ? openRecord(name) : toast(name + ' page — coming next');
     t.appendChild(b);
   });
 }
@@ -497,6 +552,205 @@ $('back').onclick = () => {
   const pending = rec && rec.items.some(i => i.busy || i.input.value.trim() !== i.saved);
   if(pending){ rec.items.forEach(i => { clearTimeout(i.timer); save(i); }); toast('Saving… try Back again in a moment'); return; }
   showHome();
+};
+
+/* ---------- daily check (Bobcat / Forklift) ---------- */
+let chk = null;   // { type, unit, d (server data), ans: {item: {v, note, value, photo, thumb, up}} }
+let photoFor = null;
+const CAM = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+const shortDate = s => { if(!s) return ''; const d = new Date(s + 'T12:00:00'); return isNaN(d) ? s : d.toLocaleDateString('en-GB', {day:'numeric', month:'short'}); };
+const draftKey = () => `holoul_chk_${chk.type}_${chk.unit}_${chk.d.today}`;
+function saveDraft(){
+  try{
+    const out = {}; Object.entries(chk.ans).forEach(([k, a]) => { out[k] = {v:a.v, note:a.note, value:a.value, photo:a.photo, thumb:a.thumb}; });
+    localStorage.setItem(draftKey(), JSON.stringify(out));
+  }catch(e){}
+}
+
+async function openChecklist(type, unit){
+  showView('chk');
+  $('cTitle').textContent = type + ' daily check';
+  $('cDate').textContent = ''; $('cNote').textContent = '';
+  $('cList').innerHTML = '<div class="loading">Loading…</div>';
+  $('cBanner').classList.add('hidden');
+  $('cSubmit').className = 'primary'; $('cSubmit').disabled = false; $('cSubmit').textContent = 'Submit daily check';
+  try{
+    const d = await api('getChecklist', {type, unit});
+    if(!d.ok){ $('cList').innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+    chk = { type, unit: d.unit, d, ans: {} };
+    $('cDate').textContent = d.date;
+    $('cUnit').innerHTML = d.units.map(u => `<option ${u === d.unit ? 'selected' : ''}>${esc(u)}</option>`).join('');
+    $('cUnit').disabled = d.units.length < 2;
+    // start from today's saved entry (if any), then any unsent draft on this phone
+    d.items.forEach(it => chk.ans[it.item] = {});
+    if(d.todayEntry){
+      const e = d.todayEntry;
+      const notes = {}; String(e.faults || '').split('\n').forEach(l => { const i = l.indexOf(': '); if(i > 0) notes[l.slice(0, i)] = l.slice(i + 2).replace(/ \(photo: [^)]*\)$/, ''); });
+      d.items.forEach(it => {
+        const v = e.values[it.item] || '', a = chk.ans[it.item];
+        if(it.input === 'reading'){ a.value = v; a.photo = e.values[it.item + ' Photo'] || ''; }
+        else { a.v = v === '✓' ? 'ok' : v === '✗' ? 'fault' : ''; a.note = notes[it.item] || ''; }
+      });
+      showSubmitted(e.at, e.by, e.status, true);
+    }
+    try{ const dr = JSON.parse(localStorage.getItem(draftKey())); if(dr) Object.entries(dr).forEach(([k, a]) => { if(chk.ans[k]) Object.assign(chk.ans[k], a); }); }catch(e){}
+    renderChecklist();
+  }catch(e){
+    if(session) $('cList').innerHTML = '<div class="empty">No connection — go back and try again.</div>';
+  }
+}
+
+function showSubmitted(at, by, status, existing){
+  const b = $('cBanner');
+  const bad = /action/i.test(status || '');
+  b.textContent = `✓ Submitted today at ${at} by ${by} — ${status || 'OK'}` + (existing ? '. You can change it and submit again.' : '');
+  b.style.background = bad ? 'rgba(239,68,68,.1)' : ''; b.style.borderColor = bad ? 'rgba(239,68,68,.4)' : ''; b.style.color = bad ? '#fca5a5' : '';
+  b.classList.remove('hidden');
+  if(existing) $('cSubmit').textContent = 'Update daily check';
+}
+
+function renderChecklist(){
+  const list = $('cList'); list.innerHTML = '';
+  let sec = null;
+  chk.d.items.forEach(it => {
+    const a = chk.ans[it.item];
+    if(it.section !== sec){
+      sec = it.section;
+      list.insertAdjacentHTML('beforeend', `<div class="sect">${esc(sec || 'Checks')}${it.weekly ? '<span>once a week</span>' : ''}</div>`);
+    }
+    const el = document.createElement('div');
+    el.className = 'ci' + (a.v === 'fault' ? ' fault' : '');
+    if(it.input === 'reading'){
+      const last = chk.d.last[it.item];
+      const unitTxt = /hour/i.test(it.item) ? 'h' : '';
+      el.innerHTML = `<div class="nm">${esc(it.item)}${last ? `<small>Last: ${esc(last.value)}${unitTxt ? ' ' + unitTxt : ''} · ${esc(shortDate(last.date))} · ${esc(last.by)}</small>` : ''}</div>
+        <div class="rd"><input inputmode="decimal" autocomplete="off" placeholder="Enter reading" value="${esc(a.value || '')}" aria-label="${esc(it.item)}">${unitTxt ? `<span class="unit">${unitTxt}</span>` : ''}</div>
+        <div class="hint" data-warn></div>
+        <div class="fx">${photoBlock(it, a)}</div>`;
+      const inp = el.querySelector('input');
+      inp.addEventListener('input', () => { a.value = inp.value.trim(); checkReading(it, a, el.querySelector('[data-warn]')); saveDraft(); updateChkCount(); });
+      checkReading(it, a, el.querySelector('[data-warn]'));
+    } else {
+      const sub = it.weekly ? `<small>${chk.d.weeklyLast[it.item] ? 'Last done ' + esc(shortDate(chk.d.weeklyLast[it.item])) : 'Not done yet'} · leave blank if not today</small>` : '';
+      el.innerHTML = `<div class="top"><div class="nm">${esc(it.item)}${sub}</div>
+          <div class="seg"><button class="ok ${a.v === 'ok' ? 'on' : ''}" aria-label="No fault">✓</button><button class="bad ${a.v === 'fault' ? 'on' : ''}" aria-label="Action required">✗</button></div></div>
+        ${a.v === 'fault' ? `<div class="fx"><textarea placeholder="What is wrong? (required)">${esc(a.note || '')}</textarea>${photoBlock(it, a)}</div>` : ''}`;
+      const [ok, bad] = el.querySelectorAll('.seg button');
+      ok.onclick = () => { a.v = a.v === 'ok' && it.weekly ? '' : 'ok'; saveDraft(); renderChecklist(); };
+      bad.onclick = () => { a.v = 'fault'; saveDraft(); renderChecklist(); setTimeout(() => { const t = document.querySelector(`[data-item="${CSS.escape(it.item)}"] textarea`); t && t.focus(); }, 0); };
+      const ta = el.querySelector('textarea');
+      if(ta) ta.addEventListener('input', () => { a.note = ta.value; saveDraft(); });
+    }
+    el.dataset.item = it.item;
+    const pb = el.querySelector('.pbtn');
+    if(pb) pb.onclick = () => { photoFor = it.item; $('photoPick').value = ''; $('photoPick').click(); };
+    const retry = el.querySelector('[data-retry]');
+    if(retry) retry.onclick = () => uploadFor(it.item);
+    list.appendChild(el);
+  });
+  updateChkCount();
+}
+
+function photoBlock(it, a){
+  if(it.photo === 'no') return '';
+  const label = a.thumb || a.photo ? 'Retake / change photo' : (it.photo === 'required' ? 'Take photo of the meter (required)' : 'Add photo (optional)');
+  let status = '';
+  if(a.up === 'saving') status = '<i class="dot saving"></i> Uploading…';
+  else if(a.up === 'err') status = '<i class="dot err" data-retry></i> Not uploaded — tap red dot to retry';
+  else if(a.photo) status = '<i class="dot ok"></i> Saved to Drive';
+  const img = a.thumb ? `<img src="${a.thumb}" alt="">` : '';
+  return `<button type="button" class="pbtn ${it.photo === 'required' && !a.photo ? 'req' : ''}">${CAM}<span>${label}</span></button>
+          ${img || status ? `<div class="thumb">${img}<small>${status}</small></div>` : ''}`;
+}
+
+function checkReading(it, a, el){
+  el.textContent = ''; el.className = 'hint';
+  const last = chk.d.last[it.item], n = parseFloat(String(a.value || '').replace(',', '.'));
+  if(!last || isNaN(n)) return;
+  const prev = parseFloat(String(last.value).replace(',', '.'));
+  if(isNaN(prev)) return;
+  const days = Math.max(1, Math.round((new Date(chk.d.today) - new Date(last.date)) / 864e5));
+  if(n < prev){ el.textContent = `Lower than the last reading (${last.value}). Please check the meter photo.`; el.className = 'hint warn'; }
+  else if(/hour/i.test(it.item) && n - prev > 24 * days){ el.textContent = `+${(n - prev).toFixed(1)} h in ${days} day${days > 1 ? 's' : ''} — more than 24 h a day. Please check.`; el.className = 'hint warn'; }
+  else el.textContent = `+${(n - prev).toFixed(1)} since last reading`;
+}
+
+function updateChkCount(){
+  if(!chk) return;
+  const need = chk.d.items.filter(it => it.input === 'reading' || !it.weekly);
+  const done = need.filter(it => { const a = chk.ans[it.item]; return it.input === 'reading' ? !!a.value : !!a.v; }).length;
+  $('cDone').textContent = done; $('cTotal').textContent = need.length;
+  $('cBar').style.width = need.length ? (done / need.length * 100) + '%' : 0;
+}
+
+/* photos: shrink on the phone (max 1600 px) before uploading, keep a small thumbnail for the screen */
+function loadImage(file){
+  return new Promise((res, rej) => { const url = URL.createObjectURL(file); const img = new Image(); img.onload = () => { URL.revokeObjectURL(url); res(img); }; img.onerror = rej; img.src = url; });
+}
+function scaled(img, max, q){
+  const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', q);
+}
+$('photoPick').addEventListener('change', async () => {
+  const f = $('photoPick').files[0]; if(!f || !photoFor || !chk) return;
+  const a = chk.ans[photoFor];
+  try{
+    const img = await loadImage(f);
+    a.full = scaled(img, 1600, 0.82); a.thumb = scaled(img, 240, 0.7); a.photo = '';
+  }catch(e){ toast('Could not read that photo'); return; }
+  uploadFor(photoFor);
+});
+async function uploadFor(item){
+  const a = chk.ans[item]; if(!a.full) return;
+  a.up = 'saving'; renderChecklist();
+  try{
+    const r = await api('uploadPhoto', {type: chk.type, unit: chk.unit, kind: item, data: a.full});
+    if(!r.ok) throw new Error(r.error);
+    a.photo = r.url; a.up = ''; delete a.full;
+  }catch(e){ a.up = 'err'; if(session) toast('Photo not uploaded: ' + (e.message || 'no connection')); }
+  saveDraft(); renderChecklist();
+}
+
+$('cUnit').onchange = () => openChecklist(chk.type, $('cUnit').value);
+$('cBack').onclick = () => {
+  if(chk && Object.values(chk.ans).some(a => a.up === 'saving')){ toast('A photo is still uploading…'); return; }
+  showHome();
+};
+
+$('cSubmit').onclick = async () => {
+  const b = $('cSubmit'), note = $('cNote');
+  const ans = chk.ans, missing = [];
+  let firstEl = null;
+  chk.d.items.forEach(it => {
+    const a = ans[it.item]; let bad = false;
+    if(it.input === 'reading'){ if(!a.value){ missing.push(it.item); bad = true; } if(it.photo === 'required' && !a.photo){ missing.push('meter photo'); bad = true; } }
+    else if(!it.weekly && !a.v){ missing.push(it.item); bad = true; }
+    if(a.v === 'fault' && !String(a.note || '').trim()){ missing.push('describe fault: ' + it.item); bad = true; }
+    if(bad && !firstEl) firstEl = document.querySelector(`[data-item="${CSS.escape(it.item)}"]`);
+  });
+  if(Object.values(ans).some(a => a.up === 'saving')){ note.textContent = 'Wait for the photo to finish uploading.'; return; }
+  if(missing.length){
+    note.textContent = missing.length === 1 ? 'Still needed: ' + missing[0] : `${missing.length} items still needed (first: ${missing[0]})`;
+    firstEl && firstEl.scrollIntoView({block:'center', behavior:'smooth'});
+    return;
+  }
+  note.textContent = ''; b.disabled = true; b.textContent = 'Submitting…';
+  const data = {answers: {}};
+  Object.entries(ans).forEach(([k, a]) => data.answers[k] = {v: a.v || '', note: a.note || '', value: a.value || '', photo: a.photo || ''});
+  try{
+    const r = await api('submitCheck', {type: chk.type, unit: chk.unit, data});
+    if(!r.ok) throw new Error(r.error);
+    try{ localStorage.removeItem(draftKey()); }catch(e){}
+    showSubmitted(r.at, r.by, r.status, false);
+    b.className = 'primary green'; b.textContent = r.faults ? `✓ Submitted — ${r.faults} fault${r.faults > 1 ? 's' : ''} reported` : '✓ Submitted — all OK';
+    toast('Daily check saved — thank you');
+    setTimeout(() => showHome(), 2200);
+  }catch(e){
+    b.disabled = false; b.textContent = 'Submit daily check';
+    if(session) note.textContent = 'Could not submit: ' + (e.message || 'no connection');
+  }
 };
 
 /* ---------- sign in / out ---------- */

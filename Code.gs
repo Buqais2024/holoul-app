@@ -50,6 +50,9 @@ function doPost(e) {
       case 'getSheet':    out = withUser(body, u => getSheet(u, body.sheet)); break;
       case 'saveReading': out = withUser(body, u => saveReading(u, body.sheet, body.row, body.value)); break;
       case 'complete':    out = withUser(body, u => completeTask(u, body.sheet)); break;
+      case 'getChecklist': out = withUser(body, u => getChecklist(u, body.type, body.unit)); break;
+      case 'uploadPhoto':  out = withUser(body, u => uploadPhoto(u, body.type, body.unit, body.kind, body.data)); break;
+      case 'submitCheck':  out = withUser(body, u => submitCheck(u, body.type, body.unit, body.data)); break;
       default:            out = { ok: false, error: 'Unknown action' };
     }
   } catch (err) {
@@ -285,6 +288,193 @@ function completedToday(sheetName) {
   return null;
 }
 
+/* ================= Daily equipment checks (Bobcat, later Forklift) =================
+ * Everything lives in Drive folder "Maintenance Data Storage":
+ *   - spreadsheet "Equipment Daily Checks" with tabs
+ *       Units              : Type | Unit No | Active          (e.g. Bobcat | BC1 | Yes)
+ *       <Type> Checklist   : Section | Item | Input | Frequency | Photo | Active
+ *                            Input = Check (tick OK / Fault) or Reading (number)
+ *                            Frequency = Daily or Weekly, Photo = Required / Optional / No
+ *       <Type> Log         : one row per unit per day (re-submitting the same day updates it)
+ *   - folder "Photos/<Type>" with every photo the operators take
+ * Edit the Checklist tab to add / rename / remove items — the app follows it. */
+
+const props = () => PropertiesService.getScriptProperties();
+
+function checksBook() {
+  const id = props().getProperty('CHECKS_SS_ID');
+  if (!id) throw new Error('Daily checks are not set up yet');
+  return SpreadsheetApp.openById(id);
+}
+
+function checkAccess(user, type) {
+  if (user.access.indexOf(type) < 0) throw new Error('You do not have access to ' + type);
+}
+
+function readChecklist(ss, type) {
+  const sh = ss.getSheetByName(type + ' Checklist');
+  if (!sh) throw new Error('No checklist for ' + type);
+  const v = sh.getDataRange().getDisplayValues().slice(1);
+  let section = '';
+  const items = [];
+  v.forEach(r => {
+    const [sec, item, input, freq, photo, active] = r.map(x => String(x).trim());
+    if (sec) section = sec;
+    if (!item || /^no$/i.test(active)) return;
+    items.push({
+      section: section, item: item,
+      input: /^read/i.test(input) ? 'reading' : 'check',
+      weekly: /^week/i.test(freq),
+      photo: /^req/i.test(photo) ? 'required' : /^opt/i.test(photo) ? 'optional' : 'no'
+    });
+  });
+  return items;
+}
+
+function readUnits(ss, type) {
+  const sh = ss.getSheetByName('Units');
+  return sh.getDataRange().getDisplayValues().slice(1)
+    .filter(r => String(r[0]).trim().toLowerCase() === type.toLowerCase() && !/^no$/i.test(String(r[2]).trim()) && String(r[1]).trim())
+    .map(r => String(r[1]).trim());
+}
+
+function logSheet(ss, type) {
+  return ss.getSheetByName(type + ' Log') || (function () {
+    const s = ss.insertSheet(type + ' Log');
+    s.appendRow(LOG_BASE);
+    s.getRange(1, 1, 1, LOG_BASE.length).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff');
+    s.setFrozenRows(1);
+    return s;
+  })();
+}
+const LOG_BASE = ['Timestamp', 'Date', 'Unit', 'User ID', 'Username', 'Operator', 'Status', 'Faults'];
+
+function getChecklist(user, type, unit) {
+  checkAccess(user, type);
+  const ss = checksBook();
+  const items = readChecklist(ss, type);
+  const units = readUnits(ss, type);
+  if (!units.length) throw new Error('No ' + type + ' units listed in the Units tab');
+  unit = units.indexOf(unit) >= 0 ? unit : units[0];
+
+  const log = logSheet(ss, type);
+  const data = log.getDataRange().getDisplayValues();
+  const h = data[0], col = name => h.indexOf(name);
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+
+  let todayEntry = null;
+  const last = {}, weeklyLast = {};
+  for (let i = 1; i < data.length; i++) {
+    const r = data[i];
+    if (r[col('Unit')] !== unit) continue;
+    const date = r[col('Date')];
+    if (date === today) {
+      todayEntry = { at: String(r[col('Timestamp')]).slice(11, 16), by: r[col('Operator')], status: r[col('Status')], values: {} };
+      items.forEach(it => {
+        const c = col(it.item); if (c >= 0) todayEntry.values[it.item] = r[c];
+        const p = col(it.item + ' Photo'); if (p >= 0 && r[p]) todayEntry.values[it.item + ' Photo'] = r[p];
+      });
+      todayEntry.faults = r[col('Faults')];
+      continue;
+    }
+    items.forEach(it => {
+      const c = col(it.item); if (c < 0) return;
+      const val = String(r[c]).trim();
+      if (it.input === 'reading' && val !== '') last[it.item] = { value: val, date: date, by: r[col('Operator')] };
+      if (it.weekly && val === '✓') weeklyLast[it.item] = date;
+    });
+  }
+  return {
+    ok: true, type: type, unit: unit, units: units, items: items,
+    date: Utilities.formatDate(new Date(), TZ, 'EEE d MMM yyyy'), today: today,
+    todayEntry: todayEntry, last: last, weeklyLast: weeklyLast
+  };
+}
+
+function uploadPhoto(user, type, unit, kind, dataUrl) {
+  checkAccess(user, type);
+  const m = String(dataUrl || '').match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
+  if (!m) throw new Error('Not an image');
+  const bytes = Utilities.base64Decode(m[2]);
+  if (bytes.length > 8 * 1024 * 1024) throw new Error('Photo is too large');
+  const safe = s => String(s || '').replace(/[^\w.-]+/g, '-').slice(0, 40);
+  const now = new Date();
+  const name = [safe(unit), Utilities.formatDate(now, TZ, 'yyyy-MM-dd_HHmmss'), safe(kind), safe(user.username)].join('_') + '.jpg';
+  const root = DriveApp.getFolderById(props().getProperty('PHOTOS_FOLDER_ID'));
+  const it = root.getFoldersByName(type);
+  const folder = it.hasNext() ? it.next() : root.createFolder(type);
+  const file = folder.createFile(Utilities.newBlob(bytes, m[1], name));
+  return { ok: true, id: file.getId(), url: file.getUrl(), name: name };
+}
+
+function submitCheck(user, type, unit, data) {
+  checkAccess(user, type);
+  const ss = checksBook();
+  const items = readChecklist(ss, type);
+  const units = readUnits(ss, type);
+  if (units.indexOf(unit) < 0) throw new Error('Unknown unit ' + unit);
+  data = data || {};
+  const ans = data.answers || {};
+
+  // validate on the server too
+  const missing = [];
+  items.forEach(it => {
+    const a = ans[it.item] || {};
+    if (it.input === 'reading') {
+      if (String(a.value || '').trim() === '') missing.push(it.item);
+      if (it.photo === 'required' && !a.photo) missing.push(it.item + ' photo');
+    } else if (!it.weekly && !a.v) missing.push(it.item);
+    if (a.v === 'fault' && !String(a.note || '').trim()) missing.push(it.item + ' (describe the fault)');
+  });
+  if (missing.length) return { ok: false, error: 'Please complete: ' + missing.join(', ') };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const log = logSheet(ss, type);
+    // make sure every checklist item has a column (items added later get new columns at the end)
+    let header = log.getRange(1, 1, 1, Math.max(log.getLastColumn(), 1)).getValues()[0].map(String);
+    const want = LOG_BASE.slice();
+    items.forEach(it => { want.push(it.item); if (it.input === 'reading' && it.photo !== 'no') want.push(it.item + ' Photo'); });
+    want.forEach(name => { if (header.indexOf(name) < 0) { header.push(name); log.getRange(1, header.length).setValue(name).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff'); } });
+
+    const now = new Date();
+    const today = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+    const faults = [];
+    const row = new Array(header.length).fill('');
+    const set = (name, val) => { const c = header.indexOf(name); if (c >= 0) row[c] = val; };
+    items.forEach(it => {
+      const a = ans[it.item] || {};
+      if (it.input === 'reading') {
+        const n = Number(String(a.value).replace(',', '.'));
+        set(it.item, isNaN(n) ? a.value : n);
+        if (a.photo) set(it.item + ' Photo', a.photo);
+      } else {
+        set(it.item, a.v === 'ok' ? '✓' : a.v === 'fault' ? '✗' : '');
+        if (a.v === 'fault') faults.push(it.item + ': ' + String(a.note).trim() + (a.photo ? ' (photo: ' + a.photo + ')' : ''));
+      }
+    });
+    set('Timestamp', Utilities.formatDate(now, TZ, 'yyyy-MM-dd HH:mm'));
+    set('Date', today); set('Unit', unit); set('User ID', user.id); set('Username', user.username); set('Operator', user.name);
+    set('Status', faults.length ? 'Action required (' + faults.length + ')' : 'OK');
+    set('Faults', faults.join('\n'));
+
+    // one row per unit per day: update today's row if it exists
+    const data2 = log.getDataRange().getDisplayValues();
+    const cD = header.indexOf('Date'), cU = header.indexOf('Unit');
+    let target = 0;
+    for (let i = data2.length - 1; i >= 1; i--) if (data2[i][cD] === today && data2[i][cU] === unit) { target = i + 1; break; }
+    if (!target) target = log.getLastRow() + 1;
+    const rng = log.getRange(target, 1, 1, header.length);
+    rng.setNumberFormat('@').setValues([row.map(String)]);
+    log.getRange(target, 1, 1, header.length).setBackground(faults.length ? '#fdecea' : null);
+    return { ok: true, status: faults.length ? 'Action required (' + faults.length + ')' : 'OK', faults: faults.length,
+             at: Utilities.formatDate(now, TZ, 'HH:mm'), by: user.name };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function columnLetter(n) {
   let s = '';
   while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
@@ -323,6 +513,63 @@ function setupThermo() {
   sh.getRange('A2:' + columnLetter(Math.max(sh.getMaxColumns(), 4)) + '2')
     .setBackground('#fff7e6').setFontStyle('italic').setFontColor('#7c5a10');
   Logger.log('Thermo Rec ready: dates in row 1 from column D, "Checked by" in row 2, data from row 3.');
+}
+
+/* ================= One-time: daily checks storage ================= */
+
+/** Creates Drive folder "Maintenance Data Storage" (with a Photos folder) and the
+ *  "Equipment Daily Checks" spreadsheet, pre-filled from form MS-FOR-08-03 (Bob Cat).
+ *  Safe to run twice — it reuses what already exists. */
+function setupDailyChecks() {
+  const p = props();
+  const findOrMake = (parent, name) => { const it = parent.getFoldersByName(name); return it.hasNext() ? it.next() : parent.createFolder(name); };
+  const root = findOrMake(DriveApp.getRootFolder(), 'Maintenance Data Storage');
+  const photos = findOrMake(root, 'Photos');
+  findOrMake(photos, 'Bobcat');
+  p.setProperty('STORAGE_FOLDER_ID', root.getId());
+  p.setProperty('PHOTOS_FOLDER_ID', photos.getId());
+
+  let ss;
+  try { ss = SpreadsheetApp.openById(p.getProperty('CHECKS_SS_ID')); } catch (e) { ss = null; }
+  if (!ss) {
+    ss = SpreadsheetApp.create('Equipment Daily Checks');
+    DriveApp.getFileById(ss.getId()).moveTo(root);
+    p.setProperty('CHECKS_SS_ID', ss.getId());
+  }
+  const head = (sh, n) => sh.getRange(1, 1, 1, n).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff');
+  const list = v => SpreadsheetApp.newDataValidation().requireValueInList(v, true).build();
+
+  let units = ss.getSheetByName('Units');
+  if (!units) {
+    units = ss.getSheets()[0].getName() === 'Sheet1' ? ss.getSheets()[0].setName('Units') : ss.insertSheet('Units');
+    units.getRange(1, 1, 2, 3).setValues([['Type', 'Unit No', 'Active'], ['Bobcat', 'BC1', 'Yes']]);
+    head(units, 3); units.setFrozenRows(1);
+    units.getRange('A2:A200').setDataValidation(list(['Bobcat', 'Forklift']));
+    units.getRange('C2:C200').setDataValidation(list(['Yes', 'No']));
+  }
+
+  if (!ss.getSheetByName('Bobcat Checklist')) {
+    const sh = ss.insertSheet('Bobcat Checklist');
+    const rows = [['Section', 'Item', 'Input', 'Frequency', 'Photo', 'Active']];
+    const add = (sec, items, extra) => items.forEach((it, i) => rows.push([i ? '' : sec, it, 'Check', 'Daily', 'Optional', 'Yes'].map((v, k) => extra && extra[k] !== undefined ? extra[k] : v)));
+    rows.push(['Daily Checks', 'Hour Meter Reading', 'Reading', 'Daily', 'Required', 'Yes']);
+    add('', ['Tyre Conditions', 'Engine Oil Seals', 'Transmission hydraulic leaks', 'Clean filters', 'Loose bolts', 'Cabin Cleanliness', 'Grease as required']);
+    add('Operational Checks', ['Seat belt functional', 'System Gauges', 'Lights', 'Horn / reverse alarm', 'Braking system', 'Water levels']);
+    add('Lubrication', ['Grease Points', 'Gear box oil', 'Battery terminals (greased / secured)', 'Hydraulic Oil']);
+    add('Weekly Checks', ['Clean Belly Guards', 'Wash Down Bobcat'], { 3: 'Weekly' });
+    sh.getRange(1, 1, rows.length, 6).setValues(rows);
+    head(sh, 6); sh.setFrozenRows(1);
+    sh.getRange('C2:C300').setDataValidation(list(['Check', 'Reading']));
+    sh.getRange('D2:D300').setDataValidation(list(['Daily', 'Weekly']));
+    sh.getRange('E2:E300').setDataValidation(list(['Required', 'Optional', 'No']));
+    sh.getRange('F2:F300').setDataValidation(list(['Yes', 'No']));
+    sh.getRange('A2:A300').setFontWeight('bold');
+    [150, 260, 90, 90, 90, 70].forEach((w, i) => sh.setColumnWidth(i + 1, w));
+    sh.getRange(1, 8).setValue('Form MS-FOR-08-03 (Bob Cat daily/weekly check). Check = tick OK or Fault; Reading = number. Add rows to add items; set Active = No to hide one.').setFontStyle('italic').setFontColor('#6b7280');
+  }
+  logSheet(ss, 'Bobcat');
+  Logger.log('Folder: %s', root.getUrl());
+  Logger.log('Sheet:  %s', ss.getUrl());
 }
 
 /* ================= One-time sheet setup (Users) ================= */
