@@ -24,8 +24,10 @@ const RECORD_SHEETS = {
   'Amp Rec':       { layout: 'list',      idCol: 2, descCol: 3, refCol: 4, firstDayCol: 5, dataRow: 3 },
   // A Machine, B Motor/Bearing, C F/B/L/R, D Horizontal/Vertical/Axial, readings from E
   // (row 2 "Checked by" was inserted by setupVibration so row 2 holds the username)
-  'Vibration Rec': { layout: 'vibration', firstDayCol: 5, dataRow: 3, keyCols: 4 }
-  // 'Thermo Rec':  {...}  — next
+  'Vibration Rec': { layout: 'vibration', firstDayCol: 5, dataRow: 3, keyCols: 4 },
+  // A Category, B Subcategory, C Component (Motor, Gearbox, ...). Row 1 date, row 2 checked by, readings from D3.
+  // Generic: any rows added/renamed later in A–C show up automatically.
+  'Thermo Rec':    { layout: 'grouped',   firstDayCol: 4, dataRow: 3, keyCols: 3 }
 };
 
 const MODULES = ['Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Forklift', 'Bobcat'];
@@ -155,7 +157,9 @@ function getSheet(user, sheetName) {
 
   const vals = day.isNew ? [] : sh.getRange(cfg.dataRow, day.col, n, 1).getDisplayValues();
   const valueAt = i => vals[i] ? String(vals[i][0]).trim() : '';
-  const rows = cfg.layout === 'vibration' ? vibrationRows(sh, cfg, n, valueAt) : listRows(sh, cfg, n, valueAt);
+  const rows = cfg.layout === 'vibration' ? vibrationRows(sh, cfg, n, valueAt)
+             : cfg.layout === 'grouped'   ? groupedRows(sh, cfg, n, valueAt)
+             : listRows(sh, cfg, n, valueAt);
 
   return {
     ok: true, sheet: sheetName, layout: cfg.layout,
@@ -203,6 +207,23 @@ function vibrationRows(sh, cfg, n, valueAt) {
       pos: pos.toUpperCase(), posName: POS[pos.toUpperCase()] || pos, dir: dir, dirName: d,
       value: valueAt(i)
     });
+  }
+  return rows;
+}
+
+/** Generic grouped layout (Thermo Rec): A category, B subcategory, C component.
+ *  A and B are filled down (merged cells). A row with B but no C is a single reading. */
+function groupedRows(sh, cfg, n, valueAt) {
+  const left = sh.getRange(cfg.dataRow, 1, n, cfg.keyCols).getDisplayValues();
+  let group = '', item = '';
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const a = String(left[i][0]).trim(), b = String(left[i][1]).trim(), c = String(left[i][2]).trim();
+    if (a) { group = a; item = ''; }
+    if (b) item = b;
+    if (!b && !c) continue;                   // blank line
+    if (!item) continue;                      // point without equipment name
+    rows.push({ row: cfg.dataRow + i, group: group || 'Equipment', item: item, point: c || 'Reading', value: valueAt(i) });
   }
   return rows;
 }
@@ -283,6 +304,25 @@ function setupVibration() {
     .setBackground('#fff7e6').setFontStyle('italic').setFontColor('#7c5a10');
   sh.getRange('D2').setFontWeight('bold').setHorizontalAlignment('right');
   Logger.log('Inserted "Checked by" row 2. Readings now start at row 3.');
+}
+
+/* ================= One-time: Thermo Rec header rows ================= */
+
+/** Makes Thermo Rec match the others: row 1 = labels + dates, row 2 = "Checked by",
+ *  data from row 3, readings from column D. Safe to run twice. */
+function setupThermo() {
+  const sh = readings().getSheetByName('Thermo Rec');
+  if (String(sh.getRange('C2').getDisplayValue()).trim() === 'Checked by') { Logger.log('Already set up'); return; }
+  const top = sh.getRange(1, 1, 3, 3).getDisplayValues();
+  const firstData = top.findIndex(r => r.some(v => String(v).trim() !== '')) + 1;   // 1-based, 0 = none in first 3
+  if (firstData === 1) sh.insertRowsBefore(1, 2);
+  else if (firstData === 2) sh.insertRowBefore(2);
+  // firstData 3 (or later): rows 1–2 already free
+  sh.getRange('A1:C1').setValues([['Category', 'Subcategory', 'Component']]).setFontWeight('bold');
+  sh.getRange('C2').setValue('Checked by').setFontWeight('bold').setHorizontalAlignment('right');
+  sh.getRange('A2:' + columnLetter(Math.max(sh.getMaxColumns(), 4)) + '2')
+    .setBackground('#fff7e6').setFontStyle('italic').setFontColor('#7c5a10');
+  Logger.log('Thermo Rec ready: dates in row 1 from column D, "Checked by" in row 2, data from row 3.');
 }
 
 /* ================= One-time sheet setup (Users) ================= */

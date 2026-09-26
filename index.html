@@ -114,6 +114,8 @@
   .cell > span{font-size:10px;color:var(--muted);letter-spacing:.5px}
   .cell .rin{width:100%;max-width:90px}
   .cell .dot{position:absolute;top:14px;right:-3px;width:10px;height:10px;background:var(--bg)}
+  .gline{grid-template-columns:92px 1fr}
+  .gline .pos b{font-size:14px;line-height:1.2}
   .cell .dot.ok{background:var(--ok)} .cell .dot.edit,.cell .dot.saving{background:var(--edit)} .cell .dot.err{background:var(--err)}
   .foot{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
         background:linear-gradient(to top,var(--bg) 70%,transparent)}
@@ -201,7 +203,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby6cn2Os6fkkireTwP8QJqV
 const MODULES = {
   'Amp Rec':       { sub:'Motor current readings',   ready:true,  icon:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>' },
   'Vibration Rec': { sub:'Bearing & motor vibration', ready:true, icon:'<path d="M2 12h3l2-6 4 12 4-12 2 6h5"/>' },
-  'Thermo Rec':    { sub:'Motor & gearbox temps',                  icon:'<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>' },
+  'Thermo Rec':    { sub:'Motor & gearbox temps',    ready:true,  icon:'<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>' },
   'Forklift':      { sub:'Daily forklift check',                   icon:'<path d="M3 18V8h6l3 6v4M12 18h3M16 4v14h5M3 18h1"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>' },
   'Bobcat':        { sub:'Daily bobcat check',                     icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' }
 };
@@ -278,8 +280,8 @@ async function openRecord(sheet){
     if(!d.ok){ $('rList').innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
     $('rDate').textContent = d.date;
     $('rRefHead').textContent = shortRef(d.refHeader);
-    $('rColHead').classList.toggle('hidden', d.layout === 'vibration');
-    d.layout === 'vibration' ? renderVibration(d.rows) : renderRows(d.rows);
+    $('rColHead').classList.toggle('hidden', d.layout !== 'list');
+    d.layout === 'vibration' ? renderVibration(d.rows) : d.layout === 'grouped' ? renderGrouped(d.rows) : renderRows(d.rows);
     setCompleted(d.completed);
     updateCount();
   }catch(e){
@@ -334,6 +336,34 @@ function renderVibration(rows){
     slot.innerHTML = `<span>${esc(r.dir)}</span><input class="rin" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="${esc(r.machine + ' ' + r.part + ' ' + r.posName + ' ' + r.dirName)}"><i class="dot"></i>`;
     const item = makeItem(r, slot.querySelector('.rin'), slot.querySelector('.dot'));
     item.machineEl = mEl;
+  });
+  if(!rec.items.length) list.innerHTML = '<div class="empty">No rows found in this sheet.</div>';
+}
+
+/* Grouped (Thermo Rec): card per area, one line per equipment, its points (Motor, Gearbox…) side by side */
+function renderGrouped(rows){
+  const list = $('rList'); list.innerHTML = '';
+  list.insertAdjacentHTML('beforeend', '<div class="dirkey">Temperature in °C</div>');
+  let card = null, group = null, line = null, item = null;
+  rows.forEach(r => {
+    if(r.group !== group){
+      group = r.group; item = null;
+      card = document.createElement('div'); card.className = 'mach';
+      card.innerHTML = `<div class="mhead"><b>${esc(r.group)}</b><span class="mcount"></span></div>`;
+      list.appendChild(card);
+    }
+    if(r.item !== item){
+      item = r.item;
+      line = document.createElement('div'); line.className = 'prow gline';
+      line.innerHTML = `<div class="pos"><b>${esc(r.item)}</b></div><div class="cells"></div>`;
+      card.appendChild(line);
+    }
+    const cells = line.querySelector('.cells');
+    const slot = document.createElement('div'); slot.className = 'cell';
+    slot.innerHTML = `<span>${esc(r.point)}</span><input class="rin" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="${esc(r.item + ' ' + r.point)}"><i class="dot"></i>`;
+    cells.appendChild(slot);
+    cells.style.gridTemplateColumns = `repeat(${Math.max(2, cells.children.length)},1fr)`;
+    makeItem(r, slot.querySelector('.rin'), slot.querySelector('.dot')).machineEl = card;
   });
   if(!rec.items.length) list.innerHTML = '<div class="empty">No rows found in this sheet.</div>';
 }
