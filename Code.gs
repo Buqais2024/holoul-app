@@ -20,9 +20,12 @@ const readings = () => SpreadsheetApp.openById(READINGS_ID);
 // Record pages and their layout in "Instrument Reading".
 // Row 1 = date, row 2 = username, readings from DATA_ROW down, one column per day.
 const RECORD_SHEETS = {
-  'Amp Rec': { idCol: 2, descCol: 3, refCol: 4, firstDayCol: 5, dataRow: 3 }   // B, C, D, readings from E
-  // 'Vibration Rec': {...}  — next
-  // 'Thermo Rec':    {...}  — next
+  // A #, B Cable ID, C Description, D Ref value, readings from E
+  'Amp Rec':       { layout: 'list',      idCol: 2, descCol: 3, refCol: 4, firstDayCol: 5, dataRow: 3 },
+  // A Machine, B Motor/Bearing, C F/B/L/R, D Horizontal/Vertical/Axial, readings from E
+  // (row 2 "Checked by" was inserted by setupVibration so row 2 holds the username)
+  'Vibration Rec': { layout: 'vibration', firstDayCol: 5, dataRow: 3, keyCols: 4 }
+  // 'Thermo Rec':  {...}  — next
 };
 
 const MODULES = ['Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Forklift', 'Bobcat'];
@@ -150,10 +153,23 @@ function getSheet(user, sheetName) {
   const n = lastRow - cfg.dataRow + 1;
   if (n < 1) return { ok: true, rows: [] };
 
-  const left = sh.getRange(cfg.dataRow, 1, n, cfg.refCol).getDisplayValues();
   const vals = day.isNew ? [] : sh.getRange(cfg.dataRow, day.col, n, 1).getDisplayValues();
-  const refHeader = sh.getRange(1, cfg.refCol).getDisplayValue() || 'Ref Value';
+  const valueAt = i => vals[i] ? String(vals[i][0]).trim() : '';
+  const rows = cfg.layout === 'vibration' ? vibrationRows(sh, cfg, n, valueAt) : listRows(sh, cfg, n, valueAt);
 
+  return {
+    ok: true, sheet: sheetName, layout: cfg.layout,
+    refHeader: cfg.refCol ? (sh.getRange(1, cfg.refCol).getDisplayValue() || 'Ref Value') : '',
+    date: Utilities.formatDate(new Date(), TZ, 'EEE d MMM yyyy'),
+    column: day.isNew ? null : columnLetter(day.col),
+    completed: completedToday(sheetName),
+    rows: rows
+  };
+}
+
+/** Amp Rec style: one reading per row, section header rows in between. */
+function listRows(sh, cfg, n, valueAt) {
+  const left = sh.getRange(cfg.dataRow, 1, n, cfg.refCol).getDisplayValues();
   const rows = [];
   for (let i = 0; i < n; i++) {
     const r = left[i];
@@ -163,19 +179,32 @@ function getSheet(user, sheetName) {
       if (first) rows.push({ section: first });
       continue;
     }
+    rows.push({ row: cfg.dataRow + i, id: id, desc: desc, ref: String(r[cfg.refCol - 1]).trim(), value: valueAt(i) });
+  }
+  return rows;
+}
+
+/** Vibration style: A machine, B Motor/Bearing, C position, D direction.
+ *  Merged cells only hold the value in their first row, so A–C are filled down. */
+function vibrationRows(sh, cfg, n, valueAt) {
+  const left = sh.getRange(cfg.dataRow, 1, n, cfg.keyCols).getDisplayValues();
+  const POS = { F: 'Front', B: 'Back', L: 'Left', R: 'Right' };
+  let machine = '', part = '', pos = '';
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const a = String(left[i][0]).trim(), b = String(left[i][1]).trim(), c = String(left[i][2]).trim(), d = String(left[i][3]).trim();
+    if (a) { machine = a; part = ''; pos = ''; }
+    if (b) { part = b; pos = ''; }
+    if (c) pos = c;
+    if (!d) continue;                         // blank line
+    const dir = d.charAt(0).toUpperCase();    // H / V / A
     rows.push({
-      row: cfg.dataRow + i, id: id, desc: desc,
-      ref: String(r[cfg.refCol - 1]).trim(),
-      value: vals[i] ? String(vals[i][0]).trim() : ''
+      row: cfg.dataRow + i, machine: machine, part: part,
+      pos: pos.toUpperCase(), posName: POS[pos.toUpperCase()] || pos, dir: dir, dirName: d,
+      value: valueAt(i)
     });
   }
-  return {
-    ok: true, sheet: sheetName, refHeader: refHeader,
-    date: Utilities.formatDate(new Date(), TZ, 'EEE d MMM yyyy'),
-    column: day.isNew ? null : columnLetter(day.col),
-    completed: completedToday(sheetName),
-    rows: rows
-  };
+  return rows;
 }
 
 function saveReading(user, sheetName, row, value) {
@@ -239,6 +268,21 @@ function columnLetter(n) {
   let s = '';
   while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
   return s;
+}
+
+/* ================= One-time: Vibration Rec username row ================= */
+
+/** Inserts a "Checked by" row under the dates (row 2) so it matches Amp Rec:
+ *  row 1 = date, row 2 = username. Safe to run twice — it only inserts once. */
+function setupVibration() {
+  const sh = readings().getSheetByName('Vibration Rec');
+  if (String(sh.getRange('D2').getDisplayValue()).trim() === 'Checked by') { Logger.log('Already set up'); return; }
+  sh.insertRowBefore(2);
+  sh.getRange('A2:D2').setValues([['', '', '', 'Checked by']]);
+  sh.getRange('A2:' + columnLetter(sh.getMaxColumns()) + '2')
+    .setBackground('#fff7e6').setFontStyle('italic').setFontColor('#7c5a10');
+  sh.getRange('D2').setFontWeight('bold').setHorizontalAlignment('right');
+  Logger.log('Inserted "Checked by" row 2. Readings now start at row 3.');
 }
 
 /* ================= One-time sheet setup (Users) ================= */

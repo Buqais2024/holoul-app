@@ -97,6 +97,24 @@
   .dot.saving{background:var(--edit);border-color:var(--edit);animation:pulse .8s infinite alternate}
   .dot.err{background:var(--err);border-color:var(--err);cursor:pointer}
   @keyframes pulse{from{opacity:1}to{opacity:.35}}
+
+  /* Vibration layout: machine > part > position, with H / V / A inputs side by side */
+  .dirkey{font-size:11px;color:var(--muted);padding:12px 4px 2px}
+  .mach{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin:12px 0}
+  .mhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .mhead b{font-size:15px;color:var(--amber)}
+  .mhead span{font-size:12px;color:var(--muted)}
+  .part{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:10px 0 6px}
+  .prow{display:grid;grid-template-columns:62px 1fr;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+  .part + .prow{border-top:0}
+  .pos b{font-size:16px;display:block}
+  .pos small{font-size:11px;color:var(--muted)}
+  .cells{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .cell > span{font-size:10px;color:var(--muted);letter-spacing:.5px}
+  .cell .rin{width:100%;max-width:90px}
+  .cell .dot{position:absolute;top:14px;right:-3px;width:10px;height:10px;background:var(--bg)}
+  .cell .dot.ok{background:var(--ok)} .cell .dot.edit,.cell .dot.saving{background:var(--edit)} .cell .dot.err{background:var(--err)}
   .foot{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
         background:linear-gradient(to top,var(--bg) 70%,transparent)}
   .foot .inner{max-width:520px;margin:0 auto}
@@ -163,7 +181,7 @@
       </div>
       <div class="banner hidden" id="rBanner"></div>
     </div>
-    <div class="colhead"><span>Cable ID / Description</span><span id="rRefHead">Ref</span><span>Reading</span></div>
+    <div class="colhead" id="rColHead"><span>Cable ID / Description</span><span id="rRefHead">Ref</span><span>Reading</span></div>
     <div id="rList"><div class="loading">Loading…</div></div>
     <div class="foot">
       <div class="inner">
@@ -182,7 +200,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby6cn2Os6fkkireTwP8QJqV
 /* Pages. `ready: true` = the record page is built. */
 const MODULES = {
   'Amp Rec':       { sub:'Motor current readings',   ready:true,  icon:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>' },
-  'Vibration Rec': { sub:'Bearing & motor vibration',              icon:'<path d="M2 12h3l2-6 4 12 4-12 2 6h5"/>' },
+  'Vibration Rec': { sub:'Bearing & motor vibration', ready:true, icon:'<path d="M2 12h3l2-6 4 12 4-12 2 6h5"/>' },
   'Thermo Rec':    { sub:'Motor & gearbox temps',                  icon:'<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>' },
   'Forklift':      { sub:'Daily forklift check',                   icon:'<path d="M3 18V8h6l3 6v4M12 18h3M16 4v14h5M3 18h1"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>' },
   'Bobcat':        { sub:'Daily bobcat check',                     icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' }
@@ -260,7 +278,8 @@ async function openRecord(sheet){
     if(!d.ok){ $('rList').innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
     $('rDate').textContent = d.date;
     $('rRefHead').textContent = shortRef(d.refHeader);
-    renderRows(d.rows);
+    $('rColHead').classList.toggle('hidden', d.layout === 'vibration');
+    d.layout === 'vibration' ? renderVibration(d.rows) : renderRows(d.rows);
     setCompleted(d.completed);
     updateCount();
   }catch(e){
@@ -280,22 +299,62 @@ function renderRows(rows){
       <div class="ref">${esc(r.ref)}</div>
       <div class="inwrap"><input class="rin" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Reading for ${esc(r.id)}"><i class="dot"></i></div>`;
     list.appendChild(el);
-    const item = { row: r.row, input: el.querySelector('.rin'), dot: el.querySelector('.dot'), saved: r.value || '', timer: null, busy: false };
-    item.input.value = item.saved;
-    setDot(item, item.saved ? 'ok' : '');
-    item.input.addEventListener('input', () => {
-      clearTimeout(item.timer);
-      if(item.input.value.trim() !== item.saved){ setDot(item, 'edit'); item.timer = setTimeout(() => save(item), 1500); }
-      else setDot(item, item.saved ? 'ok' : '');
-    });
-    item.input.addEventListener('blur', () => { clearTimeout(item.timer); save(item); });
-    item.input.addEventListener('keydown', e => {
-      if(e.key === 'Enter'){ e.preventDefault(); const i = rec.items.indexOf(item); const nx = rec.items[i+1]; nx ? nx.input.focus() : item.input.blur(); }
-    });
-    item.dot.addEventListener('click', () => { if(item.dot.classList.contains('err')) save(item); });
-    rec.items.push(item);
+    makeItem(r, el.querySelector('.rin'), el.querySelector('.dot'));
   });
   if(!rec.items.length) list.innerHTML = '<div class="empty">No rows found in this sheet.</div>';
+}
+
+/* Vibration: group rows by machine > Motor/Bearing > position, with H / V / A side by side */
+function renderVibration(rows){
+  const list = $('rList'); list.innerHTML = '';
+  list.insertAdjacentHTML('beforeend', '<div class="dirkey">H = Horizontal · V = Vertical · A = Axial &nbsp;|&nbsp; F = Front · B = Back · L = Left · R = Right</div>');
+  const DIRS = ['H','V','A'];
+  let mEl = null, mName = null, part = null, prowKey = null, cells = null;
+  rows.forEach(r => {
+    if(r.machine !== mName){
+      mName = r.machine; part = null; prowKey = null;
+      mEl = document.createElement('div'); mEl.className = 'mach';
+      mEl.innerHTML = `<div class="mhead"><b>${esc(r.machine)}</b><span class="mcount"></span></div>`;
+      list.appendChild(mEl);
+    }
+    if(r.part !== part){
+      part = r.part; prowKey = null;
+      mEl.insertAdjacentHTML('beforeend', `<div class="part">${esc(r.part)}</div>`);
+    }
+    if(r.part + r.pos !== prowKey){
+      prowKey = r.part + r.pos;
+      const p = document.createElement('div'); p.className = 'prow';
+      p.innerHTML = `<div class="pos"><b>${esc(r.pos)}</b><small>${esc(r.posName)}</small></div><div class="cells"></div>`;
+      mEl.appendChild(p);
+      cells = p.querySelector('.cells');
+      // fixed H / V / A slots so columns line up; unused slots stay empty
+      DIRS.forEach(dir => { const s = document.createElement('div'); s.className = 'cell'; s.dataset.dir = dir; cells.appendChild(s); });
+    }
+    const slot = cells.querySelector(`[data-dir="${r.dir}"]`) || cells.appendChild(Object.assign(document.createElement('div'), {className:'cell'}));
+    slot.innerHTML = `<span>${esc(r.dir)}</span><input class="rin" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="${esc(r.machine + ' ' + r.part + ' ' + r.posName + ' ' + r.dirName)}"><i class="dot"></i>`;
+    const item = makeItem(r, slot.querySelector('.rin'), slot.querySelector('.dot'));
+    item.machineEl = mEl;
+  });
+  if(!rec.items.length) list.innerHTML = '<div class="empty">No rows found in this sheet.</div>';
+}
+
+/* Shared behaviour for every reading box: auto-save, dots, Enter = next */
+function makeItem(r, input, dot){
+  const item = { row: r.row, input, dot, saved: r.value || '', timer: null, busy: false };
+  input.value = item.saved;
+  setDot(item, item.saved ? 'ok' : '');
+  input.addEventListener('input', () => {
+    clearTimeout(item.timer);
+    if(input.value.trim() !== item.saved){ setDot(item, 'edit'); item.timer = setTimeout(() => save(item), 1500); }
+    else setDot(item, item.saved ? 'ok' : '');
+  });
+  input.addEventListener('blur', () => { clearTimeout(item.timer); save(item); });
+  input.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); const i = rec.items.indexOf(item); const nx = rec.items[i+1]; nx ? nx.input.focus() : input.blur(); }
+  });
+  dot.addEventListener('click', () => { if(dot.classList.contains('err')) save(item); });
+  rec.items.push(item);
+  return item;
 }
 
 function setDot(item, state){ item.dot.className = 'dot' + (state ? ' ' + state : ''); }
@@ -325,6 +384,10 @@ function updateCount(){
   const total = rec.items.length, done = rec.items.filter(i => i.saved !== '').length;
   $('rDone').textContent = done; $('rTotal').textContent = total;
   $('rBar').style.width = total ? (done / total * 100) + '%' : 0;
+  // per-machine counter on the vibration page
+  const per = new Map();
+  rec.items.forEach(i => { if(!i.machineEl) return; const c = per.get(i.machineEl) || [0,0]; c[1]++; if(i.saved !== '') c[0]++; per.set(i.machineEl, c); });
+  per.forEach((c, el) => { const s = el.querySelector('.mcount'); s.textContent = `${c[0]} / ${c[1]}`; s.style.color = c[0] === c[1] ? 'var(--ok)' : ''; });
 }
 
 function setCompleted(c){
