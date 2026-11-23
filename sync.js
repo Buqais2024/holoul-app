@@ -51,7 +51,7 @@
     async all() { const ops = (await run('outbox', 'readonly', s => s.getAll())) || []; return ops.sort((a, b) => a.seq - b.seq); },
     get: id => run('outbox', 'readonly', s => s.get(id)),
     /** Adds or replaces a change (same id = same reading, only the newest value is kept). */
-    async put(op) { op.seq = nextSeq(); op.failed = ''; op.at = Date.now(); await run('outbox', 'readwrite', s => s.put(op)); changed(); return op; },
+    async put(op) { op.seq = nextSeq(); op.failed = ''; op.queuedAt = Date.now(); await run('outbox', 'readwrite', s => s.put(op)); changed(); return op; },
     async remove(id) { await run('outbox', 'readwrite', s => s.delete(id)); changed(); },
     async removeFailed(username) {
       const ops = await this.all();
@@ -227,6 +227,7 @@
         }
         for (const p of batch) {                     // older server: one request per change
           const body = Object.assign({}, p.payload); delete body.id;
+          if (body.action === 'taskUpdate') body.id = body.task;
           const r = await send(session, body, TIMEOUT.read);
           session = r.session;
           await handle(p.op, r.res);
@@ -244,7 +245,12 @@
   /** What gets sent for one change. Daily checks get the Drive links of photos uploaded before them. */
   async function prepare(op) {
     const payload = { id: op.id, action: op.action, date: op.date };
-    ['sheet', 'row', 'value', 'type', 'unit'].forEach(k => { if (op[k] !== undefined) payload[k] = op[k]; });
+    ['sheet', 'row', 'value', 'type', 'unit', 'task', 'status', 'note', 'photo', 'at'].forEach(k => { if (op[k] !== undefined) payload[k] = op[k]; });
+    if (op.action === 'taskUpdate' && String(op.photo || '').indexOf('local:') === 0) {      // task photo taken on the phone
+      const pid = String(op.photo).slice(6), url = await kv.get('photo:' + pid);
+      if (url) payload.photo = url;
+      else { const pending = await outbox.get(pid); if (pending && !pending.failed) return null; payload.photo = ''; }
+    }
     if (op.action === 'submitCheck') {
       const data = JSON.parse(JSON.stringify(op.data || {}));
       const ans = data.answers || {};

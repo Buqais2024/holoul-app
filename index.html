@@ -276,6 +276,54 @@
   html[dir="rtl"] .danger svg{transform:scaleX(-1)}
   .sfoot{text-align:center;color:var(--muted);font-size:11px;padding-top:6px;direction:ltr}
 
+  /* ---------- tasks ---------- */
+  .pushban{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .pushban svg{width:22px;height:22px;stroke:var(--accent);flex:none}
+  .pushban span{flex:1;font-size:13px;color:var(--text);line-height:1.4}
+  .pushban button{border:0;background:var(--brand);color:#fff;border-radius:10px;height:36px;padding:0 12px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+  .h3row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .h3row h3{margin:0}
+  .tcount{font-size:12px;color:var(--muted)}
+  #taskCount{background:var(--brand);color:#fff;border-radius:999px;min-width:22px;height:22px;display:inline-grid;place-items:center;font-weight:700;padding:0 6px}
+  #taskCount:empty{display:none}
+  #taskBox{margin-bottom:22px}
+  .task{display:flex;gap:12px;align-items:center;width:100%;text-align:start;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;cursor:pointer;box-shadow:var(--shadow);color:var(--text)}
+  .task .pr{width:4px;align-self:stretch;border-radius:4px;background:var(--line);flex:none}
+  .pr.High{background:var(--edit)} .pr.Urgent{background:var(--err)} .pr.Low{background:var(--muted);opacity:.4}
+  .task .tb{flex:1;min-width:0}
+  .task b{display:block;font-size:15px;line-height:1.3}
+  .task small{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+  .late{color:var(--err);font-weight:600}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap;background:var(--panel2);color:var(--muted);border:1px solid var(--line);flex:none}
+  .chip.Open{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+  .chip.In-progress{background:color-mix(in srgb,var(--local) 13%,transparent);color:var(--local);border-color:transparent}
+  .chip.Done{background:var(--ok-bg);color:var(--ok-text);border-color:transparent}
+  .chip.Cancelled{text-decoration:line-through}
+  .chip.new{background:var(--brand);color:#fff}
+  .chip.new::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .chip.prio.High{color:var(--edit)} .chip.prio.Urgent{color:#fff;background:var(--err);border-color:transparent}
+  .chip.wait{background:none;border:0;color:var(--local);padding:3px 0}
+  .donemore{font-size:13px;color:var(--muted);background:none;border:0;cursor:pointer;padding:6px 2px;margin-bottom:6px}
+  .tdetail h2{font-size:19px;line-height:1.35;margin:4px 0 10px}
+  .tmeta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .tinfo{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;margin:0 0 12px}
+  .tinfo dt{color:var(--muted)} .tinfo dd{margin:0}
+  .tdesc{white-space:pre-wrap;font-size:14px;line-height:1.5;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px}
+  .tact{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .tact textarea{width:100%;min-height:76px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;font-size:15px;padding:10px;outline:none;resize:vertical}
+  .tact textarea:focus{border-color:var(--brand)}
+  .tact a{color:var(--accent);font-weight:600;font-size:14px}
+  .linkbtn{display:flex;align-items:center;justify-content:center;gap:8px;height:46px;border-radius:12px;border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:700;cursor:pointer;width:100%}
+  .tphoto img{max-width:100%;max-height:220px;border-radius:12px;border:1px solid var(--line)}
+  .pushrow{display:flex;gap:8px}
+  @media (min-width: 768px){
+    .modal{align-items:center}
+    .modal .sheet{border-radius:20px;max-width:560px;transform:translateY(24px);opacity:0;transition:transform .22s,opacity .22s}
+    .modal.open .sheet{transform:none;opacity:1}
+    .grab{display:none}
+  }
+  body.is-dash{padding:0}
+
   /* ---------- upload status ---------- */
   .sync{display:inline-flex;align-items:center;gap:7px;border:0;cursor:pointer;font-size:12px;border-radius:999px;padding:6px 11px;margin-top:12px;position:relative}
   .sync i{width:8px;height:8px;border-radius:50%;flex:none;background:currentColor}
@@ -357,6 +405,15 @@
       </div>
       <button type="button" class="sync hidden" id="homeSync"><i></i><span></span></button>
     </div>
+    <div class="pushban hidden" id="pushBanner">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span id="pushBannerTxt"></span>
+      <button type="button" id="pushBannerBtn" data-i18n="pushEnable">Turn on notifications</button>
+    </div>
+    <div id="taskBox" class="hidden">
+      <div class="h3row"><h3 data-i18n="myTasks">My tasks</h3><span class="tcount" id="taskCount"></span></div>
+      <div id="taskList"></div>
+    </div>
     <h3 data-i18n="yourAccess">Your access</h3>
     <div class="grid" id="tiles"></div>
   </section>
@@ -416,6 +473,9 @@
 
 </div>
 
+<!-- DASHBOARD (supervisor / operations manager) — drawn by dash.js -->
+<section id="dash" class="hidden"></section>
+
 <!-- SETTINGS POP-UP -->
 <div class="modal" id="settings" aria-hidden="true">
   <div class="scrim" id="setScrim"></div>
@@ -447,6 +507,15 @@
         </button>
       </div>
     </div>
+    <div class="sgroup hidden" id="setPush">
+      <label data-i18n="pushTitle">Notifications</label>
+      <div class="sstate" id="pushState"></div>
+      <div class="pushrow">
+        <button type="button" class="ghostbtn" id="pushOnBtn" data-i18n="pushEnable">Turn on notifications</button>
+        <button type="button" class="ghostbtn hidden" id="pushTestBtn" data-i18n="pushTest">Send a test</button>
+      </div>
+      <div class="pendnote" id="pushHint"></div>
+    </div>
     <div class="sgroup hidden" id="setData">
       <label data-i18n="dataOnPhone">Data on this phone</label>
       <div class="sstate" id="syncState"></div>
@@ -461,14 +530,26 @@
         <span data-i18n="signOut">Sign out</span>
       </button>
     </div>
-    <div class="sfoot">Holoul Maintenance · v9</div>
+    <div class="sfoot">Holoul Maintenance · v10</div>
+  </div>
+</div>
+
+<!-- TASK DETAILS POP-UP -->
+<div class="modal" id="taskModal" aria-hidden="true">
+  <div class="scrim" id="taskScrim"></div>
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="grab"></div>
+    <div class="shead"><span class="tcount" id="taskId"></span>
+      <button class="iconbtn sm" id="taskClose" aria-label="Close" data-i18n-aria="close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div id="taskBody" class="tdetail"></div>
   </div>
 </div>
 
 <input type="file" id="photoPick" accept="image/*" class="hidden">
 <div class="toast" id="toast"></div>
 
-<script src="sync.js?v=9"></script>
+<script src="sync.js?v=10"></script>
 <script>
 const HS = window.HoloulSync;
 
@@ -478,7 +559,9 @@ const MODULES = {
   'Vibration Rec': { ready:true,  icon:'<path d="M2 12h3l2-6 4 12 4-12 2 6h5"/>' },
   'Thermo Rec':    { ready:true,  icon:'<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>' },
   'Forklift':      {              icon:'<path d="M3 18V8h6l3 6v4M12 18h3M16 4v14h5M3 18h1"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>' },
-  'Bobcat':        { checklist:true, icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' }
+  'Bobcat':        { checklist:true, icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' },
+  'Dashboard':     { dash:'overview', icon:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>' },
+  'Tasks':         { dash:'tasks', icon:'<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/>' }
 };
 
 /* ---------- language ---------- */
@@ -535,6 +618,19 @@ const I18N = {
     'mod.Thermo Rec':'Thermo Rec', 'sub.Thermo Rec':'Motor & gearbox temps',
     'mod.Forklift':'Forklift', 'sub.Forklift':'Daily forklift check',
     'mod.Bobcat':'Bobcat', 'sub.Bobcat':'Daily bobcat check',
+    myTasks:'My tasks', noTasks:'No tasks right now', taskNew:'New',
+    'status.Open':'Not started', 'status.In progress':'In progress', 'status.Done':'Done', 'status.Cancelled':'Cancelled',
+    'prio.Low':'Low', 'prio.Normal':'Normal', 'prio.High':'High', 'prio.Urgent':'Urgent',
+    overdue:'Overdue', dueToday:'Due today', dueOn:'Due {d}', due:'Due', doneAt:'Done {d}', doneRecently:'Done recently ({n})',
+    assignedBy:'Assigned by', startedLabel:'Started', doneLabel:'Done', openPage:'Open {p}', start:'Start', markDone:'Mark as done',
+    confirmDone:'Confirm done', doneNote:'What was done? (optional)', openPhoto:'Open photo', taskStarted:'Task started', taskDoneToast:'Task done — thank you',
+    pushTitle:'Notifications', pushOn:'On for this phone', pushOff:'Off — you will not be alerted about new tasks',
+    pushBlocked:'Blocked — allow notifications for this app in the phone settings', pushUnsupported:'This browser cannot show notifications',
+    pushIos:'iPhone: add the app to the Home Screen first (Share → Add to Home Screen), then open it from the icon.',
+    pushEnable:'Turn on notifications', pushTest:'Send a test', pushTestSent:'Test sent — it should arrive in a few seconds', pushTestNone:'No phone is registered yet',
+    pushBanner:'Turn on notifications to know when a new task arrives', pushNeedOnline:'Needs internet to turn on', pushOnToast:'Notifications are on',
+    'mod.Dashboard':'Dashboard', 'sub.Dashboard':'Today, team, monthly summary', 'mod.Tasks':'Tasks', 'sub.Tasks':'Assign and follow up',
+    'role.Supervisor':'Supervisor', 'role.Operations Manager':'Operations Manager',
     'role.Maintenance Technician':'Maintenance Technician', 'role.Operator':'Operator'
   },
   ar: {
@@ -587,6 +683,19 @@ const I18N = {
     'mod.Thermo Rec':'قراءات الحرارة', 'sub.Thermo Rec':'حرارة المحركات وعلب التروس',
     'mod.Forklift':'الرافعة الشوكية', 'sub.Forklift':'الفحص اليومي للرافعة الشوكية',
     'mod.Bobcat':'البوبكات', 'sub.Bobcat':'الفحص اليومي للبوبكات',
+    myTasks:'مهامي', noTasks:'لا توجد مهام حالياً', taskNew:'جديدة',
+    'status.Open':'لم تبدأ', 'status.In progress':'قيد التنفيذ', 'status.Done':'منجزة', 'status.Cancelled':'ملغاة',
+    'prio.Low':'منخفضة', 'prio.Normal':'عادية', 'prio.High':'عالية', 'prio.Urgent':'عاجلة',
+    overdue:'متأخرة', dueToday:'مطلوبة اليوم', dueOn:'مطلوبة {d}', due:'الموعد', doneAt:'أُنجزت {d}', doneRecently:'أُنجزت مؤخراً ({n})',
+    assignedBy:'أسندها', startedLabel:'بدأت', doneLabel:'أُنجزت', openPage:'افتح {p}', start:'ابدأ', markDone:'تم الإنجاز',
+    confirmDone:'تأكيد الإنجاز', doneNote:'ماذا تم؟ (اختياري)', openPhoto:'عرض الصورة', taskStarted:'بدأت المهمة', taskDoneToast:'تم إنجاز المهمة — شكراً',
+    pushTitle:'الإشعارات', pushOn:'مفعّلة على هذا الجوال', pushOff:'غير مفعّلة — لن يصلك تنبيه بالمهام الجديدة',
+    pushBlocked:'محظورة — اسمح بالإشعارات لهذا التطبيق من إعدادات الجوال', pushUnsupported:'هذا المتصفح لا يدعم الإشعارات',
+    pushIos:'آيفون: أضف التطبيق للشاشة الرئيسية أولاً (مشاركة ← إضافة إلى الشاشة الرئيسية) ثم افتحه من الأيقونة.',
+    pushEnable:'تفعيل الإشعارات', pushTest:'إرسال تجربة', pushTestSent:'تم إرسال التجربة — ستصل خلال ثوانٍ', pushTestNone:'لا يوجد جوال مسجّل بعد',
+    pushBanner:'فعّل الإشعارات لتعرف عند وصول مهمة جديدة', pushNeedOnline:'يحتاج إنترنت للتفعيل', pushOnToast:'تم تفعيل الإشعارات',
+    'mod.Dashboard':'لوحة التحكم', 'sub.Dashboard':'اليوم والفريق والملخص الشهري', 'mod.Tasks':'المهام', 'sub.Tasks':'إسناد ومتابعة',
+    'role.Supervisor':'مشرف', 'role.Operations Manager':'مدير التشغيل',
     'role.Maintenance Technician':'فني صيانة', 'role.Operator':'مشغّل'
   }
 };
@@ -666,8 +775,11 @@ function applyLang(lang){
   document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
   document.querySelectorAll('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === LANG));
   document.title = LANG === 'ar' ? 'صيانة حلول' : 'Holoul Maintenance';
+  HS.kv.set('lang', LANG).catch(()=>{});   // notifications use the same language
   // redraw what is on screen
-  if(session && !$('home').classList.contains('hidden')) showHome();
+  if(session && !$('home').classList.contains('hidden')) showHome(true);
+  if(session && !$('dash').classList.contains('hidden') && window.HoloulDash) HoloulDash.render();
+  if(openTaskId) renderTaskSheet();
   syncUI();
 }
 
@@ -743,6 +855,8 @@ async function refreshPending(){
   }catch(e){}
   if(rec) paintAllDots();
   if(chk && !$('chk').classList.contains('hidden')) renderChecklist();
+  if(session && !$('home').classList.contains('hidden')) renderTasks();
+  if(openTaskId && !taskDraft) renderTaskSheet();
   syncUI();
 }
 
@@ -793,6 +907,8 @@ function prefetch(force){
       const r = await HS.api('getAll', {}, HS.TIMEOUT.read * 2);
       if(r && r.ok){
         lastPrefetch = Date.now(); authLost = false;
+        if(r.pushKey) HS.kv.set('pushKey', r.pushKey).catch(()=>{});
+        if(Array.isArray(r.tasks) && isAssignee()) await saveTasks(overlayTasks(r.tasks));
         if(r.user && session && r.user.username === session.user.username){
           const changed = JSON.stringify(r.user.access) !== JSON.stringify(session.user.access) || r.user.name !== session.user.name;
           session.user = Object.assign({}, session.user, r.user); store.set(session);
@@ -913,13 +1029,17 @@ function syncTap(){
 
 /* ---------- views ---------- */
 function showView(v){
-  ['login','home','rec','chk'].forEach(id => $(id).classList.toggle('hidden', id !== v));
+  ['login','home','rec','chk','dash'].forEach(id => $(id).classList.toggle('hidden', id !== v));
+  document.querySelector('.wrap').classList.toggle('hidden', v === 'dash');
+  document.body.classList.toggle('is-dash', v === 'dash');
   window.scrollTo(0,0);
 }
 
-function showHome(){
+/** Home: supervisors / operations manager on a computer get the dashboard; everyone else the app. */
+function showHome(appView){
   const u = session.user;
   rec = null; chk = null;
+  if(!appView && isManagerUser() && DESKTOP.matches){ openDash(); return; }
   showView('home');
   $('uName').textContent = u.name;
   $('uDate').textContent = longDate();
@@ -941,9 +1061,10 @@ function showHome(){
     b.innerHTML = `<svg class="go" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
                    <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m.icon}</svg></div>
                    <div><b>${esc(modName(name))}</b><span>${esc(modSub(name))}</span></div>`;
-    b.onclick = () => m.checklist ? openChecklist(name) : m.ready ? openRecord(name) : toast(t('comingNext', {name: modName(name)}));
+    b.onclick = () => m.dash ? openDash(m.dash) : m.checklist ? openChecklist(name) : m.ready ? openRecord(name) : toast(t('comingNext', {name: modName(name)}));
     tl.appendChild(b);
   });
+  renderTasks(); pushUI(); setBadge();
 }
 
 /* ---------- record page ---------- */
@@ -1385,7 +1506,14 @@ function scaled(img, max, q){
   c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
   return c.toDataURL('image/jpeg', q);
 }
+let photoTarget = null;   // set by the task "Done" photo button
 $('photoPick').addEventListener('change', async () => {
+  if(photoTarget){
+    const fn = photoTarget, file = $('photoPick').files[0]; photoTarget = null;
+    if(!file) return;
+    try{ const img = await loadImage(file); await fn(scaled(img, 1600, 0.82), scaled(img, 240, 0.7)); }catch(e){ toast(t('cantReadPhoto')); }
+    return;
+  }
   const f = $('photoPick').files[0]; if(!f || !photoFor || !chk) return;
   const item = photoFor, a = chk.ans[item], c = chk;
   let full, thumb;
@@ -1461,6 +1589,7 @@ async function startSession(s, u, p, offline){
   if(!$('auto').checked) $('pin').value = '';
   if(!offline) HS.rememberAuth(u, p, s.user);   // allows signing in later without network
   await refreshPending();
+  await loadTasks();
   showHome();
   runFlush();
   prefetch(true);
@@ -1499,14 +1628,17 @@ $('form').addEventListener('submit', async ev => {
 $('auto').addEventListener('change', () => { if(!$('auto').checked){ remember.clear(); $('pin').value = ''; } });
 
 function signOut(keepUser){
-  closeSettings();
+  closeSettings(); closeTask();
+  pushSignOut(session);           // this phone stops getting this person's notifications
+  myTaskList = []; renderTasks(); setBadge();
+  if(window.HoloulDash) HoloulDash.reset();
   store.clear(); session = null; rec = null; chk = null; signedOut.set(true);
   HS.setMemCred(null);
   pend = new Map();
   fillRemembered();            // keep the saved user filled in, but don't sign in again by itself
   $('msg').textContent = '';
   showView('login');
-  syncUI();
+  syncUI(); pushUI();
 }
 $('logout').onclick = () => signOut();
 
@@ -1515,6 +1647,278 @@ function fillRemembered(){
   $('auto').checked = !!saved;
   if(saved){ $('username').value = saved.u; $('pin').value = saved.p; }
 }
+
+/* ---------- device + role ---------- */
+const DESKTOP = window.matchMedia ? matchMedia('(min-width: 1024px)') : { matches: false };
+const isManagerUser = () => !!(session && session.user && (session.user.manager || /^(Supervisor|Operations Manager)$/.test(session.user.role)));
+const isAssignee = () => !!(session && session.user && /^(Maintenance Technician|Operator)$/.test(session.user.role));
+try{ DESKTOP.addEventListener('change', () => { if(session && isManagerUser() && (!$('home').classList.contains('hidden') || !$('dash').classList.contains('hidden'))) showHome(); }); }catch(e){}
+
+/* dashboard (supervisor / operations manager): dash.js is only downloaded for them */
+let dashLoading = null;
+function loadDash(){
+  if(window.HoloulDash) return Promise.resolve(window.HoloulDash);
+  if(!dashLoading) dashLoading = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = 'dash.js?v=10';
+    s.onload = () => res(window.HoloulDash); s.onerror = () => { dashLoading = null; rej(new Error('dash')); };
+    document.head.appendChild(s);
+  });
+  return dashLoading;
+}
+async function openDash(section){
+  try{ const D = await loadDash(); D.open(section || 'overview'); }
+  catch(e){ toast(t('noConnFirst')); if(!DESKTOP.matches) showHome(true); }
+}
+
+/* ---------- my tasks (technicians / operators) ---------- */
+let myTaskList = [], showDone = false, seenTasks = new Set();
+const tasksKey = () => `tasks:${me()}`;
+const STATUS_CLASS = s => String(s || 'Open').replace(/\s+/g, '-');
+const fmtStamp = s => {   // '2026-11-23 09:10' or ISO -> '23 Nov 09:10'
+  if(!s) return '';
+  const d = /T/.test(s) ? new Date(s) : new Date(String(s).replace(' ', 'T') + ':00+03:00');
+  if(isNaN(d)) return s;
+  try{ return d.toLocaleString(LANG === 'ar' ? 'ar-u-nu-latn-ca-gregory' : 'en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Riyadh'}); }catch(e){ return s; }
+};
+const dueText = d => d === todayISO() ? t('dueToday') : t('dueOn', {d: shortDate(d)});
+const isLate = tk => (tk.status === 'Open' || tk.status === 'In progress') && tk.due && tk.due < todayISO();
+const taskWaiting = tk => [...pend.values()].some(o => o.action === 'taskUpdate' && o.task === tk.id && !o.failed);
+
+async function loadTasks(){
+  try{
+    const c = await HS.kv.get(tasksKey()); myTaskList = overlayTasks((c && c.tasks) || []);
+    seenTasks = new Set((await HS.kv.get(`seen:${me()}`)) || []);
+  }catch(e){}
+  renderTasks();
+}
+async function saveTasks(list){
+  myTaskList = list;
+  try{ await HS.kv.set(tasksKey(), {tasks: list, at: Date.now()}); }catch(e){}
+  renderTasks(); setBadge();
+}
+let taskFetch = null;
+function refreshTasks(){
+  if(!session || !isAssignee()) return Promise.resolve();
+  if(!taskFetch) taskFetch = HS.api('myTasks').then(r => { if(r && r.ok) return saveTasks(overlayTasks(r.tasks || [])); })
+    .catch(e => { if(e.auth){ authLost = true; syncUI(); } }).finally(() => { taskFetch = null; });
+  return taskFetch;
+}
+/** changes made on this phone that are still waiting to upload */
+function overlayTasks(list){
+  const ops = [...pend.values()].filter(o => o.action === 'taskUpdate');
+  return list.map(tk => { ops.filter(o => o.task === tk.id).sort((a, b) => a.seq - b.seq).forEach(o => applyTaskOp(tk, o)); return tk; });
+}
+function applyTaskOp(tk, o){
+  if(tk.status === 'Cancelled') return tk;
+  if(o.status === 'In progress' && tk.status === 'Open'){ tk.status = 'In progress'; tk.started = o.at; }
+  if(o.status === 'Done'){ tk.status = 'Done'; if(!tk.started) tk.started = o.at; tk.done = tk.done || o.at; tk.doneNote = o.note; tk.donePhoto = o.photo; }
+  tk.waiting = true;
+  return tk;
+}
+function setBadge(){
+  try{
+    const n = myTaskList.filter(tk => tk.status === 'Open' || tk.status === 'In progress').length;
+    if(navigator.setAppBadge) n ? navigator.setAppBadge(n) : navigator.clearAppBadge();
+  }catch(e){}
+}
+
+function taskCard(tk){
+  const meta = [];
+  if(tk.equipment) meta.push(esc(tk.equipment));
+  if(tk.due && tk.status !== 'Done') meta.push(isLate(tk) ? `<span class="late">${esc(t('overdue'))} · ${esc(shortDate(tk.due))}</span>` : esc(dueText(tk.due)));
+  if(tk.status === 'Done' && tk.done) meta.push(esc(t('doneAt', {d: fmtStamp(tk.done)})));
+  const isNew = tk.status === 'Open' && !seenTasks.has(tk.id);
+  const chip = taskWaiting(tk) ? `<span class="chip wait">${esc(t('savedOnPhone'))}</span>`
+             : `<span class="chip ${STATUS_CLASS(tk.status)}${isNew ? ' new' : ''}">${esc(isNew ? t('taskNew') : t('status.' + tk.status))}</span>`;
+  return `<button type="button" class="task" data-task="${esc(tk.id)}"><i class="pr ${esc(tk.priority)}"></i>
+    <div class="tb"><b>${esc(tk.title)}</b>${meta.length ? `<small>${meta.join(' · ')}</small>` : ''}</div>${chip}</button>`;
+}
+function renderTasks(){
+  const box = $('taskBox');
+  if(!session || !isAssignee()){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const active = myTaskList.filter(tk => tk.status === 'Open' || tk.status === 'In progress');
+  const done = myTaskList.filter(tk => tk.status === 'Done');
+  $('taskCount').textContent = active.length ? String(active.length) : '';
+  let html = active.length ? active.map(taskCard).join('') : `<div class="empty">${esc(t('noTasks'))}</div>`;
+  if(done.length){
+    html += `<button type="button" class="donemore" id="doneToggle">${esc(t('doneRecently', {n: done.length}))} ${showDone ? '▴' : '▾'}</button>`;
+    if(showDone) html += done.map(taskCard).join('');
+  }
+  $('taskList').innerHTML = html;
+  $('taskList').querySelectorAll('[data-task]').forEach(b => b.onclick = () => openTask(b.dataset.task));
+  const dt = $('doneToggle'); if(dt) dt.onclick = () => { showDone = !showDone; renderTasks(); };
+}
+
+/* task details pop-up */
+let openTaskId = null, taskDraft = null;
+function openTask(id){
+  const tk = myTaskList.find(x => x.id === id);
+  if(!tk) return;
+  openTaskId = id; taskDraft = null;
+  if(!seenTasks.has(id)){ seenTasks.add(id); HS.kv.set(`seen:${me()}`, [...seenTasks]).catch(()=>{}); }
+  renderTaskSheet();
+  $('taskModal').classList.add('open'); $('taskModal').setAttribute('aria-hidden', 'false');
+  renderTasks();
+}
+function closeTask(){ $('taskModal').classList.remove('open'); $('taskModal').setAttribute('aria-hidden', 'true'); openTaskId = null; taskDraft = null; }
+$('taskClose').onclick = closeTask; $('taskScrim').onclick = closeTask;
+
+function photoHtml(url, thumb){
+  if(thumb) return `<div class="tphoto"><img src="${thumb}" alt=""></div>`;
+  if(/^https?:/.test(url || '')) return `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(t('openPhoto'))}</a>`;
+  if(String(url || '').indexOf('local:') === 0) return `<small class="tcount">${esc(t('photoLocal'))}</small>`;
+  return '';
+}
+function renderTaskSheet(){
+  const tk = myTaskList.find(x => x.id === openTaskId);
+  if(!tk){ closeTask(); return; }
+  $('taskId').textContent = tk.id;
+  const info = [];
+  if(tk.equipment) info.push([t('equipment'), esc(tk.equipment)]);
+  if(tk.due) info.push([t('due'), isLate(tk) ? `<span class="late">${esc(shortDate(tk.due))} · ${esc(t('overdue'))}</span>` : esc(shortDate(tk.due))]);
+  info.push([t('assignedBy'), esc(tk.creatorName || tk.createdBy) + ' · ' + esc(fmtStamp(tk.created))]);
+  if(tk.started) info.push([t('startedLabel'), esc(fmtStamp(tk.started))]);
+  if(tk.done) info.push([t('doneLabel'), esc(fmtStamp(tk.done))]);
+  let actions = '';
+  const link = tk.link && MODULES[tk.link] ? `<button type="button" class="linkbtn" id="taskLink">${esc(t('openPage', {p: modName(tk.link)}))}</button>` : '';
+  if(tk.status === 'Open') actions = `${link}<button type="button" class="primary" id="taskStart">${esc(t('start'))}</button>`;
+  else if(tk.status === 'In progress'){
+    if(!taskDraft) actions = `${link}<button type="button" class="primary green" id="taskDoneOpen">${esc(t('markDone'))}</button>`;
+    else actions = `<textarea id="taskNote" placeholder="${esc(t('doneNote'))}">${esc(taskDraft.note || '')}</textarea>
+      <button type="button" class="pbtn" id="taskPhoto">${CAM}<span>${esc(taskDraft.photo ? t('photoRetake') : t('photoOptional'))}</span></button>
+      ${taskDraft.thumb ? `<div class="thumb"><img src="${taskDraft.thumb}" alt=""></div>` : ''}
+      <button type="button" class="primary green" id="taskDoneOk">${esc(t('confirmDone'))}</button>`;
+  } else if(tk.status === 'Done'){
+    actions = (tk.doneNote ? `<div class="tdesc">${esc(tk.doneNote)}</div>` : '') + photoHtml(tk.donePhoto) + link;
+  }
+  $('taskBody').innerHTML = `<div class="tmeta"><span class="chip ${STATUS_CLASS(tk.status)}">${esc(t('status.' + tk.status))}</span>
+      <span class="chip prio ${esc(tk.priority)}">${esc(t('prio.' + tk.priority))}</span>${taskWaiting(tk) ? `<span class="chip wait">${esc(t('savedOnPhone'))}</span>` : ''}</div>
+    <h2>${esc(tk.title)}</h2>
+    <dl class="tinfo">${info.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${b}</dd>`).join('')}</dl>
+    ${tk.details ? `<div class="tdesc">${esc(tk.details)}</div>` : ''}
+    <div class="tact">${actions}</div>`;
+  const on = (id, fn) => { const el = $(id); if(el) el.onclick = fn; };
+  on('taskLink', () => { closeTask(); const m = MODULES[tk.link]; m.checklist ? openChecklist(tk.link) : openRecord(tk.link); });
+  on('taskStart', () => updateTask(tk, {status: 'In progress'}));
+  on('taskDoneOpen', () => { taskDraft = {note: '', photo: '', thumb: ''}; renderTaskSheet(); setTimeout(() => $('taskNote') && $('taskNote').focus(), 50); });
+  const note = $('taskNote'); if(note) note.oninput = () => { taskDraft.note = note.value; };
+  on('taskPhoto', () => {
+    photoTarget = async (full, thumb) => {
+      const id = 'p|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      await queue({id, action:'uploadPhoto', type:'Tasks', unit: tk.id, kind:'done', data: full, date: todayISO()});
+      const old = String(taskDraft && taskDraft.photo || '');
+      if(old.indexOf('local:') === 0 && pend.has(old.slice(6))){ await HS.outbox.remove(old.slice(6)).catch(()=>{}); pend.delete(old.slice(6)); }
+      if(taskDraft){ taskDraft.photo = 'local:' + id; taskDraft.thumb = thumb; renderTaskSheet(); }
+    };
+    $('photoPick').value = ''; $('photoPick').click();
+  });
+  on('taskDoneOk', () => updateTask(tk, {status: 'Done', note: (taskDraft && taskDraft.note || '').trim(), photo: taskDraft && taskDraft.photo || ''}));
+}
+async function updateTask(tk, f){
+  const op = {id: `t|${me()}|${tk.id}|${f.status}`, action:'taskUpdate', task: tk.id, status: f.status, note: f.note || '', photo: f.photo || '', at: new Date().toISOString()};
+  await queue(op);
+  applyTaskOp(tk, op);
+  taskDraft = null;
+  await saveTasks(myTaskList);
+  if(f.status === 'Done') closeTask(); else renderTaskSheet();
+  toast(navigator.onLine === false ? t('savedPhoneToast') : t(f.status === 'Done' ? 'taskDoneToast' : 'taskStarted'));
+  runFlush();
+}
+
+/* ---------- phone notifications ---------- */
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const b64uToBytes = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while(s.length % 4) s += '='; const b = atob(s); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+const bytesToB64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+function deviceName(){
+  const ua = navigator.userAgent;
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Device';
+  const br = /Edg\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
+  return os + (br ? ' · ' + br : '') + (isStandalone() ? ' (app)' : '');
+}
+/** 'on' | 'off' | 'blocked' | 'unsupported' | 'ios-install' */
+async function pushStatus(){
+  if(!session) return 'off';
+  if(isIOS() && !isStandalone()) return 'ios-install';
+  if(!pushSupported()) return 'unsupported';
+  if(Notification.permission === 'denied') return 'blocked';
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    const mine = await HS.kv.get('push:' + me());
+    if(sub && Notification.permission === 'granted' && mine === sub.endpoint) return 'on';
+  }catch(e){}
+  return 'off';
+}
+async function pushUI(){
+  const st = await pushStatus();
+  const txt = {on: t('pushOn'), off: t('pushOff'), blocked: t('pushBlocked'), unsupported: t('pushUnsupported'), 'ios-install': t('pushOff')}[st];
+  $('pushState').textContent = txt;
+  $('pushState').className = 'sstate ' + (st === 'on' ? 'ok' : st === 'off' || st === 'ios-install' ? 'warn' : 'bad');
+  $('pushOnBtn').classList.toggle('hidden', st === 'on' || st === 'unsupported' || st === 'blocked' || st === 'ios-install');
+  $('pushTestBtn').classList.toggle('hidden', st !== 'on');
+  $('pushHint').textContent = st === 'ios-install' ? t('pushIos') : '';
+  $('setPush').classList.toggle('hidden', !session);
+  // home banner: only for people who receive tasks, until notifications are on
+  const show = !!session && isAssignee() && (st === 'off' || st === 'ios-install') && !$('home').classList.contains('hidden');
+  $('pushBanner').classList.toggle('hidden', !show);
+  $('pushBannerTxt').textContent = st === 'ios-install' ? t('pushIos') : t('pushBanner');
+  $('pushBannerBtn').classList.toggle('hidden', st === 'ios-install');
+}
+async function enablePush(){
+  const st = await pushStatus();
+  if(st !== 'off' && st !== 'on'){ pushUI(); toast({blocked: t('pushBlocked'), unsupported: t('pushUnsupported'), 'ios-install': t('pushIos')}[st]); return; }
+  try{
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted'){ pushUI(); toast(t('pushBlocked')); return; }
+    const reg = await navigator.serviceWorker.ready;
+    let key = await HS.kv.get('pushKey');
+    if(!key){ await prefetch(true); key = await HS.kv.get('pushKey'); }
+    if(!key) throw Object.assign(new Error(t('pushNeedOnline')), {net: true});
+    let sub = await reg.pushManager.getSubscription();
+    if(sub && sub.options && sub.options.applicationServerKey && bytesToB64u(sub.options.applicationServerKey) !== key){ await sub.unsubscribe(); sub = null; }
+    if(!sub) sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64uToBytes(key)});
+    const r = await HS.api('pushSubscribe', {sub: sub.toJSON(), device: deviceName()});
+    if(!r || !r.ok) throw new Error(trErr(r && r.error));
+    await HS.kv.set('push:' + me(), sub.endpoint);
+    toast(t('pushOnToast'));
+  }catch(e){ toast(e.net ? t('pushNeedOnline') : (e.message || t('pushUnsupported'))); }
+  pushUI();
+}
+async function pushSignOut(s){
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    if(sub){
+      if(s && s.token) HS.post({action:'pushUnsubscribe', token: s.token, endpoint: sub.endpoint}, 8000).catch(()=>{});
+      sub.unsubscribe().catch(()=>{});
+    }
+    if(s && s.user) await HS.kv.del('push:' + s.user.username);
+  }catch(e){}
+}
+$('pushOnBtn').onclick = enablePush;
+$('pushBannerBtn').onclick = enablePush;
+$('pushTestBtn').onclick = async () => {
+  try{ const r = await HS.api('pushTest'); toast(r && r.sent ? t('pushTestSent') : t('pushTestNone')); }
+  catch(e){ toast(e.net ? t('pushNeedOnline') : t('sessionExpired')); }
+};
+
+/* opened from a notification, or the service worker saw new tasks */
+function goToTasks(){
+  if(!session) return;
+  if(isManagerUser()){ openDash('tasks'); return; }
+  showHome(); refreshTasks().then(() => { const b = $('taskBox'); b && b.scrollIntoView({block:'start', behavior:'smooth'}); });
+}
+if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {
+  if(e.data && e.data.type === 'openFromNotification') goToTasks();
+});
+HS.on(msg => {
+  if(msg.type === 'tasksChanged'){ refreshTasks(); if(window.HoloulDash && !$('dash').classList.contains('hidden')) HoloulDash.refresh(); }
+  if(msg.type === 'done' && msg.op && msg.op.action === 'taskUpdate'){ clearTimeout(taskTimer); taskTimer = setTimeout(refreshTasks, 400); }
+});
+let taskTimer = null;
 
 /* ---------- start ---------- */
 applyTheme(prefs.get('holoul_theme'));
@@ -1525,7 +1929,10 @@ if(session){
   HS.saveSession(session, true).catch(()=>{});   // service worker uses the same session
   const r = remember.get(); if(r) HS.kv.set('remember', r).catch(()=>{});
   showHome();
-  refreshPending().then(() => { runFlush(); prefetch(); });
+  refreshPending().then(loadTasks).then(() => {
+    runFlush(); prefetch();
+    if(/^#(tasks|dash)/.test(location.hash)) goToTasks(); else refreshTasks();
+  });
 } else {
   showView('login');
   fillRemembered();
