@@ -5,6 +5,15 @@
  *
  * After changing this code: Deploy > Manage deployments > (pencil) >
  * Version: New version > Deploy.  (Keeps the same Web app URL.)
+ *
+ * v6 (Nov 2026) — offline-first support:
+ *  - "sync": many queued changes from a phone in one request
+ *  - "getAll": every page a user can open, in one request (phone keeps a copy)
+ *  - readings / checks carry the date they were taken, so data that uploads
+ *    late still lands in the right day's column
+ *  - safe to resend: Task Log and daily checks update their row, photos are not duplicated
+ *  - sign-in lasts 7 days (signed token); inactive users are still blocked within minutes
+ *  - every older call from the previous app version still works
  */
 
 const SHEET_ID     = '1ohP2VDJitA_ZxiY3Sk6V22Z6yGHZjvgsBg58pMwac_4';   // Holoul App - Users
@@ -12,10 +21,14 @@ const READINGS_ID  = '1G4j3H4b95Ou12arlp9u9H9Qa_0iaeevcqu1yYINIORQ';   // Instru
 const USERS_SHEET  = 'Users';
 const LOG_SHEET    = 'Task Log';
 const TZ           = 'Asia/Riyadh';
-const SESSION_SECS = 6 * 60 * 60;   // sign-in lasts 6 hours
+const SESSION_SECS = 6 * 60 * 60;   // old-style sessions (CacheService) from earlier app versions
+const SESSION_DAYS = 7;             // new sign-ins
+const MAX_BACK_DAYS = 7;            // oldest date a late upload may write to
+const USERS_CACHE_SECS = 300;       // a deactivated user is blocked within 5 minutes
 
-const book     = () => SpreadsheetApp.openById(SHEET_ID);
-const readings = () => SpreadsheetApp.openById(READINGS_ID);
+let _book = null, _readings = null;
+const book     = () => _book || (_book = SpreadsheetApp.openById(SHEET_ID));
+const readings = () => _readings || (_readings = SpreadsheetApp.openById(READINGS_ID));
 
 // Record pages and their layout in "Instrument Reading".
 // Row 1 = date, row 2 = username, readings from DATA_ROW down, one column per day.
@@ -31,6 +44,7 @@ const RECORD_SHEETS = {
 };
 
 const MODULES = ['Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Forklift', 'Bobcat'];
+const CHECK_TYPES = ['Forklift', 'Bobcat'];
 
 function accessFor(role, equipment) {
   if (role === 'Maintenance Technician') return ['Amp Rec', 'Vibration Rec', 'Thermo Rec'];
@@ -46,14 +60,16 @@ function doPost(e) {
   let out;
   try {
     switch (body.action) {
-      case 'login':       out = login(body.username, body.pin); break;
-      case 'getSheet':    out = withUser(body, u => getSheet(u, body.sheet)); break;
-      case 'saveReading': out = withUser(body, u => saveReading(u, body.sheet, body.row, body.value)); break;
-      case 'complete':    out = withUser(body, u => completeTask(u, body.sheet)); break;
+      case 'login':        out = login(body.username, body.pin); break;
+      case 'getAll':       out = withUser(body, u => getAll(u)); break;
+      case 'sync':         out = withUser(body, u => locked(() => syncOps(u, body.ops))); break;
+      case 'getSheet':     out = withUser(body, u => getSheet(u, body.sheet, body.date)); break;
+      case 'saveReading':  out = withUser(body, u => locked(() => saveReading(u, body.sheet, body.row, body.value, body.date))); break;
+      case 'complete':     out = withUser(body, u => locked(() => completeTask(u, body.sheet, body.date))); break;
       case 'getChecklist': out = withUser(body, u => getChecklist(u, body.type, body.unit)); break;
-      case 'uploadPhoto':  out = withUser(body, u => uploadPhoto(u, body.type, body.unit, body.kind, body.data)); break;
-      case 'submitCheck':  out = withUser(body, u => submitCheck(u, body.type, body.unit, body.data)); break;
-      default:            out = { ok: false, error: 'Unknown action' };
+      case 'uploadPhoto':  out = withUser(body, u => uploadPhoto(u, body.type, body.unit, body.kind, body.data, body.opId, body.date)); break;
+      case 'submitCheck':  out = withUser(body, u => locked(() => submitCheck(u, body.type, body.unit, body.data, body.date))); break;
+      default:             out = { ok: false, error: 'Unknown action' };
     }
   } catch (err) {
     out = { ok: false, error: String(err.message || err) };
@@ -62,42 +78,100 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API' }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 6 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-/* ---------- auth ---------- */
+/** One writer at a time (all write actions go through here). */
+function locked(fn) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return fn(); } finally { SpreadsheetApp.flush(); lock.releaseLock(); }
+}
+
+/* ---------- users + sign-in ---------- */
+
+/** Users sheet as a list. Cached for a few minutes; `fresh` re-reads the sheet. */
+function usersTable(fresh) {
+  const cache = CacheService.getScriptCache();
+  if (!fresh) { const hit = cache.get('users_v1'); if (hit) return JSON.parse(hit); }
+  const rows = book().getSheetByName(USERS_SHEET).getDataRange().getDisplayValues();
+  const h = rows[0], c = name => h.indexOf(name);
+  const list = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i], username = String(r[c('Username')]).trim();
+    if (!username) continue;
+    list.push({ id: r[c('User ID')], name: r[c('Full Name')], username: username,
+                pin: String(r[c('PIN')]).trim(), active: r[c('Active')] === 'Yes',
+                role: r[c('Role')], equipment: r[c('Assigned Equipment')] });
+  }
+  try { cache.put('users_v1', JSON.stringify(list), USERS_CACHE_SECS); } catch (err) {}
+  return list;
+}
+
+function publicUser(u) {
+  return { id: u.id, name: u.name, username: u.username, role: u.role, equipment: u.equipment, access: accessFor(u.role, u.equipment) };
+}
+
+/** Active user by username (fresh role / access), or null. */
+function findUser(username) {
+  username = String(username || '').trim().toLowerCase();
+  const u = usersTable().filter(x => x.username.toLowerCase() === username)[0];
+  return u && u.active ? publicUser(u) : null;
+}
 
 function login(username, pin) {
   username = String(username || '').trim().toLowerCase();
   pin = String(pin || '').trim();
   if (!username || !pin) return { ok: false, error: 'Enter username and PIN' };
 
-  const rows = book().getSheetByName(USERS_SHEET).getDataRange().getDisplayValues();
-  const h = rows[0], c = name => h.indexOf(name);
-
-  for (let i = 1; i < rows.length; i++) {
-    const r = rows[i];
-    if (String(r[c('Username')]).trim().toLowerCase() !== username) continue;
-    if (String(r[c('PIN')]).trim() !== pin) break;
-    if (r[c('Active')] !== 'Yes') return { ok: false, error: 'Account is inactive — contact your supervisor' };
-    const role = r[c('Role')], equipment = r[c('Assigned Equipment')];
-    const user = {
-      id: r[c('User ID')], name: r[c('Full Name')], username: String(r[c('Username')]).trim(),
-      role: role, equipment: equipment, access: accessFor(role, equipment)
-    };
-    const token = Utilities.getUuid();
-    CacheService.getScriptCache().put('t_' + token, JSON.stringify(user), SESSION_SECS);
-    return { ok: true, token: token, user: user };
+  const u = usersTable(true).filter(x => x.username.toLowerCase() === username)[0];
+  if (u && u.pin === pin) {
+    if (!u.active) return { ok: false, error: 'Account is inactive — contact your supervisor' };
+    const t = makeToken(u.username);
+    return { ok: true, token: t.token, expires: t.expires, user: publicUser(u) };
   }
   Utilities.sleep(800); // slow down PIN guessing
   return { ok: false, error: 'Wrong username or PIN' };
 }
 
+/* Signed token: "v2.<payload>.<signature>". Nothing to store on the server. */
+function tokenSecret() {
+  const p = props();
+  let s = p.getProperty('TOKEN_SECRET');
+  if (!s) { s = Utilities.getUuid() + Utilities.getUuid(); p.setProperty('TOKEN_SECRET', s); }
+  return s;
+}
+function signPart(s) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(s, tokenSecret())).replace(/=+$/, '');
+}
+function makeToken(username) {
+  const expires = Date.now() + SESSION_DAYS * 864e5;
+  const payload = Utilities.base64EncodeWebSafe(JSON.stringify({ u: username, exp: expires })).replace(/=+$/, '');
+  return { token: 'v2.' + payload + '.' + signPart(payload), expires: expires };
+}
+function readToken(token) {
+  token = String(token || '');
+  if (token.indexOf('v2.') === 0) {
+    const parts = token.split('.');
+    if (parts.length !== 3 || signPart(parts[1]) !== parts[2]) return null;
+    let p = null;
+    try {
+      let b = parts[1]; while (b.length % 4) b += '=';
+      p = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(b)).getDataAsString());
+    } catch (err) { return null; }
+    if (!p || !p.u || !(p.exp > Date.now())) return null;
+    return findUser(p.u);
+  }
+  // sessions created by the previous app version
+  const raw = token && CacheService.getScriptCache().get('t_' + token);
+  return raw ? JSON.parse(raw) : null;
+}
+
 function withUser(body, fn) {
-  const raw = body.token && CacheService.getScriptCache().get('t_' + body.token);
-  if (!raw) return { ok: false, auth: true, error: 'Session expired — please sign in again' };
-  return fn(JSON.parse(raw));
+  const user = readToken(body.token);
+  if (!user) return { ok: false, auth: true, error: 'Session expired — please sign in again' };
+  return fn(user);
 }
 
 function checkSheet(user, sheetName) {
@@ -108,10 +182,23 @@ function checkSheet(user, sheetName) {
   return sh;
 }
 
-/* ---------- today's column ---------- */
+/* ---------- dates ---------- */
 
-function todayKeys() {
-  const d = new Date();
+const todayIso = () => Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+/** 'yyyy-MM-dd' -> Date at 12:00 Riyadh time (09:00 UTC), so formatting in TZ gives the same day. */
+function isoToDate(iso) { const p = String(iso).split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2], 9)); }
+
+/** The working day of a reading. No date (older app) = today. Future = today. Too old = error. */
+function workDate(s) {
+  const today = todayIso();
+  let iso = /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? String(s) : today;
+  if (iso > today) iso = today;                         // phone clock ahead
+  const back = Math.round((isoToDate(today) - isoToDate(iso)) / 864e5);
+  if (back > MAX_BACK_DAYS) throw new Error('Date ' + iso + ' is more than ' + MAX_BACK_DAYS + ' days old');
+  return { iso: iso, date: isoToDate(iso), today: iso === today };
+}
+
+function dateKeys(d) {
   return {
     iso: Utilities.formatDate(d, TZ, 'yyyy-MM-dd'),
     texts: ['dMMM', 'ddMMM', 'd MMM', 'dd MMM', 'd-MMM', 'dd-MMM', 'd/M/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd']
@@ -119,59 +206,103 @@ function todayKeys() {
   };
 }
 
-function isToday(v, keys) {
+function isDay(v, keys) {
   if (v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd') === keys.iso;
   const s = String(v || '').replace(/\s/g, '').toLowerCase();
   return !!s && keys.texts.indexOf(s) >= 0;
 }
 
-/** Finds today's column (by the date in row 1). If none, returns the first
- *  empty column after the existing ones. `create` writes the date into row 1. */
-function dayColumn(sh, cfg, create) {
+const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+/** Reads a date header ("26Sep", "26 Sep", "26/9/2026", a real date ...). Headers without a year get the nearest past year. */
+function headerDate(v) {
+  if (v instanceof Date && !isNaN(v)) return isoToDate(Utilities.formatDate(v, TZ, 'yyyy-MM-dd'));
+  const s = String(v || '').trim().toLowerCase();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return new Date(Date.UTC(+m[1], m[2] - 1, +m[3], 9));
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return new Date(Date.UTC(+m[3], m[2] - 1, +m[1], 9));
+  m = s.match(/^(\d{1,2})[\s\-]*([a-z]{3})/);
+  if (m && MONTHS[m[2]] != null) {
+    const today = isoToDate(todayIso());
+    let d = new Date(Date.UTC(today.getUTCFullYear(), MONTHS[m[2]], +m[1], 9));
+    if (d - today > 2 * 864e5) d = new Date(Date.UTC(today.getUTCFullYear() - 1, MONTHS[m[2]], +m[1], 9));
+    return d;
+  }
+  return null;
+}
+
+/** Finds the column for day `d` (by the date in row 1). If there is none:
+ *  - create = false: returns { isNew: true } (nothing written)
+ *  - create = true : uses the first empty column that keeps the days in order
+ *    (inserting a column before a later day if needed) and writes the date in row 1. */
+function dayColumn(sh, cfg, create, d) {
+  d = d || workDate();
   const lastCol = Math.max(sh.getLastColumn(), cfg.firstDayCol);
   const width = lastCol - cfg.firstDayCol + 1;
-  const top = sh.getRange(1, cfg.firstDayCol, 2, width).getValues();
-  const keys = todayKeys();
+  const top = sh.getRange(1, cfg.firstDayCol, 1, width).getValues()[0];
+  const keys = dateKeys(d.date);
 
-  for (let i = 0; i < width; i++) if (isToday(top[0][i], keys)) return { col: cfg.firstDayCol + i, isNew: false };
+  for (let i = 0; i < width; i++) if (isDay(top[i], keys)) return { col: cfg.firstDayCol + i, isNew: false };
+  if (!create) return { col: null, isNew: true };
 
-  // no column for today yet: first completely empty column
+  // columns of earlier / later days
+  let lastEarlier = cfg.firstDayCol - 1, firstLater = 0;
+  for (let i = 0; i < width; i++) {
+    const hd = headerDate(top[i]);
+    if (!hd) continue;
+    if (hd < d.date) lastEarlier = cfg.firstDayCol + i;
+    else if (hd > d.date && !firstLater) firstLater = cfg.firstDayCol + i;
+  }
+  // first completely empty column after the earlier days (and before any later day)
   const lastRow = Math.max(sh.getLastRow(), cfg.dataRow);
   const body = sh.getRange(1, cfg.firstDayCol, lastRow, width).getValues();
-  let col = lastCol + 1;
+  let col = 0;
   for (let i = 0; i < width; i++) {
-    if (body.every(r => r[i] === '' || r[i] === null)) { col = cfg.firstDayCol + i; break; }
+    const c = cfg.firstDayCol + i;
+    if (c <= lastEarlier) continue;
+    if (firstLater && c >= firstLater) break;
+    if (body.every(r => r[i] === '' || r[i] === null)) { col = c; break; }
   }
-  if (create) {
-    sh.getRange(1, col).setNumberFormat('@').setValue(Utilities.formatDate(new Date(), TZ, 'dMMM'));  // e.g. 26Sep, same style as existing headers
+  if (!col) {
+    if (firstLater) { sh.insertColumnBefore(firstLater); col = firstLater; }   // late upload for an earlier day
+    else col = lastCol + 1;
   }
+  if (col > sh.getMaxColumns()) sh.insertColumnsAfter(sh.getMaxColumns(), col - sh.getMaxColumns());
+  sh.getRange(1, col).setNumberFormat('@').setValue(Utilities.formatDate(d.date, TZ, 'dMMM'));  // e.g. 26Sep, same style as existing headers
   return { col: col, isNew: true };
 }
 
-/* ---------- actions ---------- */
+/** Row 2: who filled the column (adds a second name if two people work the same day). */
+function markChecker(sh, col, username) {
+  const who = sh.getRange(2, col);
+  const names = String(who.getValue() || '').split(',').map(s => s.trim()).filter(String);
+  if (names.indexOf(username) < 0) { names.push(username); who.setValue(names.join(', ')); }
+}
 
-function getSheet(user, sheetName) {
+/* ---------- reading pages ---------- */
+
+function getSheet(user, sheetName, date) {
   const sh = checkSheet(user, sheetName);
   const cfg = RECORD_SHEETS[sheetName];
-  const day = dayColumn(sh, cfg, false);
+  const d = workDate(date);
+  const day = dayColumn(sh, cfg, false, d);
   const lastRow = sh.getLastRow();
   const n = lastRow - cfg.dataRow + 1;
-  if (n < 1) return { ok: true, rows: [] };
+  const base = {
+    ok: true, sheet: sheetName, layout: cfg.layout, iso: d.iso,
+    refHeader: cfg.refCol ? (sh.getRange(1, cfg.refCol).getDisplayValue() || 'Ref Value') : '',
+    date: Utilities.formatDate(d.date, TZ, 'EEE d MMM yyyy'),
+    column: day.isNew ? null : columnLetter(day.col),
+    completed: completedOn(sheetName, d.iso)
+  };
+  if (n < 1) { base.rows = []; return base; }
 
   const vals = day.isNew ? [] : sh.getRange(cfg.dataRow, day.col, n, 1).getDisplayValues();
   const valueAt = i => vals[i] ? String(vals[i][0]).trim() : '';
-  const rows = cfg.layout === 'vibration' ? vibrationRows(sh, cfg, n, valueAt)
-             : cfg.layout === 'grouped'   ? groupedRows(sh, cfg, n, valueAt)
-             : listRows(sh, cfg, n, valueAt);
-
-  return {
-    ok: true, sheet: sheetName, layout: cfg.layout,
-    refHeader: cfg.refCol ? (sh.getRange(1, cfg.refCol).getDisplayValue() || 'Ref Value') : '',
-    date: Utilities.formatDate(new Date(), TZ, 'EEE d MMM yyyy'),
-    column: day.isNew ? null : columnLetter(day.col),
-    completed: completedToday(sheetName),
-    rows: rows
-  };
+  base.rows = cfg.layout === 'vibration' ? vibrationRows(sh, cfg, n, valueAt)
+            : cfg.layout === 'grouped'   ? groupedRows(sh, cfg, n, valueAt)
+            : listRows(sh, cfg, n, valueAt);
+  return base;
 }
 
 /** Amp Rec style: one reading per row, section header rows in between. */
@@ -231,61 +362,117 @@ function groupedRows(sh, cfg, n, valueAt) {
   return rows;
 }
 
-function saveReading(user, sheetName, row, value) {
+/** Writes one reading into the column of its day. `memo` skips repeat lookups inside one sync. */
+function saveReading(user, sheetName, row, value, date, memo) {
   const sh = checkSheet(user, sheetName);
   const cfg = RECORD_SHEETS[sheetName];
   row = Number(row);
   if (!(row >= cfg.dataRow && row <= sh.getLastRow())) throw new Error('Invalid row');
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    const day = dayColumn(sh, cfg, true);
-    // row 2: who filled it (adds a second name if two people work the same day)
-    const who = sh.getRange(2, day.col);
-    const names = String(who.getValue() || '').split(',').map(s => s.trim()).filter(String);
-    if (names.indexOf(user.username) < 0) { names.push(user.username); who.setValue(names.join(', ')); }
-
-    const v = String(value == null ? '' : value).trim();
-    const num = Number(v.replace(',', '.'));
-    sh.getRange(row, day.col).setValue(v === '' ? '' : (isNaN(num) ? v : num));
-    SpreadsheetApp.flush();
-    return { ok: true, row: row, value: v, column: columnLetter(day.col) };
-  } finally {
-    lock.releaseLock();
+  const d = workDate(date);
+  const key = sheetName + '|' + d.iso;
+  let col = memo && memo[key];
+  if (!col) {
+    col = dayColumn(sh, cfg, true, d).col;
+    markChecker(sh, col, user.username);
+    if (memo) memo[key] = col;
   }
+  const v = String(value == null ? '' : value).trim();
+  const num = Number(v.replace(',', '.'));
+  sh.getRange(row, col).setValue(v === '' ? '' : (isNaN(num) ? v : num));
+  return { ok: true, row: row, value: v, column: columnLetter(col), date: d.iso };
 }
 
-function completeTask(user, sheetName) {
-  const data = getSheet(user, sheetName);
-  const items = data.rows.filter(r => !r.section);
-  const filled = items.filter(r => r.value !== '').length;
-
+function taskLog() {
   const ss = readings();
-  const log = ss.getSheetByName(LOG_SHEET) || (function () {
+  return ss.getSheetByName(LOG_SHEET) || (function () {
     const s = ss.insertSheet(LOG_SHEET);
     s.appendRow(['Timestamp', 'Date', 'Sheet', 'User ID', 'Username', 'Full Name', 'Filled', 'Total', 'Column']);
     s.getRange('A1:I1').setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff');
     s.setFrozenRows(1);
     return s;
   })();
-  const now = new Date();
-  log.appendRow([now, Utilities.formatDate(now, TZ, 'yyyy-MM-dd'), sheetName, user.id, user.username,
-                 user.name, filled, items.length, data.column || '']);
-  log.getRange(log.getLastRow(), 1).setNumberFormat('yyyy-mm-dd hh:mm');
-  return { ok: true, filled: filled, total: items.length, completed: completedToday(sheetName) };
 }
 
-function completedToday(sheetName) {
+/** "Complete task" for a day. Sending it again updates the same Task Log row. */
+function completeTask(user, sheetName, date) {
+  const d = workDate(date);
+  SpreadsheetApp.flush();
+  const data = getSheet(user, sheetName, d.iso);
+  const items = data.rows.filter(r => !r.section);
+  const filled = items.filter(r => r.value !== '').length;
+
+  const log = taskLog();
+  const now = new Date();
+  const row = [Utilities.formatDate(now, TZ, 'yyyy-MM-dd HH:mm'), d.iso, sheetName, user.id, user.username,
+               user.name, filled, items.length, data.column || ''];
+  let target = 0;
+  if (log.getLastRow() > 1) {
+    const rows = log.getRange(2, 1, log.getLastRow() - 1, 5).getDisplayValues();
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (rows[i][1] === d.iso && rows[i][2] === sheetName && rows[i][4] === user.username) { target = i + 2; break; }
+    }
+  }
+  if (!target) target = log.getLastRow() + 1;
+  log.getRange(target, 1, 1, row.length).setValues([row]);
+  log.getRange(target, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+  return { ok: true, filled: filled, total: items.length, date: d.iso, completed: completedOn(sheetName, d.iso) };
+}
+
+function completedOn(sheetName, iso) {
   const log = readings().getSheetByName(LOG_SHEET);
   if (!log || log.getLastRow() < 2) return null;
-  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const rows = log.getRange(2, 1, log.getLastRow() - 1, 9).getDisplayValues();
   for (let i = rows.length - 1; i >= 0; i--) {
-    if (rows[i][1] === today && rows[i][2] === sheetName)
-      return { by: rows[i][5] || rows[i][4], at: rows[i][0].slice(11), filled: rows[i][6], total: rows[i][7] };
+    if (rows[i][1] === iso && rows[i][2] === sheetName)
+      return { by: rows[i][5] || rows[i][4], at: rows[i][0].slice(11, 16), filled: rows[i][6], total: rows[i][7] };
   }
   return null;
+}
+
+/* ---------- one request for everything a user can open ---------- */
+
+function getAll(user) {
+  const pages = {};
+  user.access.forEach(name => {
+    try {
+      if (RECORD_SHEETS[name]) pages[name] = getSheet(user, name);
+      else if (CHECK_TYPES.indexOf(name) >= 0) {
+        const first = getChecklist(user, name);
+        const units = {};
+        units[first.unit] = first;
+        first.units.forEach(u => { if (!units[u]) units[u] = getChecklist(user, name, u); });
+        pages[name] = { ok: true, checklist: true, defaultUnit: first.unit, units: units };
+      }
+    } catch (err) {
+      pages[name] = { ok: false, error: String(err.message || err) };
+    }
+  });
+  return { ok: true, today: todayIso(), user: user, pages: pages };
+}
+
+/* ---------- many queued changes in one request ---------- */
+
+/** ops: [{ id, action: 'saveReading'|'complete'|'submitCheck', ...fields, date }]
+ *  Each op gets its own result, so one bad op does not block the others. */
+function syncOps(user, ops) {
+  if (!Array.isArray(ops)) throw new Error('No changes sent');
+  const memo = {}, results = [];
+  ops.slice(0, 200).forEach(op => {
+    let r;
+    try {
+      switch (op && op.action) {
+        case 'saveReading': r = saveReading(user, op.sheet, op.row, op.value, op.date, memo); break;
+        case 'complete':    r = completeTask(user, op.sheet, op.date); break;
+        case 'submitCheck': r = submitCheck(user, op.type, op.unit, op.data, op.date); break;
+        default:            r = { ok: false, error: 'Unknown change ' + (op && op.action) };
+      }
+    } catch (err) {
+      r = { ok: false, error: String(err.message || err) };
+    }
+    r.id = op && op.id;
+    results.push(r);
+  });
+  return { ok: true, results: results };
 }
 
 /* ================= Daily equipment checks (Bobcat, later Forklift) =================
@@ -301,10 +488,12 @@ function completedToday(sheetName) {
 
 const props = () => PropertiesService.getScriptProperties();
 
+let _checks = null;
 function checksBook() {
+  if (_checks) return _checks;
   const id = props().getProperty('CHECKS_SS_ID');
   if (!id) throw new Error('Daily checks are not set up yet');
-  return SpreadsheetApp.openById(id);
+  return (_checks = SpreadsheetApp.openById(id));
 }
 
 function checkAccess(user, type) {
@@ -360,7 +549,7 @@ function getChecklist(user, type, unit) {
   const log = logSheet(ss, type);
   const data = log.getDataRange().getDisplayValues();
   const h = data[0], col = name => h.indexOf(name);
-  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const today = todayIso();
 
   let todayEntry = null;
   const last = {}, weeklyLast = {};
@@ -391,24 +580,33 @@ function getChecklist(user, type, unit) {
   };
 }
 
-function uploadPhoto(user, type, unit, kind, dataUrl) {
+/** Saves one photo to Drive. With an opId (new app) the same photo sent twice is stored once. */
+function uploadPhoto(user, type, unit, kind, dataUrl, opId, date) {
   checkAccess(user, type);
   const m = String(dataUrl || '').match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
   if (!m) throw new Error('Not an image');
   const bytes = Utilities.base64Decode(m[2]);
   if (bytes.length > 8 * 1024 * 1024) throw new Error('Photo is too large');
   const safe = s => String(s || '').replace(/[^\w.-]+/g, '-').slice(0, 40);
-  const now = new Date();
-  const name = [safe(unit), Utilities.formatDate(now, TZ, 'yyyy-MM-dd_HHmmss'), safe(kind), safe(user.username)].join('_') + '.jpg';
   const root = DriveApp.getFolderById(props().getProperty('PHOTOS_FOLDER_ID'));
   const it = root.getFoldersByName(type);
   const folder = it.hasNext() ? it.next() : root.createFolder(type);
+  let name;
+  if (opId) {
+    name = [safe(unit), workDate(date).iso, safe(kind), safe(user.username), safe(opId)].join('_') + '.jpg';
+    const same = folder.getFilesByName(name);
+    if (same.hasNext()) { const f = same.next(); return { ok: true, id: f.getId(), url: f.getUrl(), name: name, existed: true }; }
+  } else {
+    name = [safe(unit), Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd_HHmmss'), safe(kind), safe(user.username)].join('_') + '.jpg';
+  }
   const file = folder.createFile(Utilities.newBlob(bytes, m[1], name));
   return { ok: true, id: file.getId(), url: file.getUrl(), name: name };
 }
 
-function submitCheck(user, type, unit, data) {
+/** Daily check for one unit on one day. Sending the same day again updates that row. */
+function submitCheck(user, type, unit, data, date) {
   checkAccess(user, type);
+  const d = workDate(date);
   const ss = checksBook();
   const items = readChecklist(ss, type);
   const units = readUnits(ss, type);
@@ -428,51 +626,44 @@ function submitCheck(user, type, unit, data) {
   });
   if (missing.length) return { ok: false, error: 'Please complete: ' + missing.join(', ') };
 
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    const log = logSheet(ss, type);
-    // make sure every checklist item has a column (items added later get new columns at the end)
-    let header = log.getRange(1, 1, 1, Math.max(log.getLastColumn(), 1)).getValues()[0].map(String);
-    const want = LOG_BASE.slice();
-    items.forEach(it => { want.push(it.item); if (it.input === 'reading' && it.photo !== 'no') want.push(it.item + ' Photo'); });
-    want.forEach(name => { if (header.indexOf(name) < 0) { header.push(name); log.getRange(1, header.length).setValue(name).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff'); } });
+  const log = logSheet(ss, type);
+  // make sure every checklist item has a column (items added later get new columns at the end)
+  let header = log.getRange(1, 1, 1, Math.max(log.getLastColumn(), 1)).getValues()[0].map(String);
+  const want = LOG_BASE.slice();
+  items.forEach(it => { want.push(it.item); if (it.input === 'reading' && it.photo !== 'no') want.push(it.item + ' Photo'); });
+  want.forEach(name => { if (header.indexOf(name) < 0) { header.push(name); log.getRange(1, header.length).setValue(name).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff'); } });
 
-    const now = new Date();
-    const today = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
-    const faults = [];
-    const row = new Array(header.length).fill('');
-    const set = (name, val) => { const c = header.indexOf(name); if (c >= 0) row[c] = val; };
-    items.forEach(it => {
-      const a = ans[it.item] || {};
-      if (it.input === 'reading') {
-        const n = Number(String(a.value).replace(',', '.'));
-        set(it.item, isNaN(n) ? a.value : n);
-        if (a.photo) set(it.item + ' Photo', a.photo);
-      } else {
-        set(it.item, a.v === 'ok' ? '✓' : a.v === 'fault' ? '✗' : '');
-        if (a.v === 'fault') faults.push(it.item + ': ' + String(a.note).trim() + (a.photo ? ' (photo: ' + a.photo + ')' : ''));
-      }
-    });
-    set('Timestamp', Utilities.formatDate(now, TZ, 'yyyy-MM-dd HH:mm'));
-    set('Date', today); set('Unit', unit); set('User ID', user.id); set('Username', user.username); set('Operator', user.name);
-    set('Status', faults.length ? 'Action required (' + faults.length + ')' : 'OK');
-    set('Faults', faults.join('\n'));
+  const now = new Date();
+  const faults = [];
+  const row = new Array(header.length).fill('');
+  const set = (name, val) => { const c = header.indexOf(name); if (c >= 0) row[c] = val; };
+  items.forEach(it => {
+    const a = ans[it.item] || {};
+    if (it.input === 'reading') {
+      const n = Number(String(a.value).replace(',', '.'));
+      set(it.item, isNaN(n) ? a.value : n);
+      if (a.photo) set(it.item + ' Photo', a.photo);
+    } else {
+      set(it.item, a.v === 'ok' ? '✓' : a.v === 'fault' ? '✗' : '');
+      if (a.v === 'fault') faults.push(it.item + ': ' + String(a.note).trim() + (a.photo ? ' (photo: ' + a.photo + ')' : ''));
+    }
+  });
+  set('Timestamp', Utilities.formatDate(now, TZ, 'yyyy-MM-dd HH:mm'));
+  set('Date', d.iso); set('Unit', unit); set('User ID', user.id); set('Username', user.username); set('Operator', user.name);
+  set('Status', faults.length ? 'Action required (' + faults.length + ')' : 'OK');
+  set('Faults', faults.join('\n'));
 
-    // one row per unit per day: update today's row if it exists
-    const data2 = log.getDataRange().getDisplayValues();
-    const cD = header.indexOf('Date'), cU = header.indexOf('Unit');
-    let target = 0;
-    for (let i = data2.length - 1; i >= 1; i--) if (data2[i][cD] === today && data2[i][cU] === unit) { target = i + 1; break; }
-    if (!target) target = log.getLastRow() + 1;
-    const rng = log.getRange(target, 1, 1, header.length);
-    rng.setNumberFormat('@').setValues([row.map(String)]);
-    log.getRange(target, 1, 1, header.length).setBackground(faults.length ? '#fdecea' : null);
-    return { ok: true, status: faults.length ? 'Action required (' + faults.length + ')' : 'OK', faults: faults.length,
-             at: Utilities.formatDate(now, TZ, 'HH:mm'), by: user.name };
-  } finally {
-    lock.releaseLock();
-  }
+  // one row per unit per day: update that day's row if it exists
+  const data2 = log.getDataRange().getDisplayValues();
+  const cD = header.indexOf('Date'), cU = header.indexOf('Unit');
+  let target = 0;
+  for (let i = data2.length - 1; i >= 1; i--) if (data2[i][cD] === d.iso && data2[i][cU] === unit) { target = i + 1; break; }
+  if (!target) target = log.getLastRow() + 1;
+  const rng = log.getRange(target, 1, 1, header.length);
+  rng.setNumberFormat('@').setValues([row.map(String)]);
+  log.getRange(target, 1, 1, header.length).setBackground(faults.length ? '#fdecea' : null);
+  return { ok: true, status: faults.length ? 'Action required (' + faults.length + ')' : 'OK', faults: faults.length,
+           at: Utilities.formatDate(now, TZ, 'HH:mm'), by: user.name, date: d.iso };
 }
 
 function columnLetter(n) {
