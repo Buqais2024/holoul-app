@@ -14,6 +14,12 @@
  *  - safe to resend: Task Log and daily checks update their row, photos are not duplicated
  *  - sign-in lasts 7 days (signed token); inactive users are still blocked within minutes
  *  - every older call from the previous app version still works
+ *
+ * v7 (Nov 2026) — tasks + notifications + dashboard:
+ *  - roles Supervisor / Operations Manager: dashboard, assign tasks to technicians
+ *  - technicians Start / Done tasks (note + photo), also offline through "sync"
+ *  - phone notifications (Web Push) when a task is assigned / done
+ *  - run setupV7() once after updating (creates the Tasks sheet, asks for permission to send notifications)
  */
 
 const SHEET_ID     = '1ohP2VDJitA_ZxiY3Sk6V22Z6yGHZjvgsBg58pMwac_4';   // Holoul App - Users
@@ -47,6 +53,7 @@ const MODULES = ['Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Forklift', 'Bobcat']
 const CHECK_TYPES = ['Forklift', 'Bobcat'];
 
 function accessFor(role, equipment) {
+  if (role === 'Supervisor' || role === 'Operations Manager') return ['Dashboard', 'Tasks', 'Amp Rec', 'Vibration Rec', 'Thermo Rec'];
   if (role === 'Maintenance Technician') return ['Amp Rec', 'Vibration Rec', 'Thermo Rec'];
   if (role === 'Operator' && (equipment === 'Forklift' || equipment === 'Bobcat')) return [equipment];
   return [];
@@ -69,6 +76,15 @@ function doPost(e) {
       case 'getChecklist': out = withUser(body, u => getChecklist(u, body.type, body.unit)); break;
       case 'uploadPhoto':  out = withUser(body, u => uploadPhoto(u, body.type, body.unit, body.kind, body.data, body.opId, body.date)); break;
       case 'submitCheck':  out = withUser(body, u => locked(() => submitCheck(u, body.type, body.unit, body.data, body.date))); break;
+      case 'myTasks':      out = withUser(body, u => ({ ok: true, tasks: myTasks(u) })); break;
+      case 'taskCreate':   out = withUser(body, u => locked(() => taskCreate(u, body.task))); break;
+      case 'taskEdit':     out = withUser(body, u => locked(() => taskEdit(u, body.task))); break;
+      case 'taskUpdate':   out = withUser(body, u => locked(() => taskUpdate(u, body))); break;
+      case 'dashboard':    out = withUser(body, u => dashboard(u)); break;
+      case 'pushSubscribe':   out = withUser(body, u => locked(() => pushSubscribe(u, body.sub, body.device))); break;
+      case 'pushUnsubscribe': out = withUser(body, u => locked(() => pushUnsubscribe(u, body.endpoint))); break;
+      case 'pushInbox':    out = withUser(body, u => pushInbox(u)); break;
+      case 'pushTest':     out = withUser(body, u => locked(() => Object.assign({ ok: true }, notifyUser(u.username, { kind: 'test' })))); break;
       default:             out = { ok: false, error: 'Unknown action' };
     }
   } catch (err) {
@@ -78,7 +94,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 6 }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 7 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -110,7 +126,8 @@ function usersTable(fresh) {
 }
 
 function publicUser(u) {
-  return { id: u.id, name: u.name, username: u.username, role: u.role, equipment: u.equipment, access: accessFor(u.role, u.equipment) };
+  return { id: u.id, name: u.name, username: u.username, role: u.role, equipment: u.equipment, access: accessFor(u.role, u.equipment),
+           manager: MANAGER_ROLES.indexOf(u.role) >= 0 };
 }
 
 /** Active user by username (fresh role / access), or null. */
@@ -293,6 +310,7 @@ function getSheet(user, sheetName, date) {
     refHeader: cfg.refCol ? (sh.getRange(1, cfg.refCol).getDisplayValue() || 'Ref Value') : '',
     date: Utilities.formatDate(d.date, TZ, 'EEE d MMM yyyy'),
     column: day.isNew ? null : columnLetter(day.col),
+    checkedBy: day.isNew ? '' : sh.getRange(2, day.col).getDisplayValue(),
     completed: completedOn(sheetName, d.iso)
   };
   if (n < 1) { base.rows = []; return base; }
@@ -447,7 +465,10 @@ function getAll(user) {
       pages[name] = { ok: false, error: String(err.message || err) };
     }
   });
-  return { ok: true, today: todayIso(), user: user, pages: pages };
+  let tasks = [], pushKey = '';
+  try { tasks = myTasks(user); } catch (err) {}
+  try { pushKey = vapidKeys().pub; } catch (err) {}
+  return { ok: true, today: todayIso(), user: user, pages: pages, tasks: tasks, pushKey: pushKey };
 }
 
 /* ---------- many queued changes in one request ---------- */
@@ -464,6 +485,7 @@ function syncOps(user, ops) {
         case 'saveReading': r = saveReading(user, op.sheet, op.row, op.value, op.date, memo); break;
         case 'complete':    r = completeTask(user, op.sheet, op.date); break;
         case 'submitCheck': r = submitCheck(user, op.type, op.unit, op.data, op.date); break;
+        case 'taskUpdate':  r = taskUpdate(user, Object.assign({}, op, { id: op.task })); break;   // op.id is the change id
         default:            r = { ok: false, error: 'Unknown change ' + (op && op.action) };
       }
     } catch (err) {
@@ -582,7 +604,7 @@ function getChecklist(user, type, unit) {
 
 /** Saves one photo to Drive. With an opId (new app) the same photo sent twice is stored once. */
 function uploadPhoto(user, type, unit, kind, dataUrl, opId, date) {
-  checkAccess(user, type);
+  if (type !== 'Tasks') checkAccess(user, type);
   const m = String(dataUrl || '').match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
   if (!m) throw new Error('Not an image');
   const bytes = Utilities.base64Decode(m[2]);
@@ -779,12 +801,12 @@ function setupSheet() {
   sh.getRange('F2:F' + last).setNumberFormat('@');
 
   const list = v => SpreadsheetApp.newDataValidation().requireValueInList(v, true).setAllowInvalid(false).build();
-  sh.getRange('C2:C' + last).setDataValidation(list(['Maintenance Technician', 'Operator']));
+  sh.getRange('C2:C' + last).setDataValidation(list(['Maintenance Technician', 'Operator', 'Supervisor', 'Operations Manager']));
   sh.getRange('D2:D' + last).setDataValidation(list(['Forklift', 'Bobcat']));
   sh.getRange('G2:G' + last).setDataValidation(list(['Yes', 'No']));
 
   sh.getRange('H2:L' + last).clearContent();
-  const tech = '(G2:G="Yes")*(C2:C="Maintenance Technician")';
+  const tech = '(G2:G="Yes")*((C2:C="Maintenance Technician")+(C2:C="Supervisor")+(C2:C="Operations Manager"))';
   const op = eq => '(G2:G="Yes")*(C2:C="Operator")*(D2:D="' + eq + '")';
   const f = cond => '=ARRAYFORMULA(IF(B2:B="","",IF(' + cond + ',"Yes","No")))';
   sh.getRange('H2').setFormula(f(tech));
@@ -807,18 +829,525 @@ function setupSheet() {
 
   let am = ss.getSheetByName('Access Matrix') || ss.insertSheet('Access Matrix');
   am.clear();
-  am.getRange(1, 1, 4, 7).setValues([
-    ['Role', 'Assigned Equipment', 'Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Forklift', 'Bobcat'],
-    ['Maintenance Technician', '(leave blank)', 'Yes', 'Yes', 'Yes', 'No', 'No'],
-    ['Operator', 'Forklift', 'No', 'No', 'No', 'Yes', 'No'],
-    ['Operator', 'Bobcat', 'No', 'No', 'No', 'No', 'Yes']
+  am.getRange(1, 1, 6, 8).setValues([
+    ['Role', 'Assigned Equipment', 'Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Forklift', 'Bobcat', 'Dashboard + assign tasks'],
+    ['Maintenance Technician', '(leave blank)', 'Yes', 'Yes', 'Yes', 'No', 'No', 'No'],
+    ['Operator', 'Forklift', 'No', 'No', 'No', 'Yes', 'No', 'No'],
+    ['Operator', 'Bobcat', 'No', 'No', 'No', 'No', 'Yes', 'No'],
+    ['Supervisor', '(leave blank)', 'Yes', 'Yes', 'Yes', 'No', 'No', 'Yes'],
+    ['Operations Manager', '(leave blank)', 'Yes', 'Yes', 'Yes', 'No', 'No', 'Yes']
   ]);
-  am.getRange('A1:G1').setFontWeight('bold').setFontColor('#ffffff').setBackground('#1f2937');
-  am.getRange('A1:G4').setFontFamily('Arial').setHorizontalAlignment('center');
+  am.getRange('A1:H1').setFontWeight('bold').setFontColor('#ffffff').setBackground('#1f2937');
+  am.getRange('A1:H6').setFontFamily('Arial').setHorizontalAlignment('center');
   am.setColumnWidth(1, 180); am.setColumnWidth(2, 150);
   am.setConditionalFormatRules([
     SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo('Yes')
-      .setBackground('#d1fae5').setFontColor('#065f46').setBold(true).setRanges([am.getRange('C2:G4')]).build()
+      .setBackground('#d1fae5').setFontColor('#065f46').setBold(true).setRanges([am.getRange('C2:H6')]).build()
   ]);
   Logger.log('Users sheet is ready.');
+}
+
+/* ================= Tasks (work orders) =================
+ * Spreadsheet "Maintenance Tasks" in Drive folder "Maintenance Data Storage":
+ *   Tasks         : one row per task (supervisors create, technicians start / finish)
+ *   Task History  : every change (who, when, what) — used for the monthly summary
+ *   Push Devices  : phones that receive notifications (one row per phone / browser)
+ * Created by setupV7() (or automatically the first time it is needed). */
+
+const TASK_COLS = ['ID', 'Created', 'Created By', 'Creator Name', 'Assigned To', 'Assignee Name', 'Title', 'Details',
+                   'Equipment', 'Priority', 'Due', 'Link', 'Status', 'Started', 'Done', 'Done Note', 'Done Photo', 'Updated', 'Updated By'];
+const HISTORY_COLS = ['Timestamp', 'Task ID', 'Action', 'By', 'Note'];
+const PUSH_COLS = ['Username', 'Endpoint', 'P256dh', 'Auth', 'Device', 'Added', 'Last OK', 'Last Error'];
+const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
+const TASK_LINKS = ['', 'Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Bobcat', 'Forklift'];
+const MANAGER_ROLES = ['Supervisor', 'Operations Manager'];
+const ASSIGNABLE_ROLES = ['Maintenance Technician', 'Operator'];
+
+const isManager = u => !!u && MANAGER_ROLES.indexOf(u.role) >= 0;
+const nowText = () => Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
+const lc = s => String(s || '').trim().toLowerCase();
+
+let _tasks = null;
+function tasksBook() {
+  if (_tasks) return _tasks;
+  const p = props();
+  let id = p.getProperty('TASKS_SS_ID'), ss = null;
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (err) { ss = null; } }
+  if (!ss) {
+    ss = SpreadsheetApp.create('Maintenance Tasks');
+    try {
+      const folderId = p.getProperty('STORAGE_FOLDER_ID');
+      if (folderId) DriveApp.getFileById(ss.getId()).moveTo(DriveApp.getFolderById(folderId));
+    } catch (err) {}
+    p.setProperty('TASKS_SS_ID', ss.getId());
+  }
+  const tab = (name, cols, first) => {
+    let sh = ss.getSheetByName(name);
+    if (!sh) {
+      sh = first && ss.getSheets()[0].getName() === 'Sheet1' ? ss.getSheets()[0].setName(name) : ss.insertSheet(name);
+      sh.getRange(1, 1, 1, cols.length).setValues([cols]).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff');
+      sh.setFrozenRows(1);
+      sh.getRange(2, 1, Math.max(sh.getMaxRows() - 1, 1), cols.length).setNumberFormat('@');   // keep dates as typed text
+    }
+    return sh;
+  };
+  tab('Tasks', TASK_COLS, true); tab('Task History', HISTORY_COLS); tab('Push Devices', PUSH_COLS);
+  return (_tasks = ss);
+}
+
+/** All rows of a tab as objects (+ _row = sheet row number). */
+function rowsOf(sh, cols) {
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, cols.length).getDisplayValues().map((r, i) => {
+    const o = { _row: i + 2 };
+    cols.forEach((c, j) => { o[c] = r[j]; });
+    return o;
+  });
+}
+const readTasks = () => rowsOf(tasksBook().getSheetByName('Tasks'), TASK_COLS);
+
+function taskOut(t) {
+  return { id: t['ID'], created: t['Created'], createdBy: t['Created By'], creatorName: t['Creator Name'],
+           assignee: t['Assigned To'], assigneeName: t['Assignee Name'], title: t['Title'], details: t['Details'],
+           equipment: t['Equipment'], priority: t['Priority'] || 'Normal', due: t['Due'], link: t['Link'], status: t['Status'] || 'Open',
+           started: t['Started'], done: t['Done'], doneNote: t['Done Note'], donePhoto: t['Done Photo'], updated: t['Updated'] };
+}
+function writeTask(t) {
+  const sh = tasksBook().getSheetByName('Tasks');
+  const row = TASK_COLS.map(c => t[c] == null ? '' : String(t[c]));
+  const r = t._row || sh.getLastRow() + 1;
+  sh.getRange(r, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+  t._row = r;
+}
+function history(id, action, user, note) {
+  tasksBook().getSheetByName('Task History').appendRow([nowText(), id, action, user.username, note || '']);
+}
+function assignable() {
+  return usersTable().filter(u => u.active && ASSIGNABLE_ROLES.indexOf(u.role) >= 0)
+    .map(u => ({ username: u.username, name: u.name, role: u.role, id: u.id }));
+}
+function findTask(id) {
+  const t = readTasks().filter(x => x['ID'] === String(id || ''))[0];
+  if (!t) throw new Error('Task not found');
+  return t;
+}
+const PRIORITY_RANK = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+function sortTasks(list) {
+  const st = { 'In progress': 0, 'Open': 1, 'Done': 2, 'Cancelled': 3 };
+  return list.sort((a, b) => (st[a.status] - st[b.status]) || (PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])
+    || String(a.due || '9999').localeCompare(String(b.due || '9999')) || String(b.created).localeCompare(String(a.created)));
+}
+
+/** Tasks for one person: everything open + finished in the last 7 days. */
+function myTasks(user) {
+  const since = Utilities.formatDate(new Date(Date.now() - 7 * 864e5), TZ, 'yyyy-MM-dd');
+  return sortTasks(readTasks().filter(t => lc(t['Assigned To']) === lc(user.username) &&
+    (t['Status'] === 'Open' || t['Status'] === 'In progress' || String(t['Updated']).slice(0, 10) >= since)).map(taskOut));
+}
+
+function cleanDate(s) { s = String(s || '').trim(); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ''; }
+/** Time an action happened on the phone (may be earlier, when it was offline). */
+function actionTime(at) {
+  const d = at ? new Date(at) : new Date();
+  const t = isNaN(d) || d.getTime() > Date.now() + 5 * 60e3 ? new Date() : d;
+  return Utilities.formatDate(t, TZ, 'yyyy-MM-dd HH:mm');
+}
+
+function taskCreate(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can assign tasks');
+  f = f || {};
+  const title = String(f.title || '').trim().slice(0, 140);
+  if (!title) throw new Error('Enter a task title');
+  const who = assignable().filter(u => lc(u.username) === lc(f.assignee))[0];
+  if (!who) throw new Error('Choose who does the task');
+  const p = props();
+  const seq = Number(p.getProperty('TASK_SEQ') || 0) + 1;
+  p.setProperty('TASK_SEQ', String(seq));
+  const now = nowText();
+  const t = {
+    'ID': 'T-' + ('000' + seq).slice(-4), 'Created': now, 'Created By': user.username, 'Creator Name': user.name,
+    'Assigned To': who.username, 'Assignee Name': who.name, 'Title': title, 'Details': String(f.details || '').slice(0, 2000),
+    'Equipment': String(f.equipment || '').slice(0, 120), 'Priority': PRIORITIES.indexOf(f.priority) >= 0 ? f.priority : 'Normal',
+    'Due': cleanDate(f.due), 'Link': TASK_LINKS.indexOf(f.link || '') >= 0 ? (f.link || '') : '', 'Status': 'Open',
+    'Updated': now, 'Updated By': user.username
+  };
+  writeTask(t);
+  history(t['ID'], 'Created', user, 'Assigned to ' + who.username);
+  const sent = notifyUser(who.username, { kind: 'assigned', id: t['ID'], title: title, equipment: t['Equipment'], priority: t['Priority'], by: user.name });
+  return { ok: true, task: taskOut(t), notified: sent };
+}
+
+/** Supervisor changes: edit fields, reassign, cancel, reopen. */
+function taskEdit(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can change tasks');
+  f = f || {};
+  const t = findTask(f.id);
+  const notes = [];
+  let notifyNew = null;
+  if (f.title != null && String(f.title).trim()) t['Title'] = String(f.title).trim().slice(0, 140);
+  if (f.details != null) t['Details'] = String(f.details).slice(0, 2000);
+  if (f.equipment != null) t['Equipment'] = String(f.equipment).slice(0, 120);
+  if (f.priority != null && PRIORITIES.indexOf(f.priority) >= 0) t['Priority'] = f.priority;
+  if (f.due != null) t['Due'] = cleanDate(f.due);
+  if (f.link != null && TASK_LINKS.indexOf(f.link) >= 0) t['Link'] = f.link;
+  if (f.assignee && lc(f.assignee) !== lc(t['Assigned To'])) {
+    const who = assignable().filter(u => lc(u.username) === lc(f.assignee))[0];
+    if (!who) throw new Error('Choose who does the task');
+    notes.push('Reassigned ' + t['Assigned To'] + ' → ' + who.username);
+    t['Assigned To'] = who.username; t['Assignee Name'] = who.name;
+    if (t['Status'] === 'In progress') { t['Status'] = 'Open'; t['Started'] = ''; }
+    notifyNew = who.username;
+  }
+  if (f.status === 'Cancelled' && t['Status'] !== 'Cancelled') { t['Status'] = 'Cancelled'; notes.push('Cancelled'); }
+  if (f.status === 'Open' && (t['Status'] === 'Done' || t['Status'] === 'Cancelled')) {
+    t['Status'] = 'Open'; t['Started'] = ''; t['Done'] = ''; notes.push('Reopened'); notifyNew = notifyNew || t['Assigned To'];
+  }
+  t['Updated'] = nowText(); t['Updated By'] = user.username;
+  writeTask(t);
+  history(t['ID'], notes.length ? notes.join('; ') : 'Edited', user, f.note || '');
+  let sent = null;
+  if (notifyNew) sent = notifyUser(notifyNew, { kind: 'assigned', id: t['ID'], title: t['Title'], equipment: t['Equipment'], priority: t['Priority'], by: user.name });
+  return { ok: true, task: taskOut(t), notified: sent };
+}
+
+/** Technician: Start / Done (with note + photo). Safe to send again. */
+function taskUpdate(user, f) {
+  f = f || {};
+  const t = findTask(f.id);
+  if (lc(t['Assigned To']) !== lc(user.username) && !isManager(user)) throw new Error('This task is assigned to someone else');
+  if (t['Status'] === 'Cancelled') throw new Error('This task was cancelled');
+  const at = actionTime(f.at);
+  if (f.status === 'In progress') {
+    if (t['Status'] === 'Open') { t['Status'] = 'In progress'; t['Started'] = at; history(t['ID'], 'Started', user, ''); }
+  } else if (f.status === 'Done') {
+    if (t['Status'] !== 'Done') {
+      t['Status'] = 'Done'; if (!t['Started']) t['Started'] = at; t['Done'] = at;
+      t['Done Note'] = String(f.note || '').slice(0, 2000); t['Done Photo'] = String(f.photo || '');
+      history(t['ID'], 'Done', user, t['Done Note']);
+      if (t['Created By'] && lc(t['Created By']) !== lc(user.username))
+        notifyUser(t['Created By'], { kind: 'done', id: t['ID'], title: t['Title'], by: user.name });
+    } else {
+      if (f.note != null && String(f.note) !== t['Done Note']) t['Done Note'] = String(f.note).slice(0, 2000);
+      if (f.photo) t['Done Photo'] = String(f.photo);
+    }
+  } else throw new Error('Unknown task status');
+  t['Updated'] = nowText(); t['Updated By'] = user.username;
+  writeTask(t);
+  return { ok: true, task: taskOut(t) };
+}
+
+/* ---------- dashboard (supervisor / operations manager) ---------- */
+
+function dashboard(user) {
+  if (!isManager(user)) throw new Error('Dashboard is for supervisors');
+  const today = todayIso();
+  const weekAgo = Utilities.formatDate(new Date(Date.now() - 6 * 864e5), TZ, 'yyyy-MM-dd');
+  const month = today.slice(0, 7);
+
+  const people = usersTable().filter(u => u.active).map(u => ({ username: u.username, name: u.name, role: u.role, id: u.id }));
+  const nameOf = {}; people.forEach(p => { nameOf[lc(p.username)] = p.name; });
+
+  // tasks: everything open + finished / cancelled in the last 60 days
+  const since60 = Utilities.formatDate(new Date(Date.now() - 60 * 864e5), TZ, 'yyyy-MM-dd');
+  const all = readTasks();
+  const tasks = sortTasks(all.filter(t => t['Status'] === 'Open' || t['Status'] === 'In progress' || String(t['Updated']).slice(0, 10) >= since60).map(taskOut));
+
+  // today's reading pages
+  const readingsToday = Object.keys(RECORD_SHEETS).map(name => {
+    try {
+      const d = getSheet(user, name);
+      const items = d.rows.filter(r => !r.section);
+      return { sheet: name, total: items.length, filled: items.filter(r => r.value !== '').length, completed: d.completed, checkedBy: d.checkedBy || '' };
+    } catch (err) { return { sheet: name, error: String(err.message || err) }; }
+  });
+
+  // daily checks today + recent faults
+  const checks = [], faults = [], checkRows = [];
+  let ss = null;
+  try { ss = checksBook(); } catch (err) {}
+  if (ss) CHECK_TYPES.forEach(type => {
+    if (!ss.getSheetByName(type + ' Checklist')) return;
+    const units = readUnits(ss, type);
+    const log = ss.getSheetByName(type + ' Log');
+    const data = log ? log.getDataRange().getDisplayValues() : [[]];
+    const h = data[0], c = n => h.indexOf(n);
+    const todayRows = {};
+    for (let i = 1; i < data.length; i++) {
+      const r = data[i], date = r[c('Date')];
+      checkRows.push({ type: type, date: date, username: r[c('Username')], status: r[c('Status')] });
+      if (date === today) todayRows[r[c('Unit')]] = r;
+      if (/^action/i.test(r[c('Status')]) && date >= Utilities.formatDate(new Date(Date.now() - 13 * 864e5), TZ, 'yyyy-MM-dd'))
+        faults.push({ type: type, date: date, unit: r[c('Unit')], by: r[c('Operator')], status: r[c('Status')], faults: r[c('Faults')] });
+    }
+    checks.push({ type: type, units: units.map(u => {
+      const r = todayRows[u];
+      return r ? { unit: u, status: r[c('Status')], by: r[c('Operator')], at: String(r[c('Timestamp')]).slice(11, 16), faults: r[c('Faults')] }
+               : { unit: u, status: '' };
+    }) });
+  });
+  faults.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  // Task Log ("Complete task" on reading pages)
+  const tl = readings().getSheetByName(LOG_SHEET);
+  const logRows = tl && tl.getLastRow() > 1 ? tl.getRange(2, 1, tl.getLastRow() - 1, 9).getDisplayValues()
+    .map(r => ({ date: r[1], sheet: r[2], username: r[4] })) : [];
+
+  // workload per person
+  const assignees = people.filter(p => ASSIGNABLE_ROLES.indexOf(p.role) >= 0);
+  const workload = assignees.map(p => {
+    const mine = all.filter(t => lc(t['Assigned To']) === lc(p.username));
+    const open = mine.filter(t => t['Status'] === 'Open'), prog = mine.filter(t => t['Status'] === 'In progress');
+    return {
+      username: p.username, name: p.name, role: p.role,
+      open: open.length, inProgress: prog.length,
+      overdue: open.concat(prog).filter(t => t['Due'] && t['Due'] < today).length,
+      doneWeek: mine.filter(t => t['Status'] === 'Done' && String(t['Done']).slice(0, 10) >= weekAgo).length,
+      doneMonth: mine.filter(t => t['Status'] === 'Done' && String(t['Done']).slice(0, 7) === month).length
+    };
+  });
+
+  // monthly summary: this month + the 11 before, overall and per person
+  const months = [];
+  const base = isoToDate(today.slice(0, 8) + '15');
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() - i, 15, 9));
+    months.push(Utilities.formatDate(d, TZ, 'yyyy-MM'));
+  }
+  const summary = months.map(m => {
+    const created = all.filter(t => String(t['Created']).slice(0, 7) === m);
+    const done = all.filter(t => t['Status'] === 'Done' && String(t['Done']).slice(0, 7) === m);
+    const withDue = done.filter(t => t['Due']);
+    const onTime = withDue.filter(t => String(t['Done']).slice(0, 10) <= t['Due']).length;
+    const hours = done.map(t => (parseStamp(t['Done']) - parseStamp(t['Created'])) / 36e5).filter(h => h >= 0 && isFinite(h));
+    const rl = logRows.filter(r => String(r.date).slice(0, 7) === m);
+    const ck = checkRows.filter(r => String(r.date).slice(0, 7) === m);
+    const per = {};
+    const bump = (u, k) => { u = lc(u); if (!u) return; per[u] = per[u] || { tasksAssigned: 0, tasksDone: 0, readings: 0, checks: 0 }; per[u][k]++; };
+    created.forEach(t => bump(t['Assigned To'], 'tasksAssigned'));
+    done.forEach(t => bump(t['Assigned To'], 'tasksDone'));
+    rl.forEach(r => bump(r.username, 'readings'));
+    ck.forEach(r => bump(r.username, 'checks'));
+    return { month: m, created: created.length, done: done.length, dueTotal: withDue.length, onTime: onTime,
+             avgHours: hours.length ? Math.round(hours.reduce((a, b) => a + b, 0) / hours.length * 10) / 10 : null,
+             readings: rl.length, checks: ck.length, faults: ck.filter(r => /^action/i.test(r.status)).length, people: per };
+  });
+
+  return { ok: true, today: today, generatedAt: nowText(), people: people, assignable: assignees,
+           tasks: tasks, readings: readingsToday, checks: checks, faults: faults.slice(0, 40), workload: workload, months: summary };
+}
+function parseStamp(s) { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); return m ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4] - 3, +m[5]) : NaN; }
+
+/* ================= Notifications (Web Push, VAPID) =================
+ * Phones subscribe in the app; the server sends an empty push (no message body),
+ * the app's service worker then asks "pushInbox" what happened and shows the notification. */
+
+const VAPID_SUB = 'mailto:mteam.hrc@gmail.com';
+
+function pushSheet() { return tasksBook().getSheetByName('Push Devices'); }
+
+function pushSubscribe(user, sub, device) {
+  const endpoint = String(sub && sub.endpoint || '');
+  if (!/^https:\/\//.test(endpoint)) throw new Error('Bad subscription');
+  const keys = (sub && sub.keys) || {};
+  const sh = pushSheet();
+  const rows = rowsOf(sh, PUSH_COLS);
+  const same = rows.filter(r => r['Endpoint'] === endpoint)[0];
+  const row = [user.username, endpoint, String(keys.p256dh || ''), String(keys.auth || ''), String(device || '').slice(0, 120), nowText(), same ? same['Last OK'] : '', ''];
+  sh.getRange(same ? same._row : sh.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+  return { ok: true, devices: rows.filter(r => lc(r['Username']) === lc(user.username) && r['Endpoint'] !== endpoint).length + 1 };
+}
+
+function pushUnsubscribe(user, endpoint) {
+  const sh = pushSheet();
+  const r = rowsOf(sh, PUSH_COLS).filter(x => x['Endpoint'] === String(endpoint || '') && lc(x['Username']) === lc(user.username))[0];
+  if (r) sh.deleteRow(r._row);
+  return { ok: true };
+}
+
+/** Messages waiting for this user's phone (read by the service worker when a push arrives). */
+function inboxAdd(username, msg) {
+  const cache = CacheService.getScriptCache(), key = 'inbox_' + lc(username);
+  let list = [];
+  try { list = JSON.parse(cache.get(key) || '[]'); } catch (err) {}
+  msg.at = Date.now();
+  list.push(msg);
+  cache.put(key, JSON.stringify(list.slice(-10)), 6 * 3600);
+}
+function pushInbox(user) {
+  const cache = CacheService.getScriptCache(), key = 'inbox_' + lc(user.username);
+  let list = [];
+  try { list = JSON.parse(cache.get(key) || '[]'); } catch (err) {}
+  cache.remove(key);
+  const open = readTasks().filter(t => lc(t['Assigned To']) === lc(user.username) && (t['Status'] === 'Open' || t['Status'] === 'In progress')).length;
+  return { ok: true, messages: list, openTasks: open };
+}
+
+/** Sends an (empty) push to every phone of `username`. Returns { devices, sent }. Never throws. */
+function notifyUser(username, msg) {
+  try {
+    const sh = pushSheet();
+    const subs = rowsOf(sh, PUSH_COLS).filter(r => lc(r['Username']) === lc(username));
+    if (!subs.length) return { devices: 0, sent: 0 };        // no phone: they see it in the app
+    inboxAdd(username, msg);
+    const reqs = subs.map(s => ({
+      url: s['Endpoint'], method: 'post', muteHttpExceptions: true, followRedirects: false,
+      headers: { Authorization: vapidAuth(s['Endpoint']), TTL: '86400', Urgency: 'high' }
+    }));
+    const res = UrlFetchApp.fetchAll(reqs);
+    let sent = 0;
+    const gone = [];
+    res.forEach((r, i) => {
+      const code = r.getResponseCode(), row = subs[i]._row;
+      if (code >= 200 && code < 300) { sent++; sh.getRange(row, 7, 1, 2).setValues([[nowText(), '']]); }
+      else if (code === 404 || code === 410) gone.push(row);                       // phone unsubscribed / app removed
+      else sh.getRange(row, 8).setValue(nowText() + ' HTTP ' + code + ' ' + String(r.getContentText()).slice(0, 120));
+    });
+    gone.sort((a, b) => b - a).forEach(row => sh.deleteRow(row));
+    return { devices: subs.length - gone.length, sent: sent };
+  } catch (err) {
+    console.error('notifyUser ' + username + ': ' + err);
+    return { devices: 0, sent: 0, error: String(err.message || err) };
+  }
+}
+
+/** VAPID key pair (P-256), made once and kept in Script Properties. */
+function vapidKeys() {
+  const p = props();
+  let pub = p.getProperty('VAPID_PUBLIC'), priv = p.getProperty('VAPID_PRIVATE');
+  if (!pub || !priv) {
+    const seed = EC.sha256(EC.str(Utilities.getUuid() + Utilities.getUuid() + Date.now() + Math.random()));
+    const d = EC.mod(EC.big(seed), EC.n - BigInt(1)) + BigInt(1);
+    priv = EC.b64(EC.bytes(d, 32));
+    pub = EC.b64(EC.publicKey(d));
+    p.setProperty('VAPID_PRIVATE', priv); p.setProperty('VAPID_PUBLIC', pub);
+  }
+  return { pub: pub, d: EC.big(EC.unb64(priv)) };
+}
+
+/** "Authorization: vapid t=<JWT>, k=<public key>" for a push service (token cached ~5 h). */
+function vapidAuth(endpoint) {
+  const aud = String(endpoint).match(/^https:\/\/[^\/]+/)[0];
+  const keys = vapidKeys();
+  const cache = CacheService.getScriptCache(), ck = 'vapid_' + aud;
+  let jwt = cache.get(ck);
+  if (!jwt) {
+    const part = o => EC.b64(EC.str(JSON.stringify(o)));
+    const unsigned = part({ typ: 'JWT', alg: 'ES256' }) + '.' + part({ aud: aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: VAPID_SUB });
+    jwt = unsigned + '.' + EC.b64(EC.sign(EC.str(unsigned), keys.d));
+    cache.put(ck, jwt, 5 * 3600);
+  }
+  return 'vapid t=' + jwt + ', k=' + keys.pub;
+}
+
+/* ---------- P-256 ECDSA (ES256) with deterministic nonce (RFC 6979) ----------
+ * Apps Script has no elliptic-curve signing, so it is done here with BigInt. */
+const EC = (function () {
+  const B = s => BigInt(s);
+  const p = B('0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff');
+  const n = B('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
+  const G = [B('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296'),
+             B('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5')];
+  const Z0 = B(0), ONE = B(1), TWO = B(2), THREE = B(3), FOUR = B(4), EIGHT = B(8);
+  const mod = (x, m) => { const r = x % m; return r < Z0 ? r + m : r; };
+  function pow(b, e, m) { let r = ONE; b = mod(b, m); while (e > Z0) { if (e & ONE) r = r * b % m; b = b * b % m; e >>= ONE; } return r; }
+  const inv = (x, m) => pow(mod(x, m), m - TWO, m);
+  // Jacobian coordinates [X, Y, Z]; Z = 0 is the point at infinity
+  function dbl(P) {
+    const X = P[0], Y = P[1], Z = P[2];
+    if (Y === Z0 || Z === Z0) return [Z0, ONE, Z0];
+    const delta = Z * Z % p, gamma = Y * Y % p, beta = X * gamma % p;
+    const alpha = THREE * mod(X - delta, p) % p * ((X + delta) % p) % p;
+    const X3 = mod(alpha * alpha - EIGHT * beta, p);
+    const Z3 = mod((Y + Z) * (Y + Z) - gamma - delta, p);
+    const Y3 = mod(alpha * mod(FOUR * beta - X3, p) - EIGHT * (gamma * gamma % p), p);
+    return [X3, Y3, Z3];
+  }
+  function add(P, Q) {
+    if (P[2] === Z0) return Q;
+    if (Q[2] === Z0) return P;
+    const Z1Z1 = P[2] * P[2] % p, Z2Z2 = Q[2] * Q[2] % p;
+    const U1 = P[0] * Z2Z2 % p, U2 = Q[0] * Z1Z1 % p;
+    const S1 = P[1] * Q[2] % p * Z2Z2 % p, S2 = Q[1] * P[2] % p * Z1Z1 % p;
+    if (U1 === U2) return S1 === S2 ? dbl(P) : [Z0, ONE, Z0];
+    const H = mod(U2 - U1, p), I = TWO * H % p * (TWO * H % p) % p, J = H * I % p;
+    const r = TWO * mod(S2 - S1, p) % p, V = U1 * I % p;
+    const X3 = mod(r * r - J - TWO * V, p);
+    const Y3 = mod(r * mod(V - X3, p) - TWO * S1 * J, p);
+    const Z3 = mod(((P[2] + Q[2]) * (P[2] + Q[2]) - Z1Z1 - Z2Z2) % p * H, p);
+    return [X3, Y3, Z3];
+  }
+  function mul(k, A) {
+    let R = [Z0, ONE, Z0];
+    const Q = [A[0], A[1], ONE];
+    const bits = k.toString(2);
+    for (let i = 0; i < bits.length; i++) { R = dbl(R); if (bits[i] === '1') R = add(R, Q); }
+    if (R[2] === Z0) throw new Error('point at infinity');
+    const zi = inv(R[2], p), zi2 = zi * zi % p;
+    return [R[0] * zi2 % p, R[1] * zi2 % p * zi % p];
+  }
+  // bytes are plain numbers 0..255 here; Apps Script's own byte arrays are signed (-128..127)
+  const u8 = a => Array.prototype.map.call(a, x => x & 255);
+  const s8 = a => a.map(x => x > 127 ? x - 256 : x);
+  const big = a => { let x = Z0; for (let i = 0; i < a.length; i++) x = (x << EIGHT) + B(a[i]); return x; };
+  const bytes = (x, len) => { const out = new Array(len).fill(0); for (let i = len - 1; i >= 0; i--) { out[i] = Number(x & B(255)); x >>= EIGHT; } return out; };
+  const str = s => u8(Utilities.newBlob(String(s)).getBytes());
+  const sha256 = a => u8(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s8(a)));
+  const hmac = (key, data) => u8(Utilities.computeHmacSha256Signature(s8(data), s8(key)));
+  const b64 = a => Utilities.base64EncodeWebSafe(s8(a)).replace(/=+$/, '');
+  const unb64 = s => { s = String(s); while (s.length % 4) s += '='; return u8(Utilities.base64DecodeWebSafe(s)); };
+  function publicKey(d) { const Q = mul(d, G); return [4].concat(bytes(Q[0], 32), bytes(Q[1], 32)); }
+  /** 64-byte r||s signature of msg (bytes) with private key d (BigInt). */
+  function sign(msg, d) {
+    const h1 = sha256(msg), z = mod(big(h1), n);
+    const x = bytes(d, 32), hz = bytes(z, 32);
+    let V = new Array(32).fill(1), K = new Array(32).fill(0);
+    K = hmac(K, V.concat([0], x, hz)); V = hmac(K, V);
+    K = hmac(K, V.concat([1], x, hz)); V = hmac(K, V);
+    for (let guard = 0; guard < 100; guard++) {
+      V = hmac(K, V);
+      const k = big(V);
+      if (k > Z0 && k < n) {
+        const r = mod(mul(k, G)[0], n);
+        const s = mod(inv(k, n) * mod(z + r * d, n), n);
+        if (r !== Z0 && s !== Z0) return bytes(r, 32).concat(bytes(s, 32));
+      }
+      K = hmac(K, V.concat([0])); V = hmac(K, V);
+    }
+    throw new Error('signing failed');
+  }
+  /** Checks a signature (used by the self-test). */
+  function verify(msg, sig, pub) {
+    const r = big(sig.slice(0, 32)), s = big(sig.slice(32)), z = mod(big(sha256(msg)), n);
+    if (r <= Z0 || r >= n || s <= Z0 || s >= n) return false;
+    const w = inv(s, n), Q = [big(pub.slice(1, 33)), big(pub.slice(33))];
+    const A = mul(mod(z * w, n), G), Bp = mul(mod(r * w, n), Q);
+    const S = add([A[0], A[1], ONE], [Bp[0], Bp[1], ONE]);
+    const zi = inv(S[2], p);
+    return mod(S[0] * zi % p * zi, p) % n === r;
+  }
+  return { n: n, mod: mod, big: big, bytes: bytes, str: str, sha256: sha256, b64: b64, unb64: unb64, publicKey: publicKey, sign: sign, verify: verify };
+})();
+
+/* ================= One-time: v7 setup (tasks, roles, notifications) =================
+ * Run once from the editor (Run > setupV7). Google asks to allow "Connect to an external
+ * service" — needed to send notifications. Safe to run again. */
+function setupV7() {
+  // 1. roles in the Users sheet (+ access formulas)
+  setupSheet();
+  // 2. tasks spreadsheet
+  const ss = tasksBook();
+  Logger.log('Tasks spreadsheet: %s', ss.getUrl());
+  // 3. notification keys + self-test of the signature code
+  const keys = vapidKeys();
+  const msg = EC.str('holoul self-test ' + Date.now());
+  const sig = EC.sign(msg, keys.d);
+  if (!EC.verify(msg, sig, EC.unb64(keys.pub))) throw new Error('Signature self-test failed');
+  // fixed test vector (same result as Node.js crypto)
+  const tv = EC.sign(EC.str('holoul-test-vector'), EC.big(EC.sha256(EC.str('holoul-test-key'))));
+  Logger.log('Test vector: %s', EC.b64(tv));
+  Logger.log('Public key: %s', keys.pub);
+  // 4. touches the network once so Google asks for the permission now
+  UrlFetchApp.fetch('https://www.google.com/generate_204', { muteHttpExceptions: true });
+  Logger.log('v7 ready.');
 }
