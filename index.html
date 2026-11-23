@@ -21,7 +21,7 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
   /* ---------- Themes (Holoul green #2D7F67) ---------- */
   :root{
@@ -29,7 +29,7 @@
     --accent:#2D7F67; --accent-soft:rgba(45,127,103,.10);
     --bg:#F2F4F3; --panel:#FFFFFF; --panel2:#F6F8F7; --line:#DDE4E1; --text:#1D2925; --muted:#6E7A75;
     --wordmark:#7B7C80; --head:#FFFFFF; --strip:#2D7F67;
-    --ok:#16A34A; --edit:#D97706; --err:#DC2626;
+    --ok:#16A34A; --edit:#D97706; --err:#DC2626; --local:#2563EB;
     --ok-bg:rgba(22,163,74,.08); --ok-line:rgba(22,163,74,.35); --ok-text:#15803D;
     --bad-bg:rgba(220,38,38,.07); --bad-line:rgba(220,38,38,.35); --bad-text:#B91C1C;
     --shadow:0 1px 2px rgba(20,40,32,.06),0 6px 18px rgba(20,40,32,.06);
@@ -41,7 +41,7 @@
     --accent:#5CBB98; --accent-soft:rgba(92,187,152,.13);
     --bg:#0D1412; --panel:#151F1C; --panel2:#1B2824; --line:#283832; --text:#E3ECE8; --muted:#8C9D96;
     --wordmark:#B7C1BD; --head:#121B18; --strip:#0D1412;
-    --ok:#22C55E; --edit:#F59E0B; --err:#EF4444;
+    --ok:#22C55E; --edit:#F59E0B; --err:#EF4444; --local:#60A5FA;
     --ok-bg:rgba(34,197,94,.10); --ok-line:rgba(34,197,94,.35); --ok-text:#86EFAC;
     --bad-bg:rgba(239,68,68,.10); --bad-line:rgba(239,68,68,.40); --bad-text:#FCA5A5;
     --shadow:none;
@@ -174,6 +174,7 @@
   .dot.edit{background:var(--edit);border-color:var(--edit)}
   .dot.saving{background:var(--edit);border-color:var(--edit);animation:pulse .8s infinite alternate}
   .dot.err{background:var(--err);border-color:var(--err);cursor:pointer}
+  .dot.local{background:var(--local);border-color:var(--local)}
   @keyframes pulse{from{opacity:1}to{opacity:.35}}
 
   /* Vibration / Thermo: machine card > part > position, inputs side by side */
@@ -197,7 +198,7 @@
   .cell .dot{position:absolute;top:14px;inset-inline-end:-3px;width:10px;height:10px;background:var(--panel)}
   .gline{grid-template-columns:92px 1fr}
   .gline .pos b{font-size:14px;line-height:1.2}
-  .cell .dot.ok{background:var(--ok)} .cell .dot.edit,.cell .dot.saving{background:var(--edit)} .cell .dot.err{background:var(--err)}
+  .cell .dot.ok{background:var(--ok)} .cell .dot.edit,.cell .dot.saving{background:var(--edit)} .cell .dot.err{background:var(--err)} .cell .dot.local{background:var(--local)}
 
   /* ---------- Daily check page ---------- */
   #chk{padding-bottom:110px}
@@ -248,7 +249,7 @@
   .modal.open{visibility:visible;transition-delay:0s}
   .scrim{position:absolute;inset:0;background:var(--scrim);opacity:0;transition:opacity .25s}
   .modal.open .scrim{opacity:1}
-  .sheet{position:relative;width:100%;max-width:520px;background:var(--panel);color:var(--text);border-radius:22px 22px 0 0;
+  .sheet{position:relative;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;background:var(--panel);color:var(--text);border-radius:22px 22px 0 0;
          padding:8px 20px calc(18px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
          box-shadow:0 -10px 40px rgba(0,0,0,.25);border-top:1px solid var(--line)}
   .modal.open .sheet{transform:none}
@@ -274,6 +275,27 @@
   .danger svg{width:18px;height:18px;stroke:currentColor}
   html[dir="rtl"] .danger svg{transform:scaleX(-1)}
   .sfoot{text-align:center;color:var(--muted);font-size:11px;padding-top:6px;direction:ltr}
+
+  /* ---------- upload status ---------- */
+  .sync{display:inline-flex;align-items:center;gap:7px;border:0;cursor:pointer;font-size:12px;border-radius:999px;padding:6px 11px;margin-top:12px;position:relative}
+  .sync i{width:8px;height:8px;border-radius:50%;flex:none;background:currentColor}
+  .welcome .sync{background:rgba(255,255,255,.16);color:#fff}
+  .welcome .sync.ok i{background:#86EFAC} .welcome .sync.warn i,.welcome .sync.busy i{background:#93C5FD} .welcome .sync.bad i{background:#FCA5A5}
+  .welcome .sync.busy i{animation:pulse .8s infinite alternate}
+  .sync.line{display:flex;width:100%;border-radius:10px;margin-top:10px;padding:8px 10px;text-align:start;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+  .sync.line.warn,.sync.line.busy{color:var(--local);border-color:color-mix(in srgb,var(--local) 35%,transparent);background:color-mix(in srgb,var(--local) 8%,transparent)}
+  .sync.line.busy i{animation:pulse .8s infinite alternate}
+  .sync.line.bad{color:var(--bad-text);border-color:var(--bad-line);background:var(--bad-bg)}
+  .sstate{font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .sstate::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--ok);flex:none}
+  .sstate.warn::before,.sstate.busy::before{background:var(--local)} .sstate.bad::before{background:var(--err)}
+  .ghostbtn{width:100%;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-weight:600;font-size:14px;cursor:pointer}
+  .failbox{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--bad-bg);border:1px solid var(--bad-line)}
+  .failbox ul{list-style:none;font-size:12px;color:var(--text);display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .failbox em{font-style:normal;color:var(--bad-text)}
+  .failbox .ghostbtn{height:38px;font-size:13px}
+  .pendnote{font-size:12px;color:var(--edit);margin-bottom:10px}
+  .pendnote:empty{display:none}
 </style>
 </head>
 <body>
@@ -333,6 +355,7 @@
         <div class="badge"><span data-i18n="role">Role</span> <b id="uRole"></b></div>
         <div class="badge hidden" id="eqBadge"><span data-i18n="equipment">Equipment</span> <b id="uEq"></b></div>
       </div>
+      <button type="button" class="sync hidden" id="homeSync"><i></i><span></span></button>
     </div>
     <h3 data-i18n="yourAccess">Your access</h3>
     <div class="grid" id="tiles"></div>
@@ -350,10 +373,11 @@
       </div>
       <div class="bar"><i id="rBar"></i></div>
       <div class="legend">
-        <span><i class="dot ok"></i><em style="font-style:normal" data-i18n="saved">Saved</em></span>
-        <span><i class="dot edit"></i><em style="font-style:normal" data-i18n="editing">Editing / saving</em></span>
-        <span><i class="dot err"></i><em style="font-style:normal" data-i18n="notSaved">Not saved – tap to retry</em></span>
+        <span><i class="dot ok"></i><em style="font-style:normal" data-i18n="uploaded">Uploaded</em></span>
+        <span><i class="dot local"></i><em style="font-style:normal" data-i18n="savedOnPhone">Saved on phone</em></span>
+        <span><i class="dot err"></i><em style="font-style:normal" data-i18n="notSaved">Not uploaded – tap to retry</em></span>
       </div>
+      <button type="button" class="sync line hidden" id="rSync"><i></i><span></span></button>
       <div class="banner hidden" id="rBanner"></div>
     </div>
     <div class="colhead" id="rColHead"><span data-i18n="colId">Cable ID / Description</span><span id="rRefHead">Ref</span><span data-i18n="colReading">Reading</span></div>
@@ -378,6 +402,7 @@
       </div>
       <div class="bar"><i id="cBar"></i></div>
       <div class="unitrow"><span data-i18n="unit">Unit</span><select id="cUnit"></select></div>
+      <button type="button" class="sync line hidden" id="cSync"><i></i><span></span></button>
       <div class="banner hidden" id="cBanner"></div>
     </div>
     <div id="cList"><div class="loading" data-i18n="loading">Loading…</div></div>
@@ -422,22 +447,30 @@
         </button>
       </div>
     </div>
+    <div class="sgroup hidden" id="setData">
+      <label data-i18n="dataOnPhone">Data on this phone</label>
+      <div class="sstate" id="syncState"></div>
+      <button type="button" class="ghostbtn" id="syncNow" data-i18n="uploadNow">Upload now</button>
+      <div class="failbox hidden" id="failBox"><ul id="failList"></ul><button type="button" class="ghostbtn" id="discardFailed" data-i18n="discardFailed">Discard these</button></div>
+    </div>
     <div class="sgroup hidden" id="setAccount">
       <div class="who"><div class="avatar" id="setAvatar"></div><div><small data-i18n="signedInAs">Signed in as</small><b id="setUser"></b></div></div>
+      <div class="pendnote" id="pendNote"></div>
       <button type="button" class="danger" id="logout">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
         <span data-i18n="signOut">Sign out</span>
       </button>
     </div>
-    <div class="sfoot">Holoul Maintenance · v8</div>
+    <div class="sfoot">Holoul Maintenance · v9</div>
   </div>
 </div>
 
 <input type="file" id="photoPick" accept="image/*" class="hidden">
 <div class="toast" id="toast"></div>
 
+<script src="sync.js?v=9"></script>
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycby6cn2Os6fkkireTwP8QJqV-8E45gf5V6wovl_8fz28RL_vEG3Rg0nuuEKFv3kwdYWMCw/exec';
+const HS = window.HoloulSync;
 
 /* Pages. `ready: true` = the record page is built. Keys must match the sheet / access names. */
 const MODULES = {
@@ -455,23 +488,24 @@ const I18N = {
     signInTo:'Sign in to continue', username:'Username', pin:'PIN', autoSignIn:'Auto sign in on this device',
     signIn:'Sign in', signingIn:'Signing in…', signInFailed:'Sign in failed',
     noConnLogin:'No connection — check internet and try again', sessionExpired:'Session expired — please sign in again',
+    needOnlineFirst:'No connection — sign in once with internet on this phone first.',
+    offlineSignedIn:'No connection — signed in on this phone. Your work uploads when online.',
     welcome:'Welcome', id:'ID', role:'Role', equipment:'Equipment', yourAccess:'Your access',
     noPages:'No pages assigned yet. Ask your supervisor to set your role in the Users sheet.',
     comingNext:'{name} page — coming next',
     settings:'Settings', language:'Language', mode:'Mode', modeDefault:'Default', modeNight:'Night',
     signedInAs:'Signed in as', signOut:'Sign out', close:'Close', back:'Back',
-    loading:'Loading…', saved:'Saved', editing:'Editing / saving', notSaved:'Not saved – tap to retry',
+    loading:'Loading…', uploaded:'Uploaded', savedOnPhone:'Saved on phone', notSaved:'Not uploaded – tap to retry',
     colId:'Cable ID / Description', colRef:'Ref', colReading:'Reading',
     completeTask:'Complete task', completeAnyway:'Complete anyway',
     emptyReadings_one:'1 reading is empty. Tap again to complete anyway.',
     emptyReadings_other:'{n} readings are empty. Tap again to complete anyway.',
-    savingLast:'Saving your last readings… tap again in a moment.',
-    someNotSaved:'Some readings are not saved (red dots). Tap them to retry first.',
-    submitting:'Submitting…', taskCompleted:'✓ Task completed ({ft})', taskRecorded:'Task recorded — thank you',
-    couldNotSubmit:'Could not submit: {e}', noConnection:'no connection',
-    savingTryBack:'Saving… try Back again in a moment', noRows:'No rows found in this sheet.',
-    noConnBack:'No connection — go back and try again.', notSavedToast:'Not saved: {e} — tap the red dot to retry',
-    completedBy:'✓ Completed today by {by} at {at} ({ft} readings)',
+    someNotSaved:'Some readings could not upload (red dots). Tap them to retry first.',
+    taskCompleted:'✓ Task completed ({ft})', taskRecorded:'Task recorded — thank you',
+    savedPhoneToast:'Saved on phone — uploads automatically',
+    noRows:'No rows found in this sheet.',
+    noConnFirst:'No connection — this page is not on this phone yet. Open it once with internet.',
+    completedBy:'✓ Completed today by {by} at {at} ({ft} readings)', waitingUpload:' · waiting to upload',
     'dir.H':'Horizontal', 'dir.V':'Vertical', 'dir.A':'Axial',
     thermoKey:'Temperature in °C',
     'pos.F':'Front', 'pos.B':'Back', 'pos.L':'Left', 'pos.R':'Right',
@@ -479,7 +513,7 @@ const I18N = {
     checks:'Checks', onceWeek:'once a week', lastDone:'Last done {d}', notDoneYet:'Not done yet', leaveBlank:'leave blank if not today',
     last:'Last', enterReading:'Enter reading', noFault:'No fault', actionRequired:'Action required',
     whatWrong:'What is wrong? (required)', photoRequired:'Take photo of the meter (required)', photoOptional:'Add photo (optional)',
-    photoRetake:'Retake / change photo', uploading:'Uploading…', notUploaded:'Not uploaded — tap red dot to retry', savedDrive:'Saved to Drive',
+    photoRetake:'Retake / change photo', photoLocal:'Saved on phone · uploads automatically', notUploaded:'Not uploaded — tap red dot to retry', savedDrive:'Saved to Drive',
     lowerThanLast:'Lower than the last reading ({v}). Please check the meter photo.',
     over24_one:'{x} h in 1 day — more than 24 h a day. Please check.',
     over24_other:'{x} h in {d} days — more than 24 h a day. Please check.',
@@ -487,10 +521,15 @@ const I18N = {
     submittedAt:'✓ Submitted today at {at} by {by} — {status}', canChange:'. You can change it and submit again.',
     statusOK:'OK', statusAction:'Action required ({n})',
     stillNeeded:'Still needed: {x}', itemsNeeded:'{n} items still needed (first: {x})',
-    meterPhoto:'meter photo', describeFault:'describe fault: {x}', waitPhoto:'Wait for the photo to finish uploading.',
+    meterPhoto:'meter photo', describeFault:'describe fault: {x}',
     submittedFaults_one:'✓ Submitted — 1 fault reported', submittedFaults_other:'✓ Submitted — {n} faults reported',
     submittedOK:'✓ Submitted — all OK', checkSaved:'Daily check saved — thank you',
-    photoUploading:'A photo is still uploading…', cantReadPhoto:'Could not read that photo', photoNotUploaded:'Photo not uploaded: {e}',
+    cantReadPhoto:'Could not read that photo',
+    syncAll:'All uploaded', syncBusy:'Uploading {n}…', syncWaiting:'{n} saved on phone · uploads when online',
+    syncLogin:'Sign in to upload {n}', sessionTap:'Session expired — tap to sign in', syncFailed:'{n} could not upload — tap for details',
+    dataOnPhone:'Data on this phone', lastSync:'Last upload {t}', uploadNow:'Upload now', discardFailed:'Discard these',
+    pendingSignOut:'{n} not uploaded yet — they upload next time you sign in on this phone.',
+    failedItem:'{page} · {what}', rowN:'row {n}', photoOf:'photo: {x}', completeOf:'complete task', checkOf:'daily check {u}',
     'mod.Amp Rec':'Amp Rec', 'sub.Amp Rec':'Motor current readings',
     'mod.Vibration Rec':'Vibration Rec', 'sub.Vibration Rec':'Bearing & motor vibration',
     'mod.Thermo Rec':'Thermo Rec', 'sub.Thermo Rec':'Motor & gearbox temps',
@@ -503,22 +542,23 @@ const I18N = {
     signInTo:'سجّل الدخول للمتابعة', username:'اسم المستخدم', pin:'الرمز السري', autoSignIn:'دخول تلقائي على هذا الجهاز',
     signIn:'تسجيل الدخول', signingIn:'جارٍ تسجيل الدخول…', signInFailed:'تعذّر تسجيل الدخول',
     noConnLogin:'لا يوجد اتصال — تأكد من الإنترنت وحاول مرة أخرى', sessionExpired:'انتهت الجلسة — سجّل الدخول مرة أخرى',
+    needOnlineFirst:'لا يوجد اتصال — سجّل الدخول مرة واحدة بالإنترنت على هذا الجوال أولاً.',
+    offlineSignedIn:'لا يوجد اتصال — تم الدخول على الجوال، وعملك يُرفع عند توفر الشبكة.',
     welcome:'أهلاً', id:'الرقم', role:'الوظيفة', equipment:'المعدة', yourAccess:'صفحاتك',
     noPages:'لا توجد صفحات مخصصة لك بعد. اطلب من المشرف تحديد وظيفتك في جدول المستخدمين.',
     comingNext:'صفحة {name} — قريباً',
     settings:'الإعدادات', language:'اللغة', mode:'الوضع', modeDefault:'الافتراضي', modeNight:'الليلي',
     signedInAs:'مسجّل الدخول باسم', signOut:'تسجيل الخروج', close:'إغلاق', back:'رجوع',
-    loading:'جارٍ التحميل…', saved:'محفوظ', editing:'جارٍ التعديل / الحفظ', notSaved:'لم يُحفظ – اضغط لإعادة المحاولة',
+    loading:'جارٍ التحميل…', uploaded:'تم الرفع', savedOnPhone:'محفوظ في الجوال', notSaved:'لم يُرفع – اضغط لإعادة المحاولة',
     colId:'رقم الكيبل / الوصف', colRef:'المرجع', colReading:'القراءة',
     completeTask:'إنهاء المهمة', completeAnyway:'إنهاء على أي حال',
     emptyReadings:'عدد القراءات الفارغة: {n}. اضغط مرة أخرى للإنهاء على أي حال.',
-    savingLast:'جارٍ حفظ آخر القراءات… اضغط مرة أخرى بعد لحظة.',
-    someNotSaved:'بعض القراءات لم تُحفظ (النقاط الحمراء). اضغط عليها لإعادة المحاولة أولاً.',
-    submitting:'جارٍ الإرسال…', taskCompleted:'✓ تم إنهاء المهمة ({ft})', taskRecorded:'تم تسجيل المهمة — شكراً',
-    couldNotSubmit:'تعذّر الإرسال: {e}', noConnection:'لا يوجد اتصال',
-    savingTryBack:'جارٍ الحفظ… اضغط رجوع بعد لحظة', noRows:'لا توجد بنود في هذا الجدول.',
-    noConnBack:'لا يوجد اتصال — ارجع وحاول مرة أخرى.', notSavedToast:'لم يُحفظ: {e} — اضغط النقطة الحمراء لإعادة المحاولة',
-    completedBy:'✓ أُنجزت اليوم بواسطة {by} الساعة {at} ({ft} قراءة)',
+    someNotSaved:'بعض القراءات تعذّر رفعها (النقاط الحمراء). اضغط عليها لإعادة المحاولة أولاً.',
+    taskCompleted:'✓ تم إنهاء المهمة ({ft})', taskRecorded:'تم تسجيل المهمة — شكراً',
+    savedPhoneToast:'محفوظ في الجوال — يُرفع تلقائياً',
+    noRows:'لا توجد بنود في هذا الجدول.',
+    noConnFirst:'لا يوجد اتصال — هذه الصفحة غير محفوظة في الجوال بعد. افتحها مرة واحدة بالإنترنت.',
+    completedBy:'✓ أُنجزت اليوم بواسطة {by} الساعة {at} ({ft} قراءة)', waitingUpload:' · بانتظار الرفع',
     'dir.H':'أفقي', 'dir.V':'رأسي', 'dir.A':'محوري',
     thermoKey:'درجة الحرارة بالدرجة المئوية',
     'pos.F':'أمام', 'pos.B':'خلف', 'pos.L':'يسار', 'pos.R':'يمين',
@@ -526,17 +566,22 @@ const I18N = {
     checks:'الفحوصات', onceWeek:'مرة في الأسبوع', lastDone:'آخر مرة {d}', notDoneYet:'لم يتم بعد', leaveBlank:'اتركه فارغاً إذا ليس اليوم',
     last:'آخر قراءة', enterReading:'أدخل القراءة', noFault:'سليم', actionRequired:'يحتاج إجراء',
     whatWrong:'ما المشكلة؟ (مطلوب)', photoRequired:'صوّر العداد (مطلوب)', photoOptional:'أضف صورة (اختياري)',
-    photoRetake:'إعادة / تغيير الصورة', uploading:'جارٍ الرفع…', notUploaded:'لم تُرفع — اضغط النقطة الحمراء لإعادة المحاولة', savedDrive:'محفوظة في Drive',
+    photoRetake:'إعادة / تغيير الصورة', photoLocal:'محفوظة في الجوال · تُرفع تلقائياً', notUploaded:'لم تُرفع — اضغط النقطة الحمراء لإعادة المحاولة', savedDrive:'محفوظة في Drive',
     lowerThanLast:'أقل من آخر قراءة ({v}). تأكد من صورة العداد.',
     over24:'{x} ساعة خلال {d} يوم — أكثر من 24 ساعة في اليوم. تأكد من القراءة.',
     sinceLast:'{x} منذ آخر قراءة', hours:'ساعة',
     submittedAt:'✓ أُرسل اليوم الساعة {at} بواسطة {by} — {status}', canChange:'. يمكنك التعديل والإرسال مرة أخرى.',
     statusOK:'سليم', statusAction:'يحتاج إجراء ({n})',
     stillNeeded:'مطلوب: {x}', itemsNeeded:'باقي {n} بنود مطلوبة (أولها: {x})',
-    meterPhoto:'صورة العداد', describeFault:'وصف العطل: {x}', waitPhoto:'انتظر حتى يكتمل رفع الصورة.',
+    meterPhoto:'صورة العداد', describeFault:'وصف العطل: {x}',
     submittedFaults:'✓ تم الإرسال — عدد الأعطال المبلّغ عنها: {n}',
     submittedOK:'✓ تم الإرسال — كل شيء سليم', checkSaved:'تم حفظ الفحص اليومي — شكراً',
-    photoUploading:'لا تزال هناك صورة قيد الرفع…', cantReadPhoto:'تعذّرت قراءة الصورة', photoNotUploaded:'لم تُرفع الصورة: {e}',
+    cantReadPhoto:'تعذّرت قراءة الصورة',
+    syncAll:'كل البيانات مرفوعة', syncBusy:'جارٍ رفع {n}…', syncWaiting:'{n} محفوظة في الجوال · تُرفع عند توفر الشبكة',
+    syncLogin:'سجّل الدخول لرفع {n}', sessionTap:'انتهت الجلسة — اضغط لتسجيل الدخول', syncFailed:'تعذّر رفع {n} — اضغط للتفاصيل',
+    dataOnPhone:'البيانات في الجوال', lastSync:'آخر رفع {t}', uploadNow:'ارفع الآن', discardFailed:'تجاهلها',
+    pendingSignOut:'{n} لم تُرفع بعد — ستُرفع عند تسجيل دخولك مرة أخرى على هذا الجوال.',
+    failedItem:'{page} · {what}', rowN:'بند {n}', photoOf:'صورة: {x}', completeOf:'إنهاء المهمة', checkOf:'الفحص اليومي {u}',
     'mod.Amp Rec':'قراءات التيار', 'sub.Amp Rec':'قراءة أمبير المحركات',
     'mod.Vibration Rec':'قراءات الاهتزاز', 'sub.Vibration Rec':'اهتزاز المحركات والمحامل',
     'mod.Thermo Rec':'قراءات الحرارة', 'sub.Thermo Rec':'حرارة المحركات وعلب التروس',
@@ -549,7 +594,7 @@ let LANG = document.documentElement.lang === 'ar' ? 'ar' : 'en';
 function t(k, p){
   let s = I18N[LANG][k]; if(s == null) s = I18N.en[k]; if(s == null) s = k;
   // in Arabic, isolate each inserted value (names, numbers, times) so mixed text keeps its order
-  const wrap = v => LANG === 'ar' ? '\u2068' + v + '\u2069' : String(v);
+  const wrap = v => LANG === 'ar' ? '⁨' + v + '⁩' : String(v);
   return p ? s.replace(/\{(\w+)\}/g, (m, x) => p[x] != null ? wrap(p[x]) : m) : s;
 }
 /* plural: uses key_one / key_other when the language has them, else the plain key */
@@ -565,6 +610,12 @@ function longDate(fallback){
   try{ return new Date().toLocaleDateString(localeTag(), {weekday:'short', day:'numeric', month:'short', year:'numeric', timeZone:'Asia/Riyadh'}); }
   catch(e){ return fallback || ''; }
 }
+/* working day in Riyadh, 'yyyy-mm-dd' (same day the server uses) */
+function todayISO(){
+  try{ return new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Riyadh', year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date()); }
+  catch(e){ const d = new Date(Date.now() + 3 * 3600e3); return d.toISOString().slice(0, 10); }
+}
+const hhmm = (d = new Date()) => { try{ return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Riyadh'}); }catch(e){ return ''; } };
 /* messages that come from the server (Code.gs) are English — translate the common ones */
 const SERVER_AR = [
   [/^Wrong username or PIN$/, 'اسم المستخدم أو الرمز السري غير صحيح'],
@@ -578,7 +629,8 @@ const SERVER_AR = [
   [/^Photo is too large$/, 'حجم الصورة كبير جداً'],
   [/^Not an image$/, 'الملف ليس صورة'],
   [/^Invalid row$/, 'بند غير صحيح'],
-  [/^Failed to fetch$|^Load failed$|^NetworkError/i, 'لا يوجد اتصال']
+  [/^Date (\S+) is more than (\d+) days old$/, m => 'التاريخ ' + m[1] + ' أقدم من ' + m[2] + ' أيام'],
+  [/^No connection$|^Timed out$|^Failed to fetch$|^Load failed$|^NetworkError/i, 'لا يوجد اتصال']
 ];
 function trErr(s){
   s = String(s || '');
@@ -616,6 +668,7 @@ function applyLang(lang){
   document.title = LANG === 'ar' ? 'صيانة حلول' : 'Holoul Maintenance';
   // redraw what is on screen
   if(session && !$('home').classList.contains('hidden')) showHome();
+  syncUI();
 }
 
 const $ = id => document.getElementById(id);
@@ -626,10 +679,12 @@ let lastFocus = null;
 function openSettings(){
   const signedIn = !!session;
   $('setAccount').classList.toggle('hidden', !signedIn);
+  $('setData').classList.toggle('hidden', !signedIn);
   if(signedIn){
     $('setUser').textContent = session.user.name || session.user.username;
     $('setAvatar').textContent = String(session.user.name || session.user.username || '?').trim().charAt(0).toUpperCase();
   }
+  syncUI();
   lastFocus = document.activeElement;
   $('settings').classList.add('open'); $('settings').setAttribute('aria-hidden', 'false');
   setTimeout(() => $('setClose').focus(), 50);
@@ -645,20 +700,23 @@ $('setScrim').onclick = closeSettings;
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && $('settings').classList.contains('open')) closeSettings(); });
 document.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => applyLang(b.dataset.lang));
 document.querySelectorAll('[data-theme-btn]').forEach(b => b.onclick = () => applyTheme(b.dataset.themeBtn));
+$('syncNow').onclick = () => { retryMs = 0; runFlush(); };
+$('discardFailed').onclick = async () => { if(session){ await HS.outbox.removeFailed(me()); refreshPending(); } };
 
-/* ---------- session ---------- */
+/* ---------- session (kept on this phone) ---------- */
 const store = {
-  get(){ try{ const s = JSON.parse(localStorage.getItem('holoul_session')); return s && s.token ? s : null; }catch(e){ return null; } },
-  set(s){ try{ localStorage.setItem('holoul_session', JSON.stringify(s)); }catch(e){} },
-  clear(){ try{ localStorage.removeItem('holoul_session'); localStorage.removeItem('holoul_user'); }catch(e){} }
+  get(){ try{ const s = JSON.parse(localStorage.getItem('holoul_session')); return s && s.user ? s : null; }catch(e){ return null; } },
+  set(s){ try{ localStorage.setItem('holoul_session', JSON.stringify(s)); }catch(e){} HS.saveSession(s, true).catch(()=>{}); },
+  clear(){ try{ localStorage.removeItem('holoul_session'); localStorage.removeItem('holoul_user'); }catch(e){} HS.saveSession(null, true).catch(()=>{}); }
 };
 let session = null;
+const me = () => session && session.user ? session.user.username : '';
 
 /* "Auto sign in on this device": remembers username + PIN on this phone only */
 const remember = {
   get(){ try{ const r = JSON.parse(localStorage.getItem('holoul_remember')); return r && r.u && r.p ? r : null; }catch(e){ return null; } },
-  set(u, p){ try{ localStorage.setItem('holoul_remember', JSON.stringify({u, p})); }catch(e){} },
-  clear(){ try{ localStorage.removeItem('holoul_remember'); }catch(e){} }
+  set(u, p){ try{ localStorage.setItem('holoul_remember', JSON.stringify({u, p})); }catch(e){} HS.kv.set('remember', {u, p}).catch(()=>{}); },
+  clear(){ try{ localStorage.removeItem('holoul_remember'); }catch(e){} HS.kv.del('remember').catch(()=>{}); }
 };
 // set after "Sign out" so the app doesn't jump straight back in; cleared when the app is closed
 const signedOut = {
@@ -666,30 +724,192 @@ const signedOut = {
   set(v){ try{ v ? sessionStorage.setItem('holoul_signed_out','1') : sessionStorage.removeItem('holoul_signed_out'); }catch(e){} }
 };
 
-async function post(body){
-  // text/plain avoids the CORS preflight that Apps Script can't answer
-  const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body)});
-  return res.json();
+/* ---------- copies of pages kept on the phone ---------- */
+const pageKey = name => `page:${me()}:${name}`;
+const chkKey  = (type, unit) => `chk:${me()}:${type}:${unit}`;
+const chkMeta = type => `chk:${me()}:${type}`;
+const saveOpId     = (sheet, row, iso) => `s|${me()}|${sheet}|${row}|${iso}`;
+const completeOpId = (sheet, iso) => `c|${me()}|${sheet}|${iso}`;
+const checkOpId    = (type, unit, iso) => `k|${me()}|${type}|${unit}|${iso}`;
+const clone = o => JSON.parse(JSON.stringify(o));
+
+/* waiting changes of this user, by id (refreshed whenever the outbox changes) */
+let pend = new Map();
+let authLost = false;   // server asked to sign in again
+async function refreshPending(){
+  try{
+    const ops = await HS.outbox.all();
+    pend = new Map(ops.filter(o => o.username === me()).map(o => [o.id, o]));
+  }catch(e){}
+  if(rec) paintAllDots();
+  if(chk && !$('chk').classList.contains('hidden')) renderChecklist();
+  syncUI();
 }
 
-async function api(action, data = {}, retried = false){
-  const r = await post({action, token: session && session.token, ...data});
-  if(r.auth){
-    // session expired: if auto sign in is on, sign in again quietly and repeat the request once
-    const saved = remember.get();
-    if(saved && !retried){
-      const l = await post({action:'login', username: saved.u, pin: saved.p});
-      if(l.ok){ session = {token: l.token, user: l.user}; store.set(session); return api(action, data, true); }
-      remember.clear();   // PIN changed or user deactivated
-    }
-    expired(); throw new Error(r.error);
+/** Record page data for today: yesterday's copy keeps its rows but not its values; waiting changes on top. */
+function recordForToday(sheet, cached, iso){
+  const d = clone(cached.data);
+  if(cached.iso !== iso){
+    d.rows.forEach(r => { if(!r.section) r.value = ''; });
+    d.completed = null; d.column = null;
   }
-  return r;
+  return overlayRecord(sheet, d, iso);
 }
-function expired(){
-  store.clear(); session = null; showView('login'); fillRemembered();
-  $('msg').textContent = t('sessionExpired');
+function overlayRecord(sheet, d, iso){
+  d.rows.forEach(r => { if(r.section) return; const op = pend.get(saveOpId(sheet, r.row, iso)); if(op) r.value = op.value; });
+  const c = pend.get(completeOpId(sheet, iso));
+  if(c && !d.completed) d.completed = c.local;
+  return d;
 }
+
+/** Checklist data for today: yesterday's submission becomes "last" readings. */
+function checklistForToday(cached, iso){
+  const d = clone(cached.data);
+  if(cached.iso !== iso){
+    const e = d.todayEntry;
+    if(e){
+      d.items.forEach(it => {
+        const v = e.values && e.values[it.item];
+        if(it.input === 'reading' && v !== '' && v != null) d.last[it.item] = {value: String(v), date: cached.iso, by: e.by};
+        if(it.weekly && v === '✓') d.weeklyLast[it.item] = cached.iso;
+      });
+    }
+    d.todayEntry = null; d.today = iso;
+  }
+  const op = pend.get(checkOpId(d.type, d.unit, iso));
+  if(op && op.local) d.todayEntry = op.local;
+  return d;
+}
+
+/** Fresh data from the server for every page this user can open, kept on the phone. */
+let lastPrefetch = 0, prefetching = null;
+function prefetch(force){
+  if(!session) return Promise.resolve();
+  if(prefetching) return prefetching;
+  if(!force && Date.now() - lastPrefetch < 5 * 60e3) return Promise.resolve();
+  prefetching = (async () => {
+    const iso = todayISO();
+    try{
+      const r = await HS.api('getAll', {}, HS.TIMEOUT.read * 2);
+      if(r && r.ok){
+        lastPrefetch = Date.now(); authLost = false;
+        if(r.user && session && r.user.username === session.user.username){
+          const changed = JSON.stringify(r.user.access) !== JSON.stringify(session.user.access) || r.user.name !== session.user.name;
+          session.user = Object.assign({}, session.user, r.user); store.set(session);
+          if(changed && !$('home').classList.contains('hidden')) showHome();
+        }
+        for(const [name, p] of Object.entries(r.pages || {})){
+          if(!p || !p.ok) continue;
+          if(p.checklist){
+            await HS.kv.set(chkMeta(name), {defaultUnit: p.defaultUnit, units: Object.keys(p.units)});
+            for(const [u, d] of Object.entries(p.units)) await HS.kv.set(chkKey(name, u), {iso: d.today || iso, data: d, at: Date.now()});
+          } else {
+            await HS.kv.set(pageKey(name), {iso: p.iso || iso, data: p, at: Date.now()});
+          }
+        }
+      } else if(r && r.error === 'Unknown action'){
+        // older server: one page at a time
+        for(const name of (session.user.access || [])){
+          const m = MODULES[name] || {};
+          try{
+            if(m.ready){ const d = await HS.api('getSheet', {sheet: name}); if(d.ok) await HS.kv.set(pageKey(name), {iso, data: d, at: Date.now()}); }
+            else if(m.checklist){ const d = await HS.api('getChecklist', {type: name}); if(d.ok){ await HS.kv.set(chkMeta(name), {defaultUnit: d.unit, units: d.units}); await HS.kv.set(chkKey(name, d.unit), {iso: d.today || iso, data: d, at: Date.now()}); } }
+          }catch(e){ if(e.net || e.auth) throw e; }
+        }
+        lastPrefetch = Date.now();
+      }
+    }catch(e){ if(e.auth){ authLost = true; syncUI(); } }
+    finally{ prefetching = null; }
+  })();
+  return prefetching;
+}
+
+/* ---------- background upload ---------- */
+let retryMs = 0, retryTimer = null, flushRunning = false;
+function scheduleFlush(delay){
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(runFlush, delay == null ? 1200 : delay);
+}
+async function runFlush(){
+  clearTimeout(retryTimer);
+  if(!session || flushRunning) return;
+  flushRunning = true;
+  let r = {};
+  try{ r = await HS.flush(); }catch(e){ r = {ok:false, offline:true}; }
+  finally{ flushRunning = false; }
+  await refreshPending();
+  const waiting = [...pend.values()].some(o => !o.failed);
+  if(waiting && !r.needLogin){
+    retryMs = r.ok ? 3000 : Math.min(retryMs ? retryMs * 2 : 5000, 60000);   // keep trying, slower each time
+    scheduleFlush(retryMs);
+  } else retryMs = 0;
+  if(r.needLogin) authLost = true;
+  if(r.ok){ authLost = false; if(!waiting) prefetch(); }
+}
+function requestBackgroundSync(){
+  try{ if('serviceWorker' in navigator) navigator.serviceWorker.ready.then(reg => reg.sync && reg.sync.register('holoul-outbox')).catch(()=>{}); }catch(e){}
+}
+async function queue(op){
+  op.username = me();
+  await HS.outbox.put(op);
+  pend.set(op.id, op);
+  requestBackgroundSync();
+  scheduleFlush();
+}
+window.addEventListener('online', () => { retryMs = 0; runFlush(); });
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && session){ runFlush(); prefetch(); } });
+
+let uiTimer = null;
+HS.on(msg => {
+  if(msg.type === 'session'){
+    if(msg.session && session && msg.session.user && msg.session.user.username === me()){
+      session = Object.assign({}, session, msg.session);
+      try{ localStorage.setItem('holoul_session', JSON.stringify(session)); }catch(e){}
+    }
+    return;
+  }
+  if(msg.type === 'done' || msg.type === 'failed' || msg.type === 'outbox'){
+    if(msg.type === 'done' && msg.op.action === 'uploadPhoto' && msg.res && msg.res.url) photoUrls.set(msg.op.id, msg.res.url);
+    clearTimeout(uiTimer); uiTimer = setTimeout(refreshPending, 150);
+  }
+  if(msg.type === 'state') syncUI();
+});
+
+/* sync status: small line on the pages + details in settings */
+async function syncUI(){
+  if(!session){ ['homeSync','rSync','cSync'].forEach(id => { $(id).className = 'sync hidden'; }); return; }
+  const st = HS.state();
+  const ops = [...pend.values()];
+  const waiting = ops.filter(o => !o.failed).length, failed = ops.filter(o => o.failed);
+  let cls = 'ok', txt = t('syncAll');
+  if(failed.length){ cls = 'bad'; txt = t('syncFailed', {n: failed.length}); }
+  else if(waiting && (st.needLogin || authLost)){ cls = 'warn'; txt = t('syncLogin', {n: waiting}); }
+  else if(authLost){ cls = 'warn'; txt = t('sessionTap'); }
+  else if(waiting && st.busy){ cls = 'busy'; txt = t('syncBusy', {n: waiting}); }
+  else if(waiting){ cls = 'warn'; txt = t('syncWaiting', {n: waiting}); }
+  $('homeSync').className = 'sync ' + cls; $('homeSync').querySelector('span').textContent = txt;
+  ['rSync','cSync'].forEach(id => { const el = $(id); el.className = 'sync line ' + cls + (cls === 'ok' ? ' hidden' : ''); el.querySelector('span').textContent = txt; });
+  // settings
+  $('syncState').textContent = txt + (st.lastSync ? ' · ' + t('lastSync', {t: hhmm(new Date(st.lastSync))}) : '');
+  $('syncState').className = 'sstate ' + cls;
+  $('failList').innerHTML = failed.slice(0, 6).map(o => `<li>${esc(failLabel(o))} — <em>${esc(trErr(o.failed))}</em></li>`).join('');
+  $('failBox').classList.toggle('hidden', !failed.length);
+  $('pendNote').textContent = waiting ? t('pendingSignOut', {n: waiting}) : '';
+}
+function failLabel(o){
+  if(o.action === 'saveReading') return t('failedItem', {page: modName(o.sheet), what: t('rowN', {n: o.row})});
+  if(o.action === 'complete') return t('failedItem', {page: modName(o.sheet), what: t('completeOf')});
+  if(o.action === 'submitCheck') return t('failedItem', {page: modName(o.type), what: t('checkOf', {u: o.unit})});
+  if(o.action === 'uploadPhoto') return t('failedItem', {page: modName(o.type), what: t('photoOf', {x: o.kind})});
+  return o.action;
+}
+function syncTap(){
+  const st = HS.state(), ops = [...pend.values()];
+  if(ops.some(o => o.failed)) return openSettings();
+  if((st.needLogin && ops.length) || authLost) return signOut(true);
+  retryMs = 0; runFlush();
+}
+['homeSync','rSync','cSync'].forEach(id => $(id).onclick = syncTap);
 
 /* ---------- views ---------- */
 function showView(v){
@@ -699,6 +919,7 @@ function showView(v){
 
 function showHome(){
   const u = session.user;
+  rec = null; chk = null;
   showView('home');
   $('uName').textContent = u.name;
   $('uDate').textContent = longDate();
@@ -706,6 +927,7 @@ function showHome(){
   $('uRole').textContent = roleName(u.role);
   $('eqBadge').classList.toggle('hidden', !u.equipment);
   $('uEq').textContent = u.equipment ? modName(u.equipment) : '';
+  syncUI();
 
   const tl = $('tiles'); tl.innerHTML = '';
   if(!u.access || !u.access.length){
@@ -725,31 +947,66 @@ function showHome(){
 }
 
 /* ---------- record page ---------- */
-let rec = null;   // { sheet, items: [{row, input, dot, saved, timer, busy}], completed }
+let rec = null;   // { sheet, iso, data, items: [{row, opId, input, dot, saved, editing, timer}] }
 
 async function openRecord(sheet){
   showView('rec');
   $('rTitle').textContent = modName(sheet);
-  $('rDate').textContent = '';
+  $('rDate').textContent = longDate();
   $('rList').innerHTML = `<div class="loading">${esc(t('loading'))}</div>`;
   $('rBanner').classList.add('hidden');
   $('rNote').textContent = '';
   resetComplete();
-  rec = { sheet, items: [] };
+  const mine = rec = { sheet, iso: todayISO(), items: [], data: null };
+  await refreshPending();
+  let cached = null;
+  try{ cached = await HS.kv.get(pageKey(sheet)); }catch(e){}
+  if(rec !== mine) return;
+  if(cached && cached.data) drawRecord(recordForToday(sheet, cached, mine.iso));
+  // fresh copy in the background; the page stays usable meanwhile
   try{
-    const d = await api('getSheet', {sheet});
-    if(!d.ok){ $('rList').innerHTML = `<div class="empty">${esc(trErr(d.error))}</div>`; return; }
-    $('rDate').textContent = longDate(d.date);
-    $('rRefHead').textContent = shortRef(d.refHeader);
-    $('rColHead').classList.toggle('hidden', d.layout !== 'list');
-    d.layout === 'vibration' ? renderVibration(d.rows) : d.layout === 'grouped' ? renderGrouped(d.rows) : renderRows(d.rows);
-    setCompleted(d.completed);
-    updateCount();
+    const d = await HS.api('getSheet', {sheet, date: mine.iso});
+    if(rec !== mine) return;
+    if(!d.ok){ if(!mine.data) $('rList').innerHTML = `<div class="empty">${esc(trErr(d.error))}</div>`; return; }
+    const fresh = overlayRecord(sheet, d, mine.iso);
+    await HS.kv.set(pageKey(sheet), {iso: d.iso || mine.iso, data: fresh, at: Date.now()});
+    if(rec !== mine) return;
+    applyFreshRecord(fresh);
   }catch(e){
-    if(session) $('rList').innerHTML = `<div class="empty">${esc(t('noConnBack'))}</div>`;
+    if(rec !== mine) return;
+    if(e.auth) authLost = true;
+    if(!mine.data) $('rList').innerHTML = `<div class="empty">${esc(e.auth ? t('sessionExpired') : t('noConnFirst'))}</div>`;
+    syncUI();
   }
 }
 function shortRef(h){ h = String(h||'').trim(); return (LANG === 'ar' || h.length > 8 || !h) ? t('colRef') : h; }
+const structure = d => JSON.stringify((d.rows || []).map(r => r.section || [r.row, r.id, r.desc, r.ref, r.machine, r.part, r.pos, r.dir, r.group, r.item, r.point]));
+
+function drawRecord(d){
+  rec.data = d; rec.items = [];
+  $('rRefHead').textContent = shortRef(d.refHeader);
+  $('rColHead').classList.toggle('hidden', d.layout !== 'list');
+  d.layout === 'vibration' ? renderVibration(d.rows) : d.layout === 'grouped' ? renderGrouped(d.rows) : renderRows(d.rows);
+  setCompleted(d.completed);
+  updateCount();
+}
+/** New data from the server: redraw only if the sheet layout changed; never touch a box being typed in. */
+function applyFreshRecord(fresh){
+  if(!rec.data || structure(rec.data) !== structure(fresh)){
+    const typing = rec.items.some(i => i.editing || document.activeElement === i.input);
+    if(rec.data && typing){ return; }   // next visit shows it
+    drawRecord(fresh); return;
+  }
+  const byRow = new Map(fresh.rows.filter(r => !r.section).map(r => [r.row, r]));
+  rec.items.forEach(i => {
+    const r = byRow.get(i.row);
+    if(!r || i.editing || document.activeElement === i.input || pend.has(i.opId)) return;
+    if(r.value !== i.saved){ i.saved = r.value; i.input.value = r.value; }
+  });
+  rec.data = Object.assign({}, fresh, {rows: rec.data.rows.map(r => r.section ? r : Object.assign({}, r, {value: (rec.items.find(i => i.row === r.row) || {}).saved ?? r.value}))});
+  if(fresh.completed) setCompleted(fresh.completed);
+  paintAllDots(); updateCount();
+}
 
 function renderRows(rows){
   const list = $('rList'); list.innerHTML = '';
@@ -831,49 +1088,63 @@ function renderGrouped(rows){
   if(!rec.items.length) list.innerHTML = `<div class="empty">${esc(t('noRows'))}</div>`;
 }
 
-/* Shared behaviour for every reading box: auto-save, dots, Enter = next */
+/* Every reading box: saved on the phone as you type, uploaded in the background */
 function makeItem(r, input, dot){
-  const item = { row: r.row, input, dot, saved: r.value || '', timer: null, busy: false };
+  const item = { row: r.row, opId: saveOpId(rec.sheet, r.row, rec.iso), input, dot, saved: r.value || '', editing: false, timer: null };
   input.value = item.saved;
-  setDot(item, item.saved ? 'ok' : '');
+  paintDot(item);
   input.addEventListener('input', () => {
     clearTimeout(item.timer);
-    if(input.value.trim() !== item.saved){ setDot(item, 'edit'); item.timer = setTimeout(() => save(item), 1500); }
-    else setDot(item, item.saved ? 'ok' : '');
+    item.editing = input.value.trim() !== item.saved;
+    paintDot(item);
+    if(item.editing) item.timer = setTimeout(() => persist(item), 700);
   });
-  input.addEventListener('blur', () => { clearTimeout(item.timer); save(item); });
+  input.addEventListener('blur', () => { clearTimeout(item.timer); persist(item); });
   input.addEventListener('keydown', e => {
     if(e.key === 'Enter'){ e.preventDefault(); const i = rec.items.indexOf(item); const nx = rec.items[i+1]; nx ? nx.input.focus() : input.blur(); }
   });
-  dot.addEventListener('click', () => { if(dot.classList.contains('err')) save(item); });
+  dot.addEventListener('click', () => { if(dot.classList.contains('err')) retryItem(item); });
   rec.items.push(item);
   return item;
 }
 
-function setDot(item, state){ item.dot.className = 'dot' + (state ? ' ' + state : ''); }
+function paintDot(item){
+  const op = pend.get(item.opId);
+  let state = '';
+  if(item.editing) state = 'edit';
+  else if(op && op.failed) state = 'err';
+  else if(item.saved !== '') state = op ? 'local' : 'ok';
+  item.dot.className = 'dot' + (state ? ' ' + state : '');
+  item.dot.title = op && op.failed ? trErr(op.failed) : '';
+}
+function paintAllDots(){ if(rec) rec.items.forEach(paintDot); updateCount(); }
 
-async function save(item){
-  const v = item.input.value.trim();
-  if(v === item.saved){ if(!item.busy) setDot(item, v ? 'ok' : ''); return; }
-  if(item.busy){ item.again = true; return; }       // save again once the current save finishes
-  item.busy = true; setDot(item, 'saving');
-  try{
-    const r = await api('saveReading', {sheet: rec.sheet, row: item.row, value: v});
-    if(!r.ok) throw new Error(r.error);
-    item.saved = v;
-    if(r.column) $('rDate').dataset.col = r.column;
-  }catch(e){
-    item.busy = false; setDot(item, 'err');
-    if(session) toast(t('notSavedToast', {e: trErr(e.message) || t('noConnection')}));
-    return;
-  }
-  item.busy = false;
-  if(item.again || item.input.value.trim() !== item.saved){ item.again = false; return save(item); }
-  setDot(item, item.saved ? 'ok' : '');
-  updateCount();
+let cacheTimer = null;
+function saveRecordCopy(){
+  clearTimeout(cacheTimer);
+  const mine = rec;
+  cacheTimer = setTimeout(() => { if(mine && mine.data) HS.kv.set(pageKey(mine.sheet), {iso: mine.iso, data: mine.data, at: Date.now()}).catch(()=>{}); }, 300);
 }
 
+async function persist(item){
+  clearTimeout(item.timer);
+  const v = item.input.value.trim();
+  item.editing = false;
+  if(v === item.saved && !(pend.get(item.opId) || {}).failed){ paintDot(item); return; }
+  item.saved = v;
+  const row = rec.data && rec.data.rows.find(r => r.row === item.row);
+  if(row) row.value = v;
+  const op = {id: item.opId, action:'saveReading', sheet: rec.sheet, row: item.row, value: v, date: rec.iso};
+  pend.set(op.id, op);
+  paintDot(item); updateCount();
+  saveRecordCopy();
+  await queue(op);
+  syncUI();
+}
+async function retryItem(item){ const op = await HS.outbox.get(item.opId); if(op){ await queue(op); paintDot(item); syncUI(); } }
+
 function updateCount(){
+  if(!rec) return;
   const total = rec.items.length, done = rec.items.filter(i => i.saved !== '').length;
   $('rDone').textContent = done; $('rTotal').textContent = total;
   $('rBar').style.width = total ? (done / total * 100) + '%' : 0;
@@ -885,7 +1156,11 @@ function updateCount(){
 
 function setCompleted(c){
   const b = $('rBanner');
-  if(c){ b.textContent = t('completedBy', {by: c.by, at: c.at, ft: c.filled + '/' + c.total}); b.classList.remove('hidden'); }
+  if(c){
+    const waiting = rec && pend.has(completeOpId(rec.sheet, rec.iso));
+    b.textContent = t('completedBy', {by: c.by, at: c.at, ft: c.filled + '/' + c.total}) + (waiting ? t('waitingUpload') : '');
+    b.classList.remove('hidden');
+  }
   else b.classList.add('hidden');
 }
 
@@ -894,10 +1169,8 @@ function resetComplete(){ confirmMissing = false; const b = $('rComplete'); b.te
 
 $('rComplete').onclick = async () => {
   const b = $('rComplete');
-  // finish any pending edits first
-  rec.items.forEach(i => { clearTimeout(i.timer); if(i.input.value.trim() !== i.saved) save(i); });
-  if(rec.items.some(i => i.busy || i.dot.classList.contains('edit'))){ $('rNote').textContent = t('savingLast'); return; }
-  if(rec.items.some(i => i.dot.classList.contains('err'))){ $('rNote').textContent = t('someNotSaved'); return; }
+  for(const i of rec.items) if(i.editing || i.input.value.trim() !== i.saved) await persist(i);
+  if(rec.items.some(i => (pend.get(i.opId) || {}).failed)){ $('rNote').textContent = t('someNotSaved'); return; }
   const missing = rec.items.filter(i => i.saved === '').length;
   if(missing && !confirmMissing){
     confirmMissing = true;
@@ -907,35 +1180,34 @@ $('rComplete').onclick = async () => {
     first && first.input.scrollIntoView({block:'center', behavior:'smooth'});
     return;
   }
-  b.disabled = true; b.textContent = t('submitting'); $('rNote').textContent = '';
-  try{
-    const r = await api('complete', {sheet: rec.sheet});
-    if(!r.ok) throw new Error(r.error);
-    setCompleted(r.completed);
-    b.className = 'primary green'; b.textContent = t('taskCompleted', {ft: r.filled + '/' + r.total});
-    toast(t('taskRecorded'));
-    setTimeout(() => { resetComplete(); showHome(); }, 1800);
-  }catch(e){
-    b.disabled = false; b.textContent = t('completeTask');
-    if(session) $('rNote').textContent = t('couldNotSubmit', {e: trErr(e.message) || t('noConnection')});
-  }
+  b.disabled = true; $('rNote').textContent = '';
+  const filled = rec.items.length - missing, total = rec.items.length;
+  const local = {by: session.user.name, at: hhmm(), filled, total};
+  await queue({id: completeOpId(rec.sheet, rec.iso), action:'complete', sheet: rec.sheet, date: rec.iso, local});
+  rec.data.completed = local; saveRecordCopy();
+  setCompleted(local);
+  b.className = 'primary green'; b.textContent = t('taskCompleted', {ft: filled + '/' + total});
+  toast(navigator.onLine === false ? t('savedPhoneToast') : t('taskRecorded'));
+  runFlush();
+  setTimeout(() => { resetComplete(); if(rec) showHome(); }, 1500);
 };
 
-$('back').onclick = () => {
-  const pending = rec && rec.items.some(i => i.busy || i.input.value.trim() !== i.saved);
-  if(pending){ rec.items.forEach(i => { clearTimeout(i.timer); save(i); }); toast(t('savingTryBack')); return; }
+$('back').onclick = async () => {
+  if(rec) for(const i of rec.items) if(i.editing || i.input.value.trim() !== i.saved) await persist(i);
   showHome();
 };
 
 /* ---------- daily check (Bobcat / Forklift) ---------- */
-let chk = null;   // { type, unit, d (server data), ans: {item: {v, note, value, photo, thumb, up}} }
+let chk = null;   // { type, unit, iso, d (server data), ans: {item: {v, note, value, photo, thumb}}, touched }
 let photoFor = null;
+const photoUrls = new Map();   // local photo id -> Drive link once uploaded
 const TICK = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const CROSS = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>';
 const CAM = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 const shortDate = s => { if(!s) return ''; const d = new Date(s + 'T12:00:00'); return isNaN(d) ? s : d.toLocaleDateString(LANG === 'ar' ? 'ar-u-nu-latn' : 'en-GB', {day:'numeric', month:'short'}); };
-const draftKey = () => `holoul_chk_${chk.type}_${chk.unit}_${chk.d.today}`;
+const draftKey = () => `holoul_chk_${chk.type}_${chk.unit}_${chk.iso}`;
 function saveDraft(){
+  chk.touched = true;
   try{
     const out = {}; Object.entries(chk.ans).forEach(([k, a]) => { out[k] = {v:a.v, note:a.note, value:a.value, photo:a.photo, thumb:a.thumb}; });
     localStorage.setItem(draftKey(), JSON.stringify(out));
@@ -945,46 +1217,77 @@ function saveDraft(){
 async function openChecklist(type, unit){
   showView('chk');
   $('cTitle').textContent = t('dailyCheckTitle', {type: modName(type)});
-  $('cDate').textContent = ''; $('cNote').textContent = '';
+  $('cDate').textContent = longDate(); $('cNote').textContent = '';
   $('cList').innerHTML = `<div class="loading">${esc(t('loading'))}</div>`;
   $('cBanner').classList.add('hidden');
   $('cSubmit').className = 'primary'; $('cSubmit').disabled = false; $('cSubmit').textContent = t('submitCheck');
+  const iso = todayISO();
+  const nav = {}; chkNav = nav;
+  chk = null;
+  await refreshPending();
+  let meta = null, cached = null;
   try{
-    const d = await api('getChecklist', {type, unit});
-    if(!d.ok){ $('cList').innerHTML = `<div class="empty">${esc(trErr(d.error))}</div>`; return; }
-    chk = { type, unit: d.unit, d, ans: {} };
-    $('cDate').textContent = longDate(d.date);
-    $('cUnit').innerHTML = d.units.map(u => `<option ${u === d.unit ? 'selected' : ''}>${esc(u)}</option>`).join('');
-    $('cUnit').disabled = d.units.length < 2;
-    // start from today's saved entry (if any), then any unsent draft on this phone
-    d.items.forEach(it => chk.ans[it.item] = {});
-    if(d.todayEntry){
-      const e = d.todayEntry;
-      const notes = {}; String(e.faults || '').split('\n').forEach(l => { const i = l.indexOf(': '); if(i > 0) notes[l.slice(0, i)] = l.slice(i + 2).replace(/ \(photo: [^)]*\)$/, ''); });
-      d.items.forEach(it => {
-        const v = e.values[it.item] || '', a = chk.ans[it.item];
-        if(it.input === 'reading'){ a.value = v; a.photo = e.values[it.item + ' Photo'] || ''; }
-        else { a.v = v === '✓' ? 'ok' : v === '✗' ? 'fault' : ''; a.note = notes[it.item] || ''; }
-      });
-      showSubmitted(e.at, e.by, e.status, true);
-    }
-    try{ const dr = JSON.parse(localStorage.getItem(draftKey())); if(dr) Object.entries(dr).forEach(([k, a]) => { if(chk.ans[k]) Object.assign(chk.ans[k], a); }); }catch(e){}
-    renderChecklist();
+    meta = await HS.kv.get(chkMeta(type));
+    unit = unit || (meta && meta.defaultUnit);
+    if(unit) cached = await HS.kv.get(chkKey(type, unit));
+  }catch(e){}
+  if(chkNav !== nav) return;
+  if(cached && cached.data) showChecklistData(type, checklistForToday(cached, iso), iso);
+  try{
+    const d = await HS.api('getChecklist', {type, unit});
+    if(chkNav !== nav) return;
+    if(!d.ok){ if(!chk) $('cList').innerHTML = `<div class="empty">${esc(trErr(d.error))}</div>`; return; }
+    await HS.kv.set(chkMeta(type), {defaultUnit: (meta && meta.defaultUnit) || d.unit, units: d.units});
+    await HS.kv.set(chkKey(type, d.unit), {iso: d.today || iso, data: d, at: Date.now()});
+    if(chkNav !== nav) return;
+    const fresh = checklistForToday({iso: d.today || iso, data: d}, iso);
+    if(!chk || (!chk.touched && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT')) showChecklistData(type, fresh, iso);
+    else { chk.d.last = fresh.last; chk.d.weeklyLast = fresh.weeklyLast; chk.d.units = fresh.units; }
   }catch(e){
-    if(session) $('cList').innerHTML = `<div class="empty">${esc(t('noConnBack'))}</div>`;
+    if(chkNav !== nav) return;
+    if(e.auth) authLost = true;
+    if(!chk) $('cList').innerHTML = `<div class="empty">${esc(e.auth ? t('sessionExpired') : t('noConnFirst'))}</div>`;
+    syncUI();
   }
+}
+let chkNav = null;
+
+function showChecklistData(type, d, iso){
+  chk = { type, unit: d.unit, iso, d, ans: {}, touched: false };
+  $('cUnit').innerHTML = d.units.map(u => `<option ${u === d.unit ? 'selected' : ''}>${esc(u)}</option>`).join('');
+  $('cUnit').disabled = d.units.length < 2;
+  $('cBanner').classList.add('hidden');
+  $('cSubmit').textContent = t('submitCheck');
+  // start from today's entry (if any), then any unsent draft on this phone
+  d.items.forEach(it => chk.ans[it.item] = {});
+  if(d.todayEntry){
+    const e = d.todayEntry;
+    const notes = {}; String(e.faults || '').split('\n').forEach(l => { const i = l.indexOf(': '); if(i > 0) notes[l.slice(0, i)] = l.slice(i + 2).replace(/ \(photo: [^)]*\)$/, ''); });
+    d.items.forEach(it => {
+      const v = (e.values || {})[it.item] || '', a = chk.ans[it.item];
+      if(it.input === 'reading'){ a.value = String(v); a.photo = (e.values || {})[it.item + ' Photo'] || ''; }
+      else { a.v = v === '✓' ? 'ok' : v === '✗' ? 'fault' : ''; a.note = (e.notes && e.notes[it.item]) || notes[it.item] || ''; a.photo = (e.photos && e.photos[it.item]) || ''; }
+    });
+    showSubmitted(e.at, e.by, e.status, true);
+  }
+  try{ const dr = JSON.parse(localStorage.getItem(draftKey())); if(dr){ Object.entries(dr).forEach(([k, a]) => { if(chk.ans[k]) Object.assign(chk.ans[k], a); }); chk.touched = true; } }catch(e){}
+  renderChecklist();
 }
 
 function showSubmitted(at, by, status, existing){
   const b = $('cBanner');
   const bad = /action/i.test(status || '');
-  b.textContent = t('submittedAt', {at, by, status: trStatus(status)}) + (existing ? t('canChange') : '');
+  const waiting = chk && pend.has(checkOpId(chk.type, chk.unit, chk.iso));
+  b.textContent = t('submittedAt', {at, by, status: trStatus(status)}) + (waiting ? t('waitingUpload') : '') + (existing ? t('canChange') : '');
   b.classList.toggle('bad', bad);
   b.classList.remove('hidden');
   if(existing) $('cSubmit').textContent = t('updateCheck');
 }
 
 function renderChecklist(){
+  if(!chk) return;
+  const keep = document.activeElement && document.activeElement.closest && document.activeElement.closest('[data-item]');
+  const keepItem = keep && keep.dataset.item, keepTag = document.activeElement && document.activeElement.tagName;
   const list = $('cList'); list.innerHTML = '';
   let sec = null;
   chk.d.items.forEach(it => {
@@ -1020,19 +1323,33 @@ function renderChecklist(){
     const pb = el.querySelector('.pbtn');
     if(pb) pb.onclick = () => { photoFor = it.item; $('photoPick').value = ''; $('photoPick').click(); };
     const retry = el.querySelector('[data-retry]');
-    if(retry) retry.onclick = () => uploadFor(it.item);
+    if(retry) retry.onclick = () => retryPhoto(it.item);
     list.appendChild(el);
   });
+  if(keepItem){   // keep the keyboard where it was after a redraw
+    const back = document.querySelector(`[data-item="${CSS.escape(keepItem)}"] ${keepTag === 'TEXTAREA' ? 'textarea' : 'input'}`);
+    if(back){ back.focus(); try{ const n = back.value.length; back.setSelectionRange(n, n); }catch(e){} }
+  }
   updateChkCount();
 }
 
+/** photo state: local id waiting -> "saved on phone", failed -> red, uploaded or Drive link -> "saved to Drive" */
+function photoState(a){
+  const p = String(a.photo || '');
+  if(!p) return '';
+  if(p.indexOf('local:') !== 0) return 'ok';
+  const id = p.slice(6), op = pend.get(id);
+  if(op) return op.failed ? 'err' : 'local';
+  return 'ok';   // no longer waiting = uploaded
+}
 function photoBlock(it, a){
   if(it.photo === 'no') return '';
   const label = a.thumb || a.photo ? t('photoRetake') : (it.photo === 'required' ? t('photoRequired') : t('photoOptional'));
+  const st = photoState(a);
   let status = '';
-  if(a.up === 'saving') status = `<i class="dot saving"></i> ${esc(t('uploading'))}`;
-  else if(a.up === 'err') status = `<i class="dot err" data-retry></i> ${esc(t('notUploaded'))}`;
-  else if(a.photo) status = `<i class="dot ok"></i> ${esc(t('savedDrive'))}`;
+  if(st === 'local') status = `<i class="dot local"></i> ${esc(t('photoLocal'))}`;
+  else if(st === 'err') status = `<i class="dot err" data-retry></i> ${esc(t('notUploaded'))}`;
+  else if(st === 'ok') status = `<i class="dot ok"></i> ${esc(t('savedDrive'))}`;
   const img = a.thumb ? `<img src="${a.thumb}" alt="">` : '';
   return `<button type="button" class="pbtn ${it.photo === 'required' && !a.photo ? 'req' : ''}">${CAM}<span>${esc(label)}</span></button>
           ${img || status ? `<div class="thumb">${img}<small>${status}</small></div>` : ''}`;
@@ -1044,7 +1361,7 @@ function checkReading(it, a, el){
   if(!last || isNaN(n)) return;
   const prev = parseFloat(String(last.value).replace(',', '.'));
   if(isNaN(prev)) return;
-  const days = Math.max(1, Math.round((new Date(chk.d.today) - new Date(last.date)) / 864e5));
+  const days = Math.max(1, Math.round((new Date(chk.iso) - new Date(last.date)) / 864e5));
   if(n < prev){ el.textContent = t('lowerThanLast', {v: last.value}); el.className = 'hint warn'; }
   else if(/hour/i.test(it.item) && n - prev > 24 * days){ el.textContent = tn('over24', days, {x: '+' + (n - prev).toFixed(1), d: days}); el.className = 'hint warn'; }
   else el.textContent = t('sinceLast', {x: '+' + (n - prev).toFixed(1)});
@@ -1058,7 +1375,7 @@ function updateChkCount(){
   $('cBar').style.width = need.length ? (done / need.length * 100) + '%' : 0;
 }
 
-/* photos: shrink on the phone (max 1600 px) before uploading, keep a small thumbnail for the screen */
+/* photos: shrink on the phone (max 1600 px), keep them on the phone, upload in the background */
 function loadImage(file){
   return new Promise((res, rej) => { const url = URL.createObjectURL(file); const img = new Image(); img.onload = () => { URL.revokeObjectURL(url); res(img); }; img.onerror = rej; img.src = url; });
 }
@@ -1070,67 +1387,84 @@ function scaled(img, max, q){
 }
 $('photoPick').addEventListener('change', async () => {
   const f = $('photoPick').files[0]; if(!f || !photoFor || !chk) return;
-  const a = chk.ans[photoFor];
+  const item = photoFor, a = chk.ans[item], c = chk;
+  let full, thumb;
   try{
     const img = await loadImage(f);
-    a.full = scaled(img, 1600, 0.82); a.thumb = scaled(img, 240, 0.7); a.photo = '';
+    full = scaled(img, 1600, 0.82); thumb = scaled(img, 240, 0.7);
   }catch(e){ toast(t('cantReadPhoto')); return; }
-  uploadFor(photoFor);
+  const old = String(a.photo || '');
+  const id = 'p|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  await queue({id, action:'uploadPhoto', type: c.type, unit: c.unit, kind: item, data: full, date: c.iso});
+  if(old.indexOf('local:') === 0 && pend.has(old.slice(6))){ await HS.outbox.remove(old.slice(6)).catch(()=>{}); pend.delete(old.slice(6)); }
+  a.photo = 'local:' + id; a.thumb = thumb;
+  if(chk === c){ saveDraft(); renderChecklist(); }
 });
-async function uploadFor(item){
-  const a = chk.ans[item]; if(!a.full) return;
-  a.up = 'saving'; renderChecklist();
-  try{
-    const r = await api('uploadPhoto', {type: chk.type, unit: chk.unit, kind: item, data: a.full});
-    if(!r.ok) throw new Error(r.error);
-    a.photo = r.url; a.up = ''; delete a.full;
-  }catch(e){ a.up = 'err'; if(session) toast(t('photoNotUploaded', {e: trErr(e.message) || t('noConnection')})); }
-  saveDraft(); renderChecklist();
+async function retryPhoto(item){
+  const a = chk.ans[item], p = String(a.photo || '');
+  if(p.indexOf('local:') !== 0) return;
+  const op = await HS.outbox.get(p.slice(6));
+  if(op){ await queue(op); renderChecklist(); }
 }
 
 $('cUnit').onchange = () => openChecklist(chk.type, $('cUnit').value);
-$('cBack').onclick = () => {
-  if(chk && Object.values(chk.ans).some(a => a.up === 'saving')){ toast(t('photoUploading')); return; }
-  showHome();
-};
+$('cBack').onclick = () => showHome();
 
 $('cSubmit').onclick = async () => {
-  const b = $('cSubmit'), note = $('cNote');
-  const ans = chk.ans, missing = [];
+  if(!chk) return;
+  const b = $('cSubmit'), note = $('cNote'), c = chk;
+  const ans = c.ans, missing = [];
   let firstEl = null;
-  chk.d.items.forEach(it => {
+  c.d.items.forEach(it => {
     const a = ans[it.item]; let bad = false;
     if(it.input === 'reading'){ if(!a.value){ missing.push(it.item); bad = true; } if(it.photo === 'required' && !a.photo){ missing.push(t('meterPhoto')); bad = true; } }
     else if(!it.weekly && !a.v){ missing.push(it.item); bad = true; }
     if(a.v === 'fault' && !String(a.note || '').trim()){ missing.push(t('describeFault', {x: it.item})); bad = true; }
     if(bad && !firstEl) firstEl = document.querySelector(`[data-item="${CSS.escape(it.item)}"]`);
   });
-  if(Object.values(ans).some(a => a.up === 'saving')){ note.textContent = t('waitPhoto'); return; }
   if(missing.length){
     note.textContent = missing.length === 1 ? t('stillNeeded', {x: missing[0]}) : t('itemsNeeded', {n: missing.length, x: missing[0]});
     firstEl && firstEl.scrollIntoView({block:'center', behavior:'smooth'});
     return;
   }
-  note.textContent = ''; b.disabled = true; b.textContent = t('submitting');
+  note.textContent = ''; b.disabled = true;
   const data = {answers: {}};
   Object.entries(ans).forEach(([k, a]) => data.answers[k] = {v: a.v || '', note: a.note || '', value: a.value || '', photo: a.photo || ''});
-  try{
-    const r = await api('submitCheck', {type: chk.type, unit: chk.unit, data});
-    if(!r.ok) throw new Error(r.error);
-    try{ localStorage.removeItem(draftKey()); }catch(e){}
-    showSubmitted(r.at, r.by, r.status, false);
-    b.className = 'primary green'; b.textContent = r.faults ? tn('submittedFaults', r.faults) : t('submittedOK');
-    toast(t('checkSaved'));
-    setTimeout(() => showHome(), 2200);
-  }catch(e){
-    b.disabled = false; b.textContent = t('submitCheck');
-    if(session) note.textContent = t('couldNotSubmit', {e: trErr(e.message) || t('noConnection')});
-  }
+  // what the page shows until the server confirms
+  const values = {}, notes = {}, photos = {}; let faults = 0;
+  c.d.items.forEach(it => {
+    const a = ans[it.item];
+    if(it.input === 'reading'){ values[it.item] = a.value; if(a.photo) values[it.item + ' Photo'] = a.photo; }
+    else { values[it.item] = a.v === 'ok' ? '✓' : a.v === 'fault' ? '✗' : ''; if(a.v === 'fault'){ faults++; notes[it.item] = a.note; if(a.photo) photos[it.item] = a.photo; } }
+  });
+  const status = faults ? 'Action required (' + faults + ')' : 'OK';
+  const local = {at: hhmm(), by: session.user.name, status, values, notes, photos, faults: ''};
+  await queue({id: checkOpId(c.type, c.unit, c.iso), action:'submitCheck', type: c.type, unit: c.unit, data, date: c.iso, local});
+  c.d.todayEntry = local;
+  HS.kv.set(chkKey(c.type, c.unit), {iso: c.iso, data: c.d, at: Date.now()}).catch(()=>{});
+  try{ localStorage.removeItem(draftKey()); }catch(e){}
+  showSubmitted(local.at, local.by, status, false);
+  b.className = 'primary green'; b.textContent = faults ? tn('submittedFaults', faults) : t('submittedOK');
+  toast(navigator.onLine === false ? t('savedPhoneToast') : t('checkSaved'));
+  runFlush();
+  setTimeout(() => { if(chk === c) showHome(); }, 1800);
 };
 
 /* ---------- sign in / out ---------- */
 let tt;
 function toast(s){ const e=$('toast'); e.textContent=s; e.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('show'),2600); }
+
+async function startSession(s, u, p, offline){
+  session = s; store.set(s); signedOut.set(false); authLost = false;
+  HS.setMemCred(u, p);                     // lets uploads sign in again quietly while the app is open
+  $('auto').checked ? remember.set(u, p) : remember.clear();
+  if(!$('auto').checked) $('pin').value = '';
+  if(!offline) HS.rememberAuth(u, p, s.user);   // allows signing in later without network
+  await refreshPending();
+  showHome();
+  runFlush();
+  prefetch(true);
+}
 
 $('form').addEventListener('submit', async ev => {
   ev.preventDefault();
@@ -1138,18 +1472,24 @@ $('form').addEventListener('submit', async ev => {
   btn.disabled = true; btn.textContent = t('signingIn');
   const u = $('username').value.trim(), p = $('pin').value.trim();
   try{
-    const r = await post({action:'login', username: u, pin: p});
+    const r = await HS.post({action:'login', username: u, pin: p}, HS.TIMEOUT.login);
     if(r.ok){
-      session = {token: r.token, user: r.user}; store.set(session); signedOut.set(false);
-      $('auto').checked ? remember.set(u, p) : remember.clear();
-      if(!$('auto').checked) $('pin').value = '';
-      showHome();
+      await startSession({token: r.token, user: r.user, expires: r.expires || 0}, u, p, false);
     } else {
       $('msg').textContent = trErr(r.error) || t('signInFailed');
       if(remember.get()){ remember.clear(); $('auto').checked = false; }   // saved PIN no longer valid
     }
   }catch(e){
-    $('msg').textContent = t('noConnLogin');
+    // no network: sign in on this phone if this user signed in here before
+    const user = await HS.offlineAuth(u, p);
+    if(user){
+      const prev = await HS.kv.get('session').catch(() => null);
+      const token = prev && prev.user && prev.user.username === user.username ? prev.token : null;
+      await startSession({token, user, expires: 0, offline: true}, u, p, true);
+      toast(t('offlineSignedIn'));
+    } else {
+      $('msg').textContent = user === false ? trErr('Wrong username or PIN') : t('needOnlineFirst');
+    }
   }finally{
     btn.disabled = false; btn.textContent = t('signIn');
   }
@@ -1158,13 +1498,17 @@ $('form').addEventListener('submit', async ev => {
 // unticking forgets the saved sign-in straight away
 $('auto').addEventListener('change', () => { if(!$('auto').checked){ remember.clear(); $('pin').value = ''; } });
 
-$('logout').onclick = () => {
+function signOut(keepUser){
   closeSettings();
-  store.clear(); session = null; signedOut.set(true);
+  store.clear(); session = null; rec = null; chk = null; signedOut.set(true);
+  HS.setMemCred(null);
+  pend = new Map();
   fillRemembered();            // keep the saved user filled in, but don't sign in again by itself
   $('msg').textContent = '';
   showView('login');
-};
+  syncUI();
+}
+$('logout').onclick = () => signOut();
 
 function fillRemembered(){
   const saved = remember.get();
@@ -1176,8 +1520,13 @@ function fillRemembered(){
 applyTheme(prefs.get('holoul_theme'));
 applyLang(LANG);
 session = store.get();
-if(session) showHome();
-else {
+try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+if(session){
+  HS.saveSession(session, true).catch(()=>{});   // service worker uses the same session
+  const r = remember.get(); if(r) HS.kv.set('remember', r).catch(()=>{});
+  showHome();
+  refreshPending().then(() => { runFlush(); prefetch(); });
+} else {
   showView('login');
   fillRemembered();
   if(remember.get() && !signedOut.get()) $('form').requestSubmit();   // auto sign in
