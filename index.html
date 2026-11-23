@@ -1,209 +1,340 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr" data-theme="default">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Holoul Maintenance</title>
-<meta name="theme-color" content="#111827">
+<meta name="theme-color" content="#2D7F67" id="metaTheme">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Holoul">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>
+/* apply saved language + mode before the page paints (no flash) */
+(function(){try{
+  var h=document.documentElement, t=localStorage.getItem('holoul_theme')==='night'?'night':'default', l=localStorage.getItem('holoul_lang')==='ar'?'ar':'en';
+  h.setAttribute('data-theme',t); h.lang=l; h.dir=l==='ar'?'rtl':'ltr';
+  document.getElementById('metaTheme').content = t==='night' ? '#0D1412' : '#2D7F67';
+}catch(e){}})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ---------- Themes (Holoul green #2D7F67) ---------- */
   :root{
-    --bg:#0f141b; --panel:#171e28; --panel2:#1f2835; --line:#2a3544;
-    --text:#e8edf3; --muted:#8a97a8; --amber:#f5a524; --amber-ink:#1a1204;
-    --ok:#22c55e; --edit:#f59e0b; --err:#ef4444;
+    --brand:#2D7F67; --brand-2:#1F5F4C; --brand-ink:#ffffff;
+    --accent:#2D7F67; --accent-soft:rgba(45,127,103,.10);
+    --bg:#F2F4F3; --panel:#FFFFFF; --panel2:#F6F8F7; --line:#DDE4E1; --text:#1D2925; --muted:#6E7A75;
+    --wordmark:#7B7C80; --head:#FFFFFF; --strip:#2D7F67;
+    --ok:#16A34A; --edit:#D97706; --err:#DC2626;
+    --ok-bg:rgba(22,163,74,.08); --ok-line:rgba(22,163,74,.35); --ok-text:#15803D;
+    --bad-bg:rgba(220,38,38,.07); --bad-line:rgba(220,38,38,.35); --bad-text:#B91C1C;
+    --shadow:0 1px 2px rgba(20,40,32,.06),0 6px 18px rgba(20,40,32,.06);
+    --scrim:rgba(10,20,16,.45);
+    color-scheme:light;
   }
+  [data-theme="night"]{
+    --brand:#2D7F67; --brand-2:#1B5443; --brand-ink:#ffffff;
+    --accent:#5CBB98; --accent-soft:rgba(92,187,152,.13);
+    --bg:#0D1412; --panel:#151F1C; --panel2:#1B2824; --line:#283832; --text:#E3ECE8; --muted:#8C9D96;
+    --wordmark:#B7C1BD; --head:#121B18; --strip:#0D1412;
+    --ok:#22C55E; --edit:#F59E0B; --err:#EF4444;
+    --ok-bg:rgba(34,197,94,.10); --ok-line:rgba(34,197,94,.35); --ok-text:#86EFAC;
+    --bad-bg:rgba(239,68,68,.10); --bad-line:rgba(239,68,68,.40); --bad-text:#FCA5A5;
+    --shadow:none;
+    --scrim:rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
-  body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-       -webkit-font-smoothing:antialiased;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
+  body{background:var(--bg);color:var(--text);font-family:"Open Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);transition:background .2s,color .2s}
+  html[lang="ar"] body{font-family:"IBM Plex Sans Arabic","Open Sans",system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
+  html[lang="ar"] body *:not(.wm):not(#pin){letter-spacing:0!important}   /* letter-spacing breaks Arabic letter joining */
+  /* status-bar strip (iPhone home-screen app) so the clock stays readable in both modes */
+  body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--strip);z-index:40}
   .wrap{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
   .hidden{display:none!important}
-  button{font:inherit}
+  button{font:inherit;color:inherit}
+  svg{flex:none}
+  .ltr{direction:ltr;unicode-bidi:isolate}
 
-  /* Sign in */
-  #login{flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 0}
-  .brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}
-  .logo{width:48px;height:48px;border-radius:12px;background:#111827;border:1px solid var(--line);display:grid;place-items:center}
-  .brand h1{font-size:22px;letter-spacing:.2px}
-  .brand p{color:var(--muted);font-size:13px;margin-top:2px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
-  label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
-  .field{width:100%;height:48px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);
-        color:var(--text);font-size:16px;padding:0 14px;outline:none;margin-bottom:16px}
-  .field:focus{border-color:var(--amber)}
+  /* ---------- Brand lockup (mark + wordmark, like holoulrecycling.com) ---------- */
+  .lockup{display:flex;align-items:center;gap:10px;direction:ltr}
+  .lockup .mk{height:40px;width:auto;fill:var(--brand)}
+  [data-theme="night"] .lockup .mk{fill:var(--accent)}
+  .lockup .wm{font-family:"Open Sans",system-ui,sans-serif;font-weight:600;font-size:20px;letter-spacing:.34em;color:var(--wordmark);line-height:1;display:block}
+  .lockup small{display:block;font-size:12px;letter-spacing:.14em;color:var(--accent);margin-top:5px;line-height:1}
+  html[lang="ar"] .lockup small{font-family:"IBM Plex Sans Arabic",sans-serif;font-size:13px;letter-spacing:0}
+
+  .iconbtn{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);
+           display:grid;place-items:center;cursor:pointer;flex:none;box-shadow:var(--shadow)}
+  .iconbtn svg{width:21px;height:21px;stroke:currentColor}
+  .iconbtn:active{transform:scale(.96)}
+  .iconbtn.sm{width:36px;height:36px;border-radius:10px;box-shadow:none}
+
+  /* ---------- Sign in ---------- */
+  #login{flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 0;position:relative}
+  #login .corner{position:absolute;top:14px;inset-inline-end:0}
+  .hero{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:26px}
+  .hero .lockup .mk{height:58px}
+  .hero .lockup .wm{font-size:28px}
+  .hero .lockup small{font-size:13px}
+  .hero p{color:var(--muted);font-size:14px;margin-top:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+  .card.top-accent{border-top:4px solid var(--brand)}
+  label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px;font-weight:600}
+  .field{width:100%;height:50px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);
+        color:var(--text);font-size:16px;padding:0 14px;outline:none;margin-bottom:16px;direction:ltr;text-align:start}
+  html[lang="ar"] .field{text-align:right}
+  .field:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--accent-soft)}
   #pin{letter-spacing:6px}
-  .primary{width:100%;height:50px;border:0;border-radius:10px;background:var(--amber);color:var(--amber-ink);
-        font-weight:700;font-size:16px;cursor:pointer}
+  .primary{width:100%;height:52px;border:0;border-radius:12px;background:var(--brand);color:var(--brand-ink);
+        font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 4px 14px rgba(45,127,103,.28)}
+  [data-theme="night"] .primary{box-shadow:none}
+  .primary:active{background:var(--brand-2)}
   .primary:disabled{opacity:.6}
-  .check{display:flex;align-items:center;gap:10px;margin:-4px 0 18px;font-size:14px;color:var(--text);cursor:pointer;user-select:none}
+  .check{display:flex;align-items:center;gap:10px;margin:-4px 0 18px;font-size:14px;color:var(--text);cursor:pointer;user-select:none;font-weight:400}
   .check input{position:absolute;opacity:0;width:1px;height:1px}
   .check .box{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--line);background:var(--panel2);display:grid;place-items:center;flex:none}
-  .check input:checked + .box{background:var(--amber);border-color:var(--amber)}
-  .check input:checked + .box::after{content:"";width:6px;height:11px;border:solid var(--amber-ink);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
-  .check input:focus-visible + .box{outline:2px solid var(--amber);outline-offset:2px}
+  .check input:checked + .box{background:var(--brand);border-color:var(--brand)}
+  .check input:checked + .box::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+  .check input:focus-visible + .box{outline:2px solid var(--brand);outline-offset:2px}
   .msg{min-height:20px;font-size:14px;color:var(--err);margin-top:12px;text-align:center}
+  .foot-brand{text-align:center;color:var(--muted);font-size:12px;margin-top:22px}
 
-  /* Home */
-  #home{padding:20px 0 32px}
-  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
-  .hello small{color:var(--muted);font-size:13px}
-  .hello h2{font-size:20px;margin-top:2px}
-  .ghost{background:none;border:1px solid var(--line);color:var(--muted);border-radius:10px;height:38px;padding:0 14px;font-size:14px;cursor:pointer}
-  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
-  .badge{font-size:12px;padding:6px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
-  .badge b{color:var(--text);font-weight:600}
-  h3{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px}
+  /* ---------- Home ---------- */
+  #home{padding:0 0 32px}
+  .appbar{display:flex;align-items:center;justify-content:space-between;margin:0 -16px 18px;padding:12px 16px;
+          background:var(--head);border-bottom:3px solid var(--brand)}
+  .appbar .lockup .mk{height:36px}
+  .appbar .lockup .wm{font-size:18px}
+  .welcome{position:relative;overflow:hidden;border-radius:18px;padding:18px 18px 16px;color:#fff;margin-bottom:24px;
+           background:linear-gradient(135deg,#2D7F67 0%,#1F5F4C 100%);box-shadow:0 8px 24px rgba(31,95,76,.25)}
+  [data-theme="night"] .welcome{background:linear-gradient(135deg,#1F5F4C 0%,#163F34 100%);box-shadow:none}
+  .welcome .ghostmk{position:absolute;inset-inline-end:-14px;bottom:-26px;height:150px;width:auto;fill:rgba(255,255,255,.09);pointer-events:none}
+  .welcome small{font-size:13px;opacity:.85}
+  .welcome h2{font-size:22px;margin-top:2px;font-weight:700}
+  .welcome .date{font-size:12px;opacity:.8;margin-top:4px}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;position:relative}
+  .badge{font-size:12px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);color:rgba(255,255,255,.85)}
+  .badge b{color:#fff;font-weight:600}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:12px;font-weight:700}
+  html[lang="ar"] h3{font-size:14px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-height:118px;
-        display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;text-align:left;color:var(--text)}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;min-height:128px;box-shadow:var(--shadow);
+        display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;text-align:start;color:var(--text);position:relative}
   .tile:active{transform:scale(.98)}
-  .tile .ic{width:38px;height:38px;border-radius:10px;background:rgba(245,165,36,.12);display:grid;place-items:center}
-  .tile .ic svg{width:22px;height:22px;stroke:var(--amber)}
+  .tile .ic{width:42px;height:42px;border-radius:12px;background:var(--accent-soft);display:grid;place-items:center}
+  .tile .ic svg{width:22px;height:22px;stroke:var(--accent)}
+  .tile .go{position:absolute;top:16px;inset-inline-end:14px;width:18px;height:18px;stroke:var(--muted);opacity:.6}
+  html[dir="rtl"] .tile .go{transform:scaleX(-1)}
   .tile b{font-size:15px;display:block;margin-top:12px}
   .tile span{font-size:12px;color:var(--muted)}
   .tile.one{grid-column:1/-1}
-  .tile .done{font-size:11px;color:var(--ok);margin-top:4px;display:block}
   .empty{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:22px;color:var(--muted);text-align:center;font-size:14px}
 
-  /* Record page */
+  /* ---------- Record page ---------- */
   #rec{padding-bottom:110px}
-  .rhead{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 0 10px;border-bottom:1px solid var(--line)}
+  .rhead{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:14px 0 10px;border-bottom:1px solid var(--line)}
   .rtop{display:flex;align-items:center;gap:10px}
-  .back{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;cursor:pointer;flex:none}
+  .back{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;cursor:pointer;flex:none}
+  html[dir="rtl"] .back svg{transform:scaleX(-1)}
   .rtitle{flex:1;min-width:0}
   .rtitle h2{font-size:18px}
   .rtitle small{color:var(--muted);font-size:12px}
-  .count{font-size:13px;color:var(--muted);white-space:nowrap}
+  .count{font-size:13px;color:var(--muted);white-space:nowrap;direction:ltr}
   .count b{color:var(--text)}
-  .bar{height:4px;background:var(--panel2);border-radius:4px;margin-top:10px;overflow:hidden}
-  .bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}
-  .legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:8px}
+  .bar{height:5px;background:var(--panel2);border:1px solid var(--line);border-radius:5px;margin-top:10px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--brand);transition:width .3s}
+  [data-theme="night"] .bar i{background:var(--accent)}
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
   .legend span{display:flex;align-items:center;gap:5px}
-  .banner{margin-top:12px;padding:10px 12px;border-radius:10px;font-size:13px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:#86efac}
-  .colhead{display:grid;grid-template-columns:1fr 64px 112px;gap:8px;padding:12px 4px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
-  .colhead span:nth-child(2){text-align:right}
+  .banner{margin-top:12px;padding:10px 12px;border-radius:10px;font-size:13px;background:var(--ok-bg);border:1px solid var(--ok-line);color:var(--ok-text)}
+  .banner.bad{background:var(--bad-bg);border-color:var(--bad-line);color:var(--bad-text)}
+  .colhead{display:grid;grid-template-columns:1fr 64px 112px;gap:8px;padding:12px 4px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700}
+  .colhead span:nth-child(2){text-align:end}
   .colhead span:nth-child(3){text-align:center}
-  .section{font-size:12px;font-weight:700;color:var(--amber);padding:14px 4px 6px;text-transform:uppercase;letter-spacing:.6px}
-  .row{display:grid;grid-template-columns:1fr 64px 112px;gap:8px;align-items:center;background:var(--panel);
-       border:1px solid var(--line);border-radius:12px;padding:10px 10px 10px 12px;margin-bottom:6px}
+  .section{font-size:12px;font-weight:700;color:var(--accent);padding:14px 4px 6px;text-transform:uppercase;letter-spacing:.6px}
+  .row{display:grid;grid-template-columns:1fr 64px 112px;gap:8px;align-items:center;background:var(--panel);box-shadow:var(--shadow);
+       border:1px solid var(--line);border-radius:12px;padding:10px;padding-inline-start:12px;margin-bottom:6px}
   .row .id{font-weight:700;font-size:14px}
   .row .ds{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.3}
-  .row .ref{text-align:right;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .row .ref{text-align:end;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
   .inwrap{display:flex;align-items:center;gap:8px;justify-content:flex-end}
-  .rin{width:84px;height:42px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  .rin{width:84px;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);direction:ltr;
        font-size:16px;text-align:center;outline:none;font-variant-numeric:tabular-nums}
-  .rin:focus{border-color:var(--amber)}
-  .dot{width:12px;height:12px;border-radius:50%;flex:none;border:2px solid var(--line);background:transparent;cursor:default}
+  .rin:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--accent-soft)}
+  .dot{width:12px;height:12px;border-radius:50%;flex:none;border:2px solid var(--line);background:transparent;cursor:default;display:inline-block}
   .dot.ok{background:var(--ok);border-color:var(--ok)}
   .dot.edit{background:var(--edit);border-color:var(--edit)}
   .dot.saving{background:var(--edit);border-color:var(--edit);animation:pulse .8s infinite alternate}
   .dot.err{background:var(--err);border-color:var(--err);cursor:pointer}
   @keyframes pulse{from{opacity:1}to{opacity:.35}}
 
-  /* Vibration layout: machine > part > position, with H / V / A inputs side by side */
-  .dirkey{font-size:11px;color:var(--muted);padding:12px 4px 2px}
-  .mach{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin:12px 0}
-  .mhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
-  .mhead b{font-size:15px;color:var(--amber)}
-  .mhead span{font-size:12px;color:var(--muted)}
-  .part{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:10px 0 6px}
+  /* Vibration / Thermo: machine card > part > position, inputs side by side */
+  .dirkey{font-size:12px;color:var(--muted);padding:12px 4px 2px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+  .dirkey span{display:inline-flex;align-items:center;gap:5px}
+  .dirkey b{display:inline-block;min-width:20px;text-align:center;padding:1px 5px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-size:11px;direction:ltr}
+  .dirkey .sep{width:1px;height:14px;background:var(--line)}
+  .mach{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;margin:12px 0;box-shadow:var(--shadow)}
+  .mhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:10px}
+  .mhead b{font-size:15px;color:var(--accent)}
+  .mhead span{font-size:12px;color:var(--muted);direction:ltr}
+  .part{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:10px 0 6px;font-weight:700}
   .prow{display:grid;grid-template-columns:62px 1fr;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
   .part + .prow{border-top:0}
   .pos b{font-size:16px;display:block}
   .pos small{font-size:11px;color:var(--muted)}
-  .cells{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .cells{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;direction:ltr}
   .cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px}
   .cell > span{font-size:10px;color:var(--muted);letter-spacing:.5px}
   .cell .rin{width:100%;max-width:90px}
-  .cell .dot{position:absolute;top:14px;right:-3px;width:10px;height:10px;background:var(--bg)}
-  /* Daily check page */
-  #chk{padding-bottom:110px}
-  .unitrow{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:var(--muted)}
-  .unitrow select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;height:34px;padding:0 10px;font-size:14px}
-  .sect{font-size:12px;font-weight:700;color:var(--amber);padding:16px 4px 6px;text-transform:uppercase;letter-spacing:.6px;display:flex;justify-content:space-between}
-  .sect span{color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0}
-  .ci{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:6px}
-  .ci.fault{border-color:rgba(239,68,68,.55)}
-  .ci .top{display:flex;align-items:center;gap:10px;margin-bottom:0}
-  .ci .nm{flex:1;min-width:0;font-size:14px;line-height:1.3}
-  .ci .nm small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
-  .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:none}
-  .seg button{height:40px;min-width:54px;padding:0 10px;border:0;background:var(--panel2);color:var(--muted);font-size:14px;font-weight:600;cursor:pointer}
-  .seg button + button{border-left:1px solid var(--line)}
-  .seg .ok.on{background:var(--ok);color:#052e16}
-  .seg .bad.on{background:var(--err);color:#fff}
-  .fx{margin-top:10px;display:flex;flex-direction:column;gap:8px}
-  .fx textarea{width:100%;min-height:62px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;font-size:15px;padding:10px;resize:vertical;outline:none}
-  .fx textarea:focus{border-color:var(--amber)}
-  .rd{display:flex;align-items:center;gap:8px;margin-top:10px}
-  .rd input{flex:1;min-width:0;height:46px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:18px;padding:0 12px;outline:none;font-variant-numeric:tabular-nums}
-  .rd input:focus{border-color:var(--amber)}
-  .rd .unit{color:var(--muted);font-size:14px}
-  .hint{font-size:12px;color:var(--muted);margin-top:6px}
-  .hint.warn{color:var(--edit)}
-  .pbtn{display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:9px;border:1px dashed var(--line);background:none;color:var(--text);font-size:14px;cursor:pointer;align-self:flex-start}
-  .pbtn svg{width:18px;height:18px;stroke:var(--amber)}
-  .pbtn.req{border-color:var(--amber)}
-  .thumb{display:flex;align-items:center;gap:10px;margin-top:8px}
-  .thumb img{width:84px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
-  .thumb small{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
+  .cell .dot{position:absolute;top:14px;inset-inline-end:-3px;width:10px;height:10px;background:var(--panel)}
   .gline{grid-template-columns:92px 1fr}
   .gline .pos b{font-size:14px;line-height:1.2}
   .cell .dot.ok{background:var(--ok)} .cell .dot.edit,.cell .dot.saving{background:var(--edit)} .cell .dot.err{background:var(--err)}
+
+  /* ---------- Daily check page ---------- */
+  #chk{padding-bottom:110px}
+  .unitrow{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:var(--muted)}
+  .unitrow select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;height:36px;padding:0 10px;font-size:14px;direction:ltr}
+  .sect{font-size:12px;font-weight:700;color:var(--accent);padding:16px 4px 6px;text-transform:uppercase;letter-spacing:.6px;display:flex;justify-content:space-between}
+  .sect span{color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0}
+  .ci{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:6px;box-shadow:var(--shadow)}
+  .ci.fault{border-color:var(--bad-line)}
+  .ci .ctop{display:flex;align-items:center;gap:10px}
+  .ci .nm{flex:1;min-width:0;font-size:14px;line-height:1.3}
+  .ci .nm small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:none;direction:ltr}
+  .seg button{height:40px;min-width:54px;padding:0 10px;border:0;background:var(--panel2);color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;display:grid;place-items:center}
+  .seg button svg{width:18px;height:18px;stroke:currentColor}
+  .seg button + button{border-left:1px solid var(--line)}
+  .seg .ok.on{background:var(--ok);color:#fff}
+  .seg .bad.on{background:var(--err);color:#fff}
+  .fx{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+  .fx textarea{width:100%;min-height:62px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;font-size:15px;padding:10px;resize:vertical;outline:none}
+  .fx textarea:focus{border-color:var(--brand)}
+  .rd{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .rd input{flex:1;min-width:0;height:46px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:18px;padding:0 12px;outline:none;font-variant-numeric:tabular-nums;direction:ltr;text-align:start}
+  html[lang="ar"] .rd input{text-align:right}
+  .rd input:focus{border-color:var(--brand)}
+  .rd .unit{color:var(--muted);font-size:14px}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  .hint.warn{color:var(--edit)}
+  .pbtn{display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:10px;border:1px dashed var(--line);background:none;color:var(--text);font-size:14px;cursor:pointer;align-self:flex-start}
+  .pbtn svg{width:18px;height:18px;stroke:var(--accent)}
+  .pbtn.req{border-color:var(--accent)}
+  .thumb{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .thumb img{width:84px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .thumb small{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
   .foot{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
         background:linear-gradient(to top,var(--bg) 70%,transparent)}
   .foot .inner{max-width:520px;margin:0 auto}
   .foot .note{font-size:13px;color:var(--edit);text-align:center;margin-bottom:8px;min-height:0}
-  .primary.green{background:var(--ok);color:#052e16}
+  .primary.green{background:var(--ok);color:#fff}
   .loading{padding:40px 0;text-align:center;color:var(--muted)}
 
-  .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:90%;
-         background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:20}
+  .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:90%;color:var(--text);
+         background:var(--panel);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.18);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:60}
   .toast.show{opacity:1}
+
+  /* ---------- Settings pop-up (bottom sheet) ---------- */
+  .modal{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;visibility:hidden;transition:visibility 0s .25s}
+  .modal.open{visibility:visible;transition-delay:0s}
+  .scrim{position:absolute;inset:0;background:var(--scrim);opacity:0;transition:opacity .25s}
+  .modal.open .scrim{opacity:1}
+  .sheet{position:relative;width:100%;max-width:520px;background:var(--panel);color:var(--text);border-radius:22px 22px 0 0;
+         padding:8px 20px calc(18px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
+         box-shadow:0 -10px 40px rgba(0,0,0,.25);border-top:1px solid var(--line)}
+  .modal.open .sheet{transform:none}
+  .grab{width:40px;height:5px;border-radius:5px;background:var(--line);margin:4px auto 10px}
+  .shead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .shead h2{font-size:18px}
+  .sgroup{padding:14px 0;border-top:1px solid var(--line)}
+  .shead + .sgroup{border-top:0}
+  .sgroup > label{margin-bottom:10px;font-size:13px}
+  .segctl{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;background:var(--panel2);border:1px solid var(--line)}
+  .segctl button{height:46px;border:0;border-radius:10px;background:none;color:var(--muted);font-weight:600;font-size:15px;cursor:pointer;
+                 display:flex;align-items:center;justify-content:center;gap:8px}
+  .segctl button svg{width:18px;height:18px;stroke:currentColor}
+  .segctl button.on{background:var(--brand);color:#fff;box-shadow:0 2px 8px rgba(45,127,103,.3)}
+  .segctl button[lang="ar"]{font-family:"IBM Plex Sans Arabic",sans-serif}
+  .segctl button[lang="en"]{font-family:"Open Sans",sans-serif}
+  .who{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .avatar{width:40px;height:40px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;flex:none}
+  .who small{display:block;color:var(--muted);font-size:12px}
+  .who b{font-size:15px}
+  .danger{width:100%;height:48px;border-radius:12px;border:1px solid var(--bad-line);background:var(--bad-bg);color:var(--err);font-weight:700;font-size:15px;
+          cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+  .danger svg{width:18px;height:18px;stroke:currentColor}
+  html[dir="rtl"] .danger svg{transform:scaleX(-1)}
+  .sfoot{text-align:center;color:var(--muted);font-size:11px;padding-top:6px;direction:ltr}
 </style>
 </head>
 <body>
+<!-- Holoul logo mark (leaf + bolt), traced from holoulrecycling.com -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mk" viewBox="15 1 34 63"><path d="M32.46,61.60C32.50,61.38 32.80,61.06 32.96,61.06C33.32,61.06 33.75,60.49 33.97,59.68C34.06,59.36 34.29,58.80 34.47,58.44C34.65,58.08 34.87,57.51 34.96,57.19C35.06,56.86 35.27,56.34 35.43,56.03C35.60,55.72 35.84,55.13 35.97,54.72C36.11,54.28 36.32,53.77 36.48,53.49C36.65,53.21 36.83,52.75 36.95,52.37C37.05,52.01 37.27,51.47 37.44,51.16C37.60,50.85 37.84,50.26 37.97,49.84C38.10,49.43 38.31,48.91 38.44,48.68C38.73,48.18 38.78,48.06 38.97,47.39C39.05,47.11 39.25,46.62 39.43,46.29C39.60,45.97 39.83,45.42 39.93,45.06C40.04,44.70 40.28,44.11 40.46,43.75C40.65,43.39 40.88,42.82 40.97,42.50C41.07,42.13 41.25,41.70 41.44,41.37C41.63,41.04 41.81,40.61 41.91,40.25C42.00,39.92 42.24,39.33 42.44,38.93C42.64,38.53 42.88,37.94 42.97,37.62C43.14,37.00 43.21,36.85 43.54,36.31C43.65,36.12 43.83,35.67 43.94,35.30C44.04,34.92 44.28,34.33 44.49,33.93C44.68,33.54 44.90,33.01 44.97,32.75C45.03,32.49 45.25,31.97 45.44,31.59C45.65,31.20 45.88,30.64 45.97,30.31C46.06,29.98 46.27,29.47 46.44,29.16C46.61,28.84 46.84,28.27 46.96,27.85C47.22,27.02 47.24,26.98 47.58,26.49C48.14,25.68 47.96,25.06 47.14,25.06C46.14,25.06 44.75,25.28 43.59,25.63C42.63,25.91 42.40,25.96 41.09,26.13C40.01,26.26 39.39,26.40 38.44,26.69C37.76,26.89 37.48,26.95 36.12,27.13C35.16,27.25 34.37,27.42 33.39,27.72C33.11,27.80 32.52,27.93 32.08,28.00C30.79,28.21 30.15,28.41 29.66,28.78C29.55,28.86 29.19,29.07 28.84,29.24C28.49,29.41 28.07,29.66 27.90,29.79C27.73,29.92 27.37,30.16 27.09,30.33C26.82,30.50 26.51,30.71 26.41,30.81C26.30,30.91 26.01,31.15 25.74,31.35C24.69,32.17 23.08,33.74 22.33,34.69C22.16,34.91 21.92,35.18 21.81,35.28C21.70,35.38 21.49,35.65 21.34,35.88C21.20,36.11 20.95,36.44 20.79,36.62C20.63,36.80 20.40,37.14 20.27,37.39C20.15,37.63 19.90,38.06 19.71,38.33C19.31,38.91 19.27,39.05 19.40,39.30C19.67,39.82 20.56,39.90 21.47,39.50C22.16,39.19 22.50,39.10 23.57,38.94C24.52,38.79 24.73,38.73 25.60,38.38C26.01,38.22 26.45,38.09 26.85,38.03C28.15,37.83 28.55,37.73 29.23,37.47C30.12,37.12 30.23,37.09 31.28,36.94C31.79,36.86 32.44,36.72 32.84,36.59C34.11,36.18 34.56,36.36 34.56,37.30C34.56,37.97 34.36,39.64 34.07,41.38C33.72,43.46 33.64,44.16 33.60,45.75C33.54,47.72 33.50,48.07 33.00,51.09C32.68,53.02 32.64,53.41 32.59,55.12C32.57,56.05 32.51,56.95 32.43,57.56C32.32,58.39 32.30,58.72 32.34,59.78C32.37,60.84 32.36,61.08 32.28,61.33C32.16,61.67 32.20,62.00 32.34,61.88C32.39,61.84 32.44,61.71 32.46,61.60Z M19.73,36.41C19.87,36.31 19.93,36.18 20.10,35.60C20.18,35.35 20.30,35.14 20.50,34.92C20.66,34.74 20.92,34.39 21.08,34.14C21.24,33.89 21.47,33.59 21.58,33.46C21.70,33.33 21.90,33.06 22.04,32.88C22.32,32.49 23.43,31.36 23.87,31.01C24.03,30.89 24.29,30.67 24.45,30.52C24.61,30.38 24.94,30.13 25.20,29.96C25.45,29.80 25.79,29.55 25.95,29.40C26.11,29.25 26.46,29.03 26.72,28.91C26.98,28.79 27.33,28.58 27.49,28.45C27.85,28.15 28.05,28.05 28.53,27.91C28.98,27.78 29.19,27.68 29.59,27.37C29.77,27.25 30.12,27.04 30.38,26.92C30.91,26.66 32.39,25.23 32.93,24.44C33.02,24.32 33.23,24.05 33.41,23.84C33.58,23.64 33.84,23.27 33.99,23.03C34.13,22.79 34.36,22.44 34.50,22.25C34.65,22.06 34.87,21.69 35.00,21.43C35.14,21.17 35.36,20.79 35.50,20.59C35.63,20.40 35.85,19.97 35.97,19.65C36.10,19.33 36.32,18.87 36.48,18.64C36.66,18.36 36.83,17.98 36.98,17.50C37.10,17.10 37.33,16.57 37.47,16.31C37.64,16.02 37.82,15.58 37.94,15.16C38.05,14.76 38.26,14.23 38.44,13.90C38.61,13.58 38.84,13.01 38.96,12.62C39.09,12.23 39.30,11.71 39.44,11.47C39.59,11.23 39.80,10.75 39.91,10.41C40.04,10.05 40.24,9.61 40.40,9.37C40.56,9.14 40.81,8.69 40.97,8.37C41.13,8.04 41.35,7.67 41.47,7.53C41.58,7.39 41.79,7.07 41.93,6.82C42.08,6.57 42.33,6.22 42.49,6.04C42.65,5.86 42.91,5.55 43.07,5.34C43.23,5.14 43.90,4.44 44.55,3.80C45.78,2.60 45.84,2.52 45.63,2.32C45.32,2.01 43.65,2.15 42.25,2.59C41.78,2.75 40.98,2.94 40.49,3.03C39.39,3.23 39.07,3.32 38.31,3.64C37.99,3.78 37.43,3.97 37.07,4.07C36.72,4.17 36.14,4.39 35.79,4.56C35.44,4.72 34.89,4.97 34.57,5.09C33.03,5.70 30.00,7.45 27.83,8.99C24.69,11.21 20.53,15.18 19.50,16.94C19.37,17.16 19.17,17.46 19.06,17.59C18.86,17.84 18.50,18.53 18.50,18.66C18.50,18.70 18.37,18.93 18.21,19.19C17.78,19.88 17.72,20.04 17.54,20.71C17.45,21.05 17.25,21.59 17.09,21.91C16.75,22.64 16.64,23.04 16.59,23.84C16.57,24.19 16.51,24.74 16.46,25.06C16.24,26.54 16.27,28.01 16.57,30.09C16.71,31.09 17.24,31.44 17.76,30.89C18.44,30.17 18.72,29.68 18.94,28.82C19.09,28.22 19.18,28.01 19.47,27.66C19.74,27.32 19.84,27.10 19.97,26.63C20.10,26.14 20.24,25.85 20.52,25.51C20.64,25.37 20.78,25.13 20.84,24.98C20.89,24.84 20.99,24.56 21.06,24.38C21.13,24.18 21.33,23.86 21.52,23.64C21.74,23.38 21.89,23.14 21.96,22.89C22.12,22.41 22.20,22.26 22.52,21.88C22.80,21.55 22.83,21.51 23.09,20.92C23.18,20.72 23.38,20.41 23.54,20.23C23.69,20.06 23.89,19.77 23.98,19.60C24.07,19.43 24.30,19.12 24.50,18.91C24.70,18.70 24.99,18.33 25.14,18.09C25.30,17.85 25.53,17.56 25.65,17.44C25.78,17.32 25.99,17.06 26.13,16.88C26.49,16.34 28.34,14.57 28.72,14.39C29.18,14.17 29.13,14.49 28.59,15.18C27.89,16.08 27.67,16.37 27.43,16.72C27.29,16.93 27.08,17.21 26.97,17.35C26.86,17.48 26.63,17.84 26.47,18.13C26.31,18.42 26.06,18.81 25.91,19.00C25.77,19.19 25.54,19.52 25.41,19.74C25.29,19.96 25.06,20.29 24.92,20.47C24.77,20.65 24.58,20.98 24.50,21.19C24.35,21.61 24.23,21.81 23.89,22.21C23.78,22.35 23.60,22.69 23.50,22.97C23.39,23.25 23.20,23.62 23.06,23.80C22.75,24.21 22.71,24.30 22.50,24.92C22.38,25.25 22.21,25.59 22.03,25.83C21.87,26.04 21.70,26.37 21.65,26.56C21.38,27.46 21.29,27.70 21.10,27.95C20.79,28.36 20.71,28.54 20.57,29.24C20.48,29.70 20.38,30.00 20.21,30.30C19.77,31.08 19.69,31.28 19.59,31.88C19.52,32.29 19.39,32.71 19.15,33.28C18.75,34.22 18.62,34.65 18.62,35.10C18.62,36.05 19.22,36.76 19.73,36.41Z"/></symbol>
+</svg>
+
 <div class="wrap">
 
   <!-- SIGN IN -->
   <section id="login">
-    <div class="brand">
-      <div class="logo">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f5a524" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>
+    <button class="iconbtn corner" id="loginSettings" aria-label="Settings" data-i18n-aria="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <div class="hero">
+      <div class="lockup">
+        <svg class="mk" viewBox="0 0 34 63" aria-hidden="true"><use href="#mk" width="34" height="63"/></svg>
+        <div><b class="wm">Holoul</b><small data-i18n="brandSub">maintenance</small></div>
       </div>
-      <div><h1>Holoul Maintenance</h1><p>Sign in to continue</p></div>
+      <p data-i18n="signInTo">Sign in to continue</p>
     </div>
-    <form class="card" id="form" autocomplete="on">
-      <label for="username">Username</label>
+    <form class="card top-accent" id="form" autocomplete="on">
+      <label for="username" data-i18n="username">Username</label>
       <input class="field" id="username" autocapitalize="none" autocomplete="username" spellcheck="false" required>
-      <label for="pin">PIN</label>
+      <label for="pin" data-i18n="pin">PIN</label>
       <input class="field" id="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" required>
       <label class="check" for="auto">
         <input type="checkbox" id="auto">
         <span class="box" aria-hidden="true"></span>
-        <span>Auto sign in on this device</span>
+        <span data-i18n="autoSignIn">Auto sign in on this device</span>
       </label>
-      <button class="primary" id="btn" type="submit">Sign in</button>
+      <button class="primary" id="btn" type="submit" data-i18n="signIn">Sign in</button>
       <div class="msg" id="msg"></div>
     </form>
+    <div class="foot-brand" data-i18n="company">Holoul Electronic Recycling</div>
   </section>
 
   <!-- HOME -->
   <section id="home" class="hidden">
-    <div class="top">
-      <div class="hello"><small>Welcome</small><h2 id="uName"></h2></div>
-      <button class="ghost" id="logout">Sign out</button>
+    <header class="appbar">
+      <div class="lockup">
+        <svg class="mk" viewBox="0 0 34 63" aria-hidden="true"><use href="#mk" width="34" height="63"/></svg>
+        <div><b class="wm">Holoul</b><small data-i18n="brandSub">maintenance</small></div>
+      </div>
+      <button class="iconbtn" id="openSettings" aria-label="Settings" data-i18n-aria="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </header>
+    <div class="welcome">
+      <svg class="ghostmk" viewBox="0 0 34 63" aria-hidden="true"><use href="#mk" width="34" height="63"/></svg>
+      <small data-i18n="welcome">Welcome</small>
+      <h2 id="uName"></h2>
+      <div class="date" id="uDate"></div>
+      <div class="badges">
+        <div class="badge"><span data-i18n="id">ID</span> <b id="uId" class="ltr"></b></div>
+        <div class="badge"><span data-i18n="role">Role</span> <b id="uRole"></b></div>
+        <div class="badge hidden" id="eqBadge"><span data-i18n="equipment">Equipment</span> <b id="uEq"></b></div>
+      </div>
     </div>
-    <div class="badges">
-      <div class="badge">ID <b id="uId"></b></div>
-      <div class="badge">Role <b id="uRole"></b></div>
-      <div class="badge hidden" id="eqBadge">Equipment <b id="uEq"></b></div>
-    </div>
-    <h3>Your access</h3>
+    <h3 data-i18n="yourAccess">Your access</h3>
     <div class="grid" id="tiles"></div>
   </section>
 
@@ -211,7 +342,7 @@
   <section id="rec" class="hidden">
     <div class="rhead">
       <div class="rtop">
-        <button class="back" id="back" aria-label="Back">
+        <button class="back" id="back" aria-label="Back" data-i18n-aria="back">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div class="rtitle"><h2 id="rTitle"></h2><small id="rDate"></small></div>
@@ -219,18 +350,18 @@
       </div>
       <div class="bar"><i id="rBar"></i></div>
       <div class="legend">
-        <span><i class="dot ok"></i>Saved</span>
-        <span><i class="dot edit"></i>Editing / saving</span>
-        <span><i class="dot err"></i>Not saved – tap to retry</span>
+        <span><i class="dot ok"></i><em style="font-style:normal" data-i18n="saved">Saved</em></span>
+        <span><i class="dot edit"></i><em style="font-style:normal" data-i18n="editing">Editing / saving</em></span>
+        <span><i class="dot err"></i><em style="font-style:normal" data-i18n="notSaved">Not saved – tap to retry</em></span>
       </div>
       <div class="banner hidden" id="rBanner"></div>
     </div>
-    <div class="colhead" id="rColHead"><span>Cable ID / Description</span><span id="rRefHead">Ref</span><span>Reading</span></div>
-    <div id="rList"><div class="loading">Loading…</div></div>
+    <div class="colhead" id="rColHead"><span data-i18n="colId">Cable ID / Description</span><span id="rRefHead">Ref</span><span data-i18n="colReading">Reading</span></div>
+    <div id="rList"><div class="loading" data-i18n="loading">Loading…</div></div>
     <div class="foot">
       <div class="inner">
         <div class="note" id="rNote"></div>
-        <button class="primary" id="rComplete">Complete task</button>
+        <button class="primary" id="rComplete" data-i18n="completeTask">Complete task</button>
       </div>
     </div>
   </section>
@@ -239,43 +370,281 @@
   <section id="chk" class="hidden">
     <div class="rhead">
       <div class="rtop">
-        <button class="back" id="cBack" aria-label="Back">
+        <button class="back" id="cBack" aria-label="Back" data-i18n-aria="back">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div class="rtitle"><h2 id="cTitle"></h2><small id="cDate"></small></div>
         <div class="count"><b id="cDone">0</b> / <span id="cTotal">0</span></div>
       </div>
       <div class="bar"><i id="cBar"></i></div>
-      <div class="unitrow"><span>Unit</span><select id="cUnit"></select></div>
+      <div class="unitrow"><span data-i18n="unit">Unit</span><select id="cUnit"></select></div>
       <div class="banner hidden" id="cBanner"></div>
     </div>
-    <div id="cList"><div class="loading">Loading…</div></div>
+    <div id="cList"><div class="loading" data-i18n="loading">Loading…</div></div>
     <div class="foot">
       <div class="inner">
         <div class="note" id="cNote"></div>
-        <button class="primary" id="cSubmit">Submit daily check</button>
+        <button class="primary" id="cSubmit" data-i18n="submitCheck">Submit daily check</button>
       </div>
     </div>
   </section>
 
 </div>
+
+<!-- SETTINGS POP-UP -->
+<div class="modal" id="settings" aria-hidden="true">
+  <div class="scrim" id="setScrim"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="grab"></div>
+    <div class="shead">
+      <h2 id="setTitle" data-i18n="settings">Settings</h2>
+      <button class="iconbtn sm" id="setClose" aria-label="Close" data-i18n-aria="close">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="sgroup">
+      <label data-i18n="language">Language</label>
+      <div class="segctl" id="langSeg">
+        <button type="button" data-lang="en" lang="en">English</button>
+        <button type="button" data-lang="ar" lang="ar">العربية</button>
+      </div>
+    </div>
+    <div class="sgroup">
+      <label data-i18n="mode">Mode</label>
+      <div class="segctl" id="themeSeg">
+        <button type="button" data-theme-btn="default">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <span data-i18n="modeDefault">Default</span>
+        </button>
+        <button type="button" data-theme-btn="night">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          <span data-i18n="modeNight">Night</span>
+        </button>
+      </div>
+    </div>
+    <div class="sgroup hidden" id="setAccount">
+      <div class="who"><div class="avatar" id="setAvatar"></div><div><small data-i18n="signedInAs">Signed in as</small><b id="setUser"></b></div></div>
+      <button type="button" class="danger" id="logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        <span data-i18n="signOut">Sign out</span>
+      </button>
+    </div>
+    <div class="sfoot">Holoul Maintenance · v8</div>
+  </div>
+</div>
+
 <input type="file" id="photoPick" accept="image/*" class="hidden">
 <div class="toast" id="toast"></div>
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycby6cn2Os6fkkireTwP8QJqV-8E45gf5V6wovl_8fz28RL_vEG3Rg0nuuEKFv3kwdYWMCw/exec';
 
-/* Pages. `ready: true` = the record page is built. */
+/* Pages. `ready: true` = the record page is built. Keys must match the sheet / access names. */
 const MODULES = {
-  'Amp Rec':       { sub:'Motor current readings',   ready:true,  icon:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>' },
-  'Vibration Rec': { sub:'Bearing & motor vibration', ready:true, icon:'<path d="M2 12h3l2-6 4 12 4-12 2 6h5"/>' },
-  'Thermo Rec':    { sub:'Motor & gearbox temps',    ready:true,  icon:'<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>' },
-  'Forklift':      { sub:'Daily forklift check',                   icon:'<path d="M3 18V8h6l3 6v4M12 18h3M16 4v14h5M3 18h1"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>' },
-  'Bobcat':        { sub:'Daily bobcat check', checklist:true,     icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' }
+  'Amp Rec':       { ready:true,  icon:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>' },
+  'Vibration Rec': { ready:true,  icon:'<path d="M2 12h3l2-6 4 12 4-12 2 6h5"/>' },
+  'Thermo Rec':    { ready:true,  icon:'<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>' },
+  'Forklift':      {              icon:'<path d="M3 18V8h6l3 6v4M12 18h3M16 4v14h5M3 18h1"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>' },
+  'Bobcat':        { checklist:true, icon:'<path d="M3 16V9h7l2 3h5v4M17 12l4-4"/><circle cx="7" cy="17" r="2"/><circle cx="15" cy="17" r="2"/>' }
 };
+
+/* ---------- language ---------- */
+const I18N = {
+  en: {
+    brandSub:'maintenance', company:'Holoul Electronic Recycling',
+    signInTo:'Sign in to continue', username:'Username', pin:'PIN', autoSignIn:'Auto sign in on this device',
+    signIn:'Sign in', signingIn:'Signing in…', signInFailed:'Sign in failed',
+    noConnLogin:'No connection — check internet and try again', sessionExpired:'Session expired — please sign in again',
+    welcome:'Welcome', id:'ID', role:'Role', equipment:'Equipment', yourAccess:'Your access',
+    noPages:'No pages assigned yet. Ask your supervisor to set your role in the Users sheet.',
+    comingNext:'{name} page — coming next',
+    settings:'Settings', language:'Language', mode:'Mode', modeDefault:'Default', modeNight:'Night',
+    signedInAs:'Signed in as', signOut:'Sign out', close:'Close', back:'Back',
+    loading:'Loading…', saved:'Saved', editing:'Editing / saving', notSaved:'Not saved – tap to retry',
+    colId:'Cable ID / Description', colRef:'Ref', colReading:'Reading',
+    completeTask:'Complete task', completeAnyway:'Complete anyway',
+    emptyReadings_one:'1 reading is empty. Tap again to complete anyway.',
+    emptyReadings_other:'{n} readings are empty. Tap again to complete anyway.',
+    savingLast:'Saving your last readings… tap again in a moment.',
+    someNotSaved:'Some readings are not saved (red dots). Tap them to retry first.',
+    submitting:'Submitting…', taskCompleted:'✓ Task completed ({ft})', taskRecorded:'Task recorded — thank you',
+    couldNotSubmit:'Could not submit: {e}', noConnection:'no connection',
+    savingTryBack:'Saving… try Back again in a moment', noRows:'No rows found in this sheet.',
+    noConnBack:'No connection — go back and try again.', notSavedToast:'Not saved: {e} — tap the red dot to retry',
+    completedBy:'✓ Completed today by {by} at {at} ({ft} readings)',
+    'dir.H':'Horizontal', 'dir.V':'Vertical', 'dir.A':'Axial',
+    thermoKey:'Temperature in °C',
+    'pos.F':'Front', 'pos.B':'Back', 'pos.L':'Left', 'pos.R':'Right',
+    dailyCheckTitle:'{type} daily check', unit:'Unit', submitCheck:'Submit daily check', updateCheck:'Update daily check',
+    checks:'Checks', onceWeek:'once a week', lastDone:'Last done {d}', notDoneYet:'Not done yet', leaveBlank:'leave blank if not today',
+    last:'Last', enterReading:'Enter reading', noFault:'No fault', actionRequired:'Action required',
+    whatWrong:'What is wrong? (required)', photoRequired:'Take photo of the meter (required)', photoOptional:'Add photo (optional)',
+    photoRetake:'Retake / change photo', uploading:'Uploading…', notUploaded:'Not uploaded — tap red dot to retry', savedDrive:'Saved to Drive',
+    lowerThanLast:'Lower than the last reading ({v}). Please check the meter photo.',
+    over24_one:'{x} h in 1 day — more than 24 h a day. Please check.',
+    over24_other:'{x} h in {d} days — more than 24 h a day. Please check.',
+    sinceLast:'{x} since last reading', hours:'h',
+    submittedAt:'✓ Submitted today at {at} by {by} — {status}', canChange:'. You can change it and submit again.',
+    statusOK:'OK', statusAction:'Action required ({n})',
+    stillNeeded:'Still needed: {x}', itemsNeeded:'{n} items still needed (first: {x})',
+    meterPhoto:'meter photo', describeFault:'describe fault: {x}', waitPhoto:'Wait for the photo to finish uploading.',
+    submittedFaults_one:'✓ Submitted — 1 fault reported', submittedFaults_other:'✓ Submitted — {n} faults reported',
+    submittedOK:'✓ Submitted — all OK', checkSaved:'Daily check saved — thank you',
+    photoUploading:'A photo is still uploading…', cantReadPhoto:'Could not read that photo', photoNotUploaded:'Photo not uploaded: {e}',
+    'mod.Amp Rec':'Amp Rec', 'sub.Amp Rec':'Motor current readings',
+    'mod.Vibration Rec':'Vibration Rec', 'sub.Vibration Rec':'Bearing & motor vibration',
+    'mod.Thermo Rec':'Thermo Rec', 'sub.Thermo Rec':'Motor & gearbox temps',
+    'mod.Forklift':'Forklift', 'sub.Forklift':'Daily forklift check',
+    'mod.Bobcat':'Bobcat', 'sub.Bobcat':'Daily bobcat check',
+    'role.Maintenance Technician':'Maintenance Technician', 'role.Operator':'Operator'
+  },
+  ar: {
+    brandSub:'الصيانة', company:'حلول لمعالجة النفايات الإلكترونية',
+    signInTo:'سجّل الدخول للمتابعة', username:'اسم المستخدم', pin:'الرمز السري', autoSignIn:'دخول تلقائي على هذا الجهاز',
+    signIn:'تسجيل الدخول', signingIn:'جارٍ تسجيل الدخول…', signInFailed:'تعذّر تسجيل الدخول',
+    noConnLogin:'لا يوجد اتصال — تأكد من الإنترنت وحاول مرة أخرى', sessionExpired:'انتهت الجلسة — سجّل الدخول مرة أخرى',
+    welcome:'أهلاً', id:'الرقم', role:'الوظيفة', equipment:'المعدة', yourAccess:'صفحاتك',
+    noPages:'لا توجد صفحات مخصصة لك بعد. اطلب من المشرف تحديد وظيفتك في جدول المستخدمين.',
+    comingNext:'صفحة {name} — قريباً',
+    settings:'الإعدادات', language:'اللغة', mode:'الوضع', modeDefault:'الافتراضي', modeNight:'الليلي',
+    signedInAs:'مسجّل الدخول باسم', signOut:'تسجيل الخروج', close:'إغلاق', back:'رجوع',
+    loading:'جارٍ التحميل…', saved:'محفوظ', editing:'جارٍ التعديل / الحفظ', notSaved:'لم يُحفظ – اضغط لإعادة المحاولة',
+    colId:'رقم الكيبل / الوصف', colRef:'المرجع', colReading:'القراءة',
+    completeTask:'إنهاء المهمة', completeAnyway:'إنهاء على أي حال',
+    emptyReadings:'عدد القراءات الفارغة: {n}. اضغط مرة أخرى للإنهاء على أي حال.',
+    savingLast:'جارٍ حفظ آخر القراءات… اضغط مرة أخرى بعد لحظة.',
+    someNotSaved:'بعض القراءات لم تُحفظ (النقاط الحمراء). اضغط عليها لإعادة المحاولة أولاً.',
+    submitting:'جارٍ الإرسال…', taskCompleted:'✓ تم إنهاء المهمة ({ft})', taskRecorded:'تم تسجيل المهمة — شكراً',
+    couldNotSubmit:'تعذّر الإرسال: {e}', noConnection:'لا يوجد اتصال',
+    savingTryBack:'جارٍ الحفظ… اضغط رجوع بعد لحظة', noRows:'لا توجد بنود في هذا الجدول.',
+    noConnBack:'لا يوجد اتصال — ارجع وحاول مرة أخرى.', notSavedToast:'لم يُحفظ: {e} — اضغط النقطة الحمراء لإعادة المحاولة',
+    completedBy:'✓ أُنجزت اليوم بواسطة {by} الساعة {at} ({ft} قراءة)',
+    'dir.H':'أفقي', 'dir.V':'رأسي', 'dir.A':'محوري',
+    thermoKey:'درجة الحرارة بالدرجة المئوية',
+    'pos.F':'أمام', 'pos.B':'خلف', 'pos.L':'يسار', 'pos.R':'يمين',
+    dailyCheckTitle:'الفحص اليومي – {type}', unit:'الوحدة', submitCheck:'إرسال الفحص اليومي', updateCheck:'تحديث الفحص اليومي',
+    checks:'الفحوصات', onceWeek:'مرة في الأسبوع', lastDone:'آخر مرة {d}', notDoneYet:'لم يتم بعد', leaveBlank:'اتركه فارغاً إذا ليس اليوم',
+    last:'آخر قراءة', enterReading:'أدخل القراءة', noFault:'سليم', actionRequired:'يحتاج إجراء',
+    whatWrong:'ما المشكلة؟ (مطلوب)', photoRequired:'صوّر العداد (مطلوب)', photoOptional:'أضف صورة (اختياري)',
+    photoRetake:'إعادة / تغيير الصورة', uploading:'جارٍ الرفع…', notUploaded:'لم تُرفع — اضغط النقطة الحمراء لإعادة المحاولة', savedDrive:'محفوظة في Drive',
+    lowerThanLast:'أقل من آخر قراءة ({v}). تأكد من صورة العداد.',
+    over24:'{x} ساعة خلال {d} يوم — أكثر من 24 ساعة في اليوم. تأكد من القراءة.',
+    sinceLast:'{x} منذ آخر قراءة', hours:'ساعة',
+    submittedAt:'✓ أُرسل اليوم الساعة {at} بواسطة {by} — {status}', canChange:'. يمكنك التعديل والإرسال مرة أخرى.',
+    statusOK:'سليم', statusAction:'يحتاج إجراء ({n})',
+    stillNeeded:'مطلوب: {x}', itemsNeeded:'باقي {n} بنود مطلوبة (أولها: {x})',
+    meterPhoto:'صورة العداد', describeFault:'وصف العطل: {x}', waitPhoto:'انتظر حتى يكتمل رفع الصورة.',
+    submittedFaults:'✓ تم الإرسال — عدد الأعطال المبلّغ عنها: {n}',
+    submittedOK:'✓ تم الإرسال — كل شيء سليم', checkSaved:'تم حفظ الفحص اليومي — شكراً',
+    photoUploading:'لا تزال هناك صورة قيد الرفع…', cantReadPhoto:'تعذّرت قراءة الصورة', photoNotUploaded:'لم تُرفع الصورة: {e}',
+    'mod.Amp Rec':'قراءات التيار', 'sub.Amp Rec':'قراءة أمبير المحركات',
+    'mod.Vibration Rec':'قراءات الاهتزاز', 'sub.Vibration Rec':'اهتزاز المحركات والمحامل',
+    'mod.Thermo Rec':'قراءات الحرارة', 'sub.Thermo Rec':'حرارة المحركات وعلب التروس',
+    'mod.Forklift':'الرافعة الشوكية', 'sub.Forklift':'الفحص اليومي للرافعة الشوكية',
+    'mod.Bobcat':'البوبكات', 'sub.Bobcat':'الفحص اليومي للبوبكات',
+    'role.Maintenance Technician':'فني صيانة', 'role.Operator':'مشغّل'
+  }
+};
+let LANG = document.documentElement.lang === 'ar' ? 'ar' : 'en';
+function t(k, p){
+  let s = I18N[LANG][k]; if(s == null) s = I18N.en[k]; if(s == null) s = k;
+  // in Arabic, isolate each inserted value (names, numbers, times) so mixed text keeps its order
+  const wrap = v => LANG === 'ar' ? '\u2068' + v + '\u2069' : String(v);
+  return p ? s.replace(/\{(\w+)\}/g, (m, x) => p[x] != null ? wrap(p[x]) : m) : s;
+}
+/* plural: uses key_one / key_other when the language has them, else the plain key */
+function tn(k, n, p){
+  const d = I18N[LANG], key = (k + (n === 1 ? '_one' : '_other')) in d ? k + (n === 1 ? '_one' : '_other') : k;
+  return t(key, Object.assign({n}, p || {}));
+}
+const modName = n => { const v = t('mod.' + n); return v === 'mod.' + n ? n : v; };
+const modSub  = n => { const v = t('sub.' + n); return v === 'sub.' + n ? '' : v; };
+const roleName = r => { const v = t('role.' + r); return v === 'role.' + r ? (r || '') : v; };
+const localeTag = () => LANG === 'ar' ? 'ar-u-nu-latn-ca-gregory' : 'en-GB';
+function longDate(fallback){
+  try{ return new Date().toLocaleDateString(localeTag(), {weekday:'short', day:'numeric', month:'short', year:'numeric', timeZone:'Asia/Riyadh'}); }
+  catch(e){ return fallback || ''; }
+}
+/* messages that come from the server (Code.gs) are English — translate the common ones */
+const SERVER_AR = [
+  [/^Wrong username or PIN$/, 'اسم المستخدم أو الرمز السري غير صحيح'],
+  [/^Enter username and PIN$/, 'أدخل اسم المستخدم والرمز السري'],
+  [/^Account is inactive/, 'الحساب غير مفعّل — تواصل مع المشرف'],
+  [/^Session expired/, 'انتهت الجلسة — سجّل الدخول مرة أخرى'],
+  [/^You do not have access to (.+)$/, m => 'ليس لديك صلاحية على ' + modName(m[1])],
+  [/^This page is not set up yet$/, 'هذه الصفحة غير مجهزة بعد'],
+  [/^Daily checks are not set up yet$/, 'الفحوصات اليومية غير مجهزة بعد'],
+  [/^Please complete: (.+)$/, m => 'أكمل: ' + m[1]],
+  [/^Photo is too large$/, 'حجم الصورة كبير جداً'],
+  [/^Not an image$/, 'الملف ليس صورة'],
+  [/^Invalid row$/, 'بند غير صحيح'],
+  [/^Failed to fetch$|^Load failed$|^NetworkError/i, 'لا يوجد اتصال']
+];
+function trErr(s){
+  s = String(s || '');
+  if(LANG !== 'ar') return s;
+  for(const [re, out] of SERVER_AR){ const m = s.match(re); if(m) return typeof out === 'function' ? out(m) : out; }
+  return s;
+}
+function trStatus(s){
+  s = String(s || '');
+  if(!s || /^ok$/i.test(s)) return t('statusOK');
+  const m = s.match(/action required\s*\((\d+)\)/i);
+  return m ? t('statusAction', {n: m[1]}) : s;
+}
+
+/* ---------- mode + language settings (saved on this device) ---------- */
+const prefs = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+};
+function applyTheme(mode){
+  mode = mode === 'night' ? 'night' : 'default';
+  document.documentElement.setAttribute('data-theme', mode);
+  $('metaTheme').content = mode === 'night' ? '#0D1412' : '#2D7F67';
+  prefs.set('holoul_theme', mode);
+  document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('on', b.dataset.themeBtn === mode));
+}
+function applyLang(lang){
+  LANG = lang === 'ar' ? 'ar' : 'en';
+  const h = document.documentElement;
+  h.lang = LANG; h.dir = LANG === 'ar' ? 'rtl' : 'ltr';
+  prefs.set('holoul_lang', LANG);
+  document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
+  document.querySelectorAll('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === LANG));
+  document.title = LANG === 'ar' ? 'صيانة حلول' : 'Holoul Maintenance';
+  // redraw what is on screen
+  if(session && !$('home').classList.contains('hidden')) showHome();
+}
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- settings pop-up ---------- */
+let lastFocus = null;
+function openSettings(){
+  const signedIn = !!session;
+  $('setAccount').classList.toggle('hidden', !signedIn);
+  if(signedIn){
+    $('setUser').textContent = session.user.name || session.user.username;
+    $('setAvatar').textContent = String(session.user.name || session.user.username || '?').trim().charAt(0).toUpperCase();
+  }
+  lastFocus = document.activeElement;
+  $('settings').classList.add('open'); $('settings').setAttribute('aria-hidden', 'false');
+  setTimeout(() => $('setClose').focus(), 50);
+}
+function closeSettings(){
+  $('settings').classList.remove('open'); $('settings').setAttribute('aria-hidden', 'true');
+  if(lastFocus && lastFocus.focus) lastFocus.focus();
+}
+$('openSettings').onclick = openSettings;
+$('loginSettings').onclick = openSettings;
+$('setClose').onclick = closeSettings;
+$('setScrim').onclick = closeSettings;
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && $('settings').classList.contains('open')) closeSettings(); });
+document.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => applyLang(b.dataset.lang));
+document.querySelectorAll('[data-theme-btn]').forEach(b => b.onclick = () => applyTheme(b.dataset.themeBtn));
 
 /* ---------- session ---------- */
 const store = {
@@ -319,7 +688,7 @@ async function api(action, data = {}, retried = false){
 }
 function expired(){
   store.clear(); session = null; showView('login'); fillRemembered();
-  $('msg').textContent = 'Session expired — please sign in again';
+  $('msg').textContent = t('sessionExpired');
 }
 
 /* ---------- views ---------- */
@@ -332,24 +701,26 @@ function showHome(){
   const u = session.user;
   showView('home');
   $('uName').textContent = u.name;
+  $('uDate').textContent = longDate();
   $('uId').textContent = u.id;
-  $('uRole').textContent = u.role;
+  $('uRole').textContent = roleName(u.role);
   $('eqBadge').classList.toggle('hidden', !u.equipment);
-  $('uEq').textContent = u.equipment || '';
+  $('uEq').textContent = u.equipment ? modName(u.equipment) : '';
 
-  const t = $('tiles'); t.innerHTML = '';
+  const tl = $('tiles'); tl.innerHTML = '';
   if(!u.access || !u.access.length){
-    t.innerHTML = '<div class="empty" style="grid-column:1/-1">No pages assigned yet. Ask your supervisor to set your role in the Users sheet.</div>';
+    tl.innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(t('noPages'))}</div>`;
     return;
   }
   u.access.forEach(name => {
-    const m = MODULES[name] || {sub:'', icon:''};
+    const m = MODULES[name] || {icon:''};
     const b = document.createElement('button');
     b.className = 'tile' + (u.access.length === 1 ? ' one' : '');
-    b.innerHTML = `<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m.icon}</svg></div>
-                   <div><b>${esc(name)}</b><span>${esc(m.sub)}</span></div>`;
-    b.onclick = () => m.checklist ? openChecklist(name) : m.ready ? openRecord(name) : toast(name + ' page — coming next');
-    t.appendChild(b);
+    b.innerHTML = `<svg class="go" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                   <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m.icon}</svg></div>
+                   <div><b>${esc(modName(name))}</b><span>${esc(modSub(name))}</span></div>`;
+    b.onclick = () => m.checklist ? openChecklist(name) : m.ready ? openRecord(name) : toast(t('comingNext', {name: modName(name)}));
+    tl.appendChild(b);
   });
 }
 
@@ -358,27 +729,27 @@ let rec = null;   // { sheet, items: [{row, input, dot, saved, timer, busy}], co
 
 async function openRecord(sheet){
   showView('rec');
-  $('rTitle').textContent = sheet;
+  $('rTitle').textContent = modName(sheet);
   $('rDate').textContent = '';
-  $('rList').innerHTML = '<div class="loading">Loading…</div>';
+  $('rList').innerHTML = `<div class="loading">${esc(t('loading'))}</div>`;
   $('rBanner').classList.add('hidden');
   $('rNote').textContent = '';
   resetComplete();
   rec = { sheet, items: [] };
   try{
     const d = await api('getSheet', {sheet});
-    if(!d.ok){ $('rList').innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
-    $('rDate').textContent = d.date;
+    if(!d.ok){ $('rList').innerHTML = `<div class="empty">${esc(trErr(d.error))}</div>`; return; }
+    $('rDate').textContent = longDate(d.date);
     $('rRefHead').textContent = shortRef(d.refHeader);
     $('rColHead').classList.toggle('hidden', d.layout !== 'list');
     d.layout === 'vibration' ? renderVibration(d.rows) : d.layout === 'grouped' ? renderGrouped(d.rows) : renderRows(d.rows);
     setCompleted(d.completed);
     updateCount();
   }catch(e){
-    if(session) $('rList').innerHTML = '<div class="empty">No connection — go back and try again.</div>';
+    if(session) $('rList').innerHTML = `<div class="empty">${esc(t('noConnBack'))}</div>`;
   }
 }
-function shortRef(h){ h = String(h||'').trim(); return h.length > 8 ? 'Ref' : (h || 'Ref'); }
+function shortRef(h){ h = String(h||'').trim(); return (LANG === 'ar' || h.length > 8 || !h) ? t('colRef') : h; }
 
 function renderRows(rows){
   const list = $('rList'); list.innerHTML = '';
@@ -389,17 +760,18 @@ function renderRows(rows){
     const el = document.createElement('div'); el.className = 'row';
     el.innerHTML = `<div><div class="id">${esc(r.id)}</div><div class="ds">${esc(r.desc)}</div></div>
       <div class="ref">${esc(r.ref)}</div>
-      <div class="inwrap"><input class="rin" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Reading for ${esc(r.id)}"><i class="dot"></i></div>`;
+      <div class="inwrap"><input class="rin" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="${esc(t('colReading') + ' ' + r.id)}"><i class="dot"></i></div>`;
     list.appendChild(el);
     makeItem(r, el.querySelector('.rin'), el.querySelector('.dot'));
   });
-  if(!rec.items.length) list.innerHTML = '<div class="empty">No rows found in this sheet.</div>';
+  if(!rec.items.length) list.innerHTML = `<div class="empty">${esc(t('noRows'))}</div>`;
 }
 
 /* Vibration: group rows by machine > Motor/Bearing > position, with H / V / A side by side */
 function renderVibration(rows){
   const list = $('rList'); list.innerHTML = '';
-  list.insertAdjacentHTML('beforeend', '<div class="dirkey">H = Horizontal · V = Vertical · A = Axial &nbsp;|&nbsp; F = Front · B = Back · L = Left · R = Right</div>');
+  const chip = k => `<span><b>${esc(k)}</b>${esc(t((/[HVA]/.test(k) ? 'dir.' : 'pos.') + k))}</span>`;
+  list.insertAdjacentHTML('beforeend', `<div class="dirkey">${['H','V','A'].map(chip).join('')}<i class="sep"></i>${['F','B','L','R'].map(chip).join('')}</div>`);
   const DIRS = ['H','V','A'];
   let mEl = null, mName = null, part = null, prowKey = null, cells = null;
   rows.forEach(r => {
@@ -416,7 +788,8 @@ function renderVibration(rows){
     if(r.part + r.pos !== prowKey){
       prowKey = r.part + r.pos;
       const p = document.createElement('div'); p.className = 'prow';
-      p.innerHTML = `<div class="pos"><b>${esc(r.pos)}</b><small>${esc(r.posName)}</small></div><div class="cells"></div>`;
+      const posName = I18N[LANG]['pos.' + r.pos] || r.posName;
+      p.innerHTML = `<div class="pos"><b>${esc(r.pos)}</b><small>${esc(posName)}</small></div><div class="cells"></div>`;
       mEl.appendChild(p);
       cells = p.querySelector('.cells');
       // fixed H / V / A slots so columns line up; unused slots stay empty
@@ -427,13 +800,13 @@ function renderVibration(rows){
     const item = makeItem(r, slot.querySelector('.rin'), slot.querySelector('.dot'));
     item.machineEl = mEl;
   });
-  if(!rec.items.length) list.innerHTML = '<div class="empty">No rows found in this sheet.</div>';
+  if(!rec.items.length) list.innerHTML = `<div class="empty">${esc(t('noRows'))}</div>`;
 }
 
 /* Grouped (Thermo Rec): card per area, one line per equipment, its points (Motor, Gearbox…) side by side */
 function renderGrouped(rows){
   const list = $('rList'); list.innerHTML = '';
-  list.insertAdjacentHTML('beforeend', '<div class="dirkey">Temperature in °C</div>');
+  list.insertAdjacentHTML('beforeend', `<div class="dirkey">${esc(t('thermoKey'))}</div>`);
   let card = null, group = null, line = null, item = null;
   rows.forEach(r => {
     if(r.group !== group){
@@ -455,7 +828,7 @@ function renderGrouped(rows){
     cells.style.gridTemplateColumns = `repeat(${Math.max(2, cells.children.length)},1fr)`;
     makeItem(r, slot.querySelector('.rin'), slot.querySelector('.dot')).machineEl = card;
   });
-  if(!rec.items.length) list.innerHTML = '<div class="empty">No rows found in this sheet.</div>';
+  if(!rec.items.length) list.innerHTML = `<div class="empty">${esc(t('noRows'))}</div>`;
 }
 
 /* Shared behaviour for every reading box: auto-save, dots, Enter = next */
@@ -491,7 +864,7 @@ async function save(item){
     if(r.column) $('rDate').dataset.col = r.column;
   }catch(e){
     item.busy = false; setDot(item, 'err');
-    if(session) toast('Not saved: ' + (e.message || 'no connection') + ' — tap the red dot to retry');
+    if(session) toast(t('notSavedToast', {e: trErr(e.message) || t('noConnection')}));
     return;
   }
   item.busy = false;
@@ -504,7 +877,7 @@ function updateCount(){
   const total = rec.items.length, done = rec.items.filter(i => i.saved !== '').length;
   $('rDone').textContent = done; $('rTotal').textContent = total;
   $('rBar').style.width = total ? (done / total * 100) + '%' : 0;
-  // per-machine counter on the vibration page
+  // per-machine counter on the vibration / thermo pages
   const per = new Map();
   rec.items.forEach(i => { if(!i.machineEl) return; const c = per.get(i.machineEl) || [0,0]; c[1]++; if(i.saved !== '') c[0]++; per.set(i.machineEl, c); });
   per.forEach((c, el) => { const s = el.querySelector('.mcount'); s.textContent = `${c[0]} / ${c[1]}`; s.style.color = c[0] === c[1] ? 'var(--ok)' : ''; });
@@ -512,53 +885,55 @@ function updateCount(){
 
 function setCompleted(c){
   const b = $('rBanner');
-  if(c){ b.textContent = `✓ Completed today by ${c.by} at ${c.at} (${c.filled}/${c.total} readings)`; b.classList.remove('hidden'); }
+  if(c){ b.textContent = t('completedBy', {by: c.by, at: c.at, ft: c.filled + '/' + c.total}); b.classList.remove('hidden'); }
   else b.classList.add('hidden');
 }
 
 let confirmMissing = false;
-function resetComplete(){ confirmMissing = false; const b = $('rComplete'); b.textContent = 'Complete task'; b.className = 'primary'; b.disabled = false; }
+function resetComplete(){ confirmMissing = false; const b = $('rComplete'); b.textContent = t('completeTask'); b.className = 'primary'; b.disabled = false; }
 
 $('rComplete').onclick = async () => {
   const b = $('rComplete');
   // finish any pending edits first
   rec.items.forEach(i => { clearTimeout(i.timer); if(i.input.value.trim() !== i.saved) save(i); });
-  if(rec.items.some(i => i.busy || i.dot.classList.contains('edit'))){ $('rNote').textContent = 'Saving your last readings… tap again in a moment.'; return; }
-  if(rec.items.some(i => i.dot.classList.contains('err'))){ $('rNote').textContent = 'Some readings are not saved (red dots). Tap them to retry first.'; return; }
+  if(rec.items.some(i => i.busy || i.dot.classList.contains('edit'))){ $('rNote').textContent = t('savingLast'); return; }
+  if(rec.items.some(i => i.dot.classList.contains('err'))){ $('rNote').textContent = t('someNotSaved'); return; }
   const missing = rec.items.filter(i => i.saved === '').length;
   if(missing && !confirmMissing){
     confirmMissing = true;
-    $('rNote').textContent = `${missing} reading${missing > 1 ? 's are' : ' is'} empty. Tap again to complete anyway.`;
-    b.textContent = 'Complete anyway';
+    $('rNote').textContent = tn('emptyReadings', missing);
+    b.textContent = t('completeAnyway');
     const first = rec.items.find(i => i.saved === '');
     first && first.input.scrollIntoView({block:'center', behavior:'smooth'});
     return;
   }
-  b.disabled = true; b.textContent = 'Submitting…'; $('rNote').textContent = '';
+  b.disabled = true; b.textContent = t('submitting'); $('rNote').textContent = '';
   try{
     const r = await api('complete', {sheet: rec.sheet});
     if(!r.ok) throw new Error(r.error);
     setCompleted(r.completed);
-    b.className = 'primary green'; b.textContent = `✓ Task completed (${r.filled}/${r.total})`;
-    toast('Task recorded — thank you');
+    b.className = 'primary green'; b.textContent = t('taskCompleted', {ft: r.filled + '/' + r.total});
+    toast(t('taskRecorded'));
     setTimeout(() => { resetComplete(); showHome(); }, 1800);
   }catch(e){
-    b.disabled = false; b.textContent = 'Complete task';
-    if(session) $('rNote').textContent = 'Could not submit: ' + (e.message || 'no connection');
+    b.disabled = false; b.textContent = t('completeTask');
+    if(session) $('rNote').textContent = t('couldNotSubmit', {e: trErr(e.message) || t('noConnection')});
   }
 };
 
 $('back').onclick = () => {
   const pending = rec && rec.items.some(i => i.busy || i.input.value.trim() !== i.saved);
-  if(pending){ rec.items.forEach(i => { clearTimeout(i.timer); save(i); }); toast('Saving… try Back again in a moment'); return; }
+  if(pending){ rec.items.forEach(i => { clearTimeout(i.timer); save(i); }); toast(t('savingTryBack')); return; }
   showHome();
 };
 
 /* ---------- daily check (Bobcat / Forklift) ---------- */
 let chk = null;   // { type, unit, d (server data), ans: {item: {v, note, value, photo, thumb, up}} }
 let photoFor = null;
+const TICK = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const CROSS = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>';
 const CAM = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
-const shortDate = s => { if(!s) return ''; const d = new Date(s + 'T12:00:00'); return isNaN(d) ? s : d.toLocaleDateString('en-GB', {day:'numeric', month:'short'}); };
+const shortDate = s => { if(!s) return ''; const d = new Date(s + 'T12:00:00'); return isNaN(d) ? s : d.toLocaleDateString(LANG === 'ar' ? 'ar-u-nu-latn' : 'en-GB', {day:'numeric', month:'short'}); };
 const draftKey = () => `holoul_chk_${chk.type}_${chk.unit}_${chk.d.today}`;
 function saveDraft(){
   try{
@@ -569,16 +944,16 @@ function saveDraft(){
 
 async function openChecklist(type, unit){
   showView('chk');
-  $('cTitle').textContent = type + ' daily check';
+  $('cTitle').textContent = t('dailyCheckTitle', {type: modName(type)});
   $('cDate').textContent = ''; $('cNote').textContent = '';
-  $('cList').innerHTML = '<div class="loading">Loading…</div>';
+  $('cList').innerHTML = `<div class="loading">${esc(t('loading'))}</div>`;
   $('cBanner').classList.add('hidden');
-  $('cSubmit').className = 'primary'; $('cSubmit').disabled = false; $('cSubmit').textContent = 'Submit daily check';
+  $('cSubmit').className = 'primary'; $('cSubmit').disabled = false; $('cSubmit').textContent = t('submitCheck');
   try{
     const d = await api('getChecklist', {type, unit});
-    if(!d.ok){ $('cList').innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+    if(!d.ok){ $('cList').innerHTML = `<div class="empty">${esc(trErr(d.error))}</div>`; return; }
     chk = { type, unit: d.unit, d, ans: {} };
-    $('cDate').textContent = d.date;
+    $('cDate').textContent = longDate(d.date);
     $('cUnit').innerHTML = d.units.map(u => `<option ${u === d.unit ? 'selected' : ''}>${esc(u)}</option>`).join('');
     $('cUnit').disabled = d.units.length < 2;
     // start from today's saved entry (if any), then any unsent draft on this phone
@@ -596,17 +971,17 @@ async function openChecklist(type, unit){
     try{ const dr = JSON.parse(localStorage.getItem(draftKey())); if(dr) Object.entries(dr).forEach(([k, a]) => { if(chk.ans[k]) Object.assign(chk.ans[k], a); }); }catch(e){}
     renderChecklist();
   }catch(e){
-    if(session) $('cList').innerHTML = '<div class="empty">No connection — go back and try again.</div>';
+    if(session) $('cList').innerHTML = `<div class="empty">${esc(t('noConnBack'))}</div>`;
   }
 }
 
 function showSubmitted(at, by, status, existing){
   const b = $('cBanner');
   const bad = /action/i.test(status || '');
-  b.textContent = `✓ Submitted today at ${at} by ${by} — ${status || 'OK'}` + (existing ? '. You can change it and submit again.' : '');
-  b.style.background = bad ? 'rgba(239,68,68,.1)' : ''; b.style.borderColor = bad ? 'rgba(239,68,68,.4)' : ''; b.style.color = bad ? '#fca5a5' : '';
+  b.textContent = t('submittedAt', {at, by, status: trStatus(status)}) + (existing ? t('canChange') : '');
+  b.classList.toggle('bad', bad);
   b.classList.remove('hidden');
-  if(existing) $('cSubmit').textContent = 'Update daily check';
+  if(existing) $('cSubmit').textContent = t('updateCheck');
 }
 
 function renderChecklist(){
@@ -616,28 +991,28 @@ function renderChecklist(){
     const a = chk.ans[it.item];
     if(it.section !== sec){
       sec = it.section;
-      list.insertAdjacentHTML('beforeend', `<div class="sect">${esc(sec || 'Checks')}${it.weekly ? '<span>once a week</span>' : ''}</div>`);
+      list.insertAdjacentHTML('beforeend', `<div class="sect">${esc(sec || t('checks'))}${it.weekly ? `<span>${esc(t('onceWeek'))}</span>` : ''}</div>`);
     }
     const el = document.createElement('div');
     el.className = 'ci' + (a.v === 'fault' ? ' fault' : '');
     if(it.input === 'reading'){
       const last = chk.d.last[it.item];
-      const unitTxt = /hour/i.test(it.item) ? 'h' : '';
-      el.innerHTML = `<div class="nm">${esc(it.item)}${last ? `<small>Last: ${esc(last.value)}${unitTxt ? ' ' + unitTxt : ''} · ${esc(shortDate(last.date))} · ${esc(last.by)}</small>` : ''}</div>
-        <div class="rd"><input inputmode="decimal" autocomplete="off" placeholder="Enter reading" value="${esc(a.value || '')}" aria-label="${esc(it.item)}">${unitTxt ? `<span class="unit">${unitTxt}</span>` : ''}</div>
+      const unitTxt = /hour/i.test(it.item) ? t('hours') : '';
+      el.innerHTML = `<div class="nm">${esc(it.item)}${last ? `<small>${esc(t('last'))}: ${esc(last.value)}${unitTxt ? ' ' + esc(unitTxt) : ''} · ${esc(shortDate(last.date))} · ${esc(last.by)}</small>` : ''}</div>
+        <div class="rd"><input inputmode="decimal" autocomplete="off" placeholder="${esc(t('enterReading'))}" value="${esc(a.value || '')}" aria-label="${esc(it.item)}">${unitTxt ? `<span class="unit">${esc(unitTxt)}</span>` : ''}</div>
         <div class="hint" data-warn></div>
         <div class="fx">${photoBlock(it, a)}</div>`;
       const inp = el.querySelector('input');
       inp.addEventListener('input', () => { a.value = inp.value.trim(); checkReading(it, a, el.querySelector('[data-warn]')); saveDraft(); updateChkCount(); });
       checkReading(it, a, el.querySelector('[data-warn]'));
     } else {
-      const sub = it.weekly ? `<small>${chk.d.weeklyLast[it.item] ? 'Last done ' + esc(shortDate(chk.d.weeklyLast[it.item])) : 'Not done yet'} · leave blank if not today</small>` : '';
-      el.innerHTML = `<div class="top"><div class="nm">${esc(it.item)}${sub}</div>
-          <div class="seg"><button class="ok ${a.v === 'ok' ? 'on' : ''}" aria-label="No fault">✓</button><button class="bad ${a.v === 'fault' ? 'on' : ''}" aria-label="Action required">✗</button></div></div>
-        ${a.v === 'fault' ? `<div class="fx"><textarea placeholder="What is wrong? (required)">${esc(a.note || '')}</textarea>${photoBlock(it, a)}</div>` : ''}`;
+      const sub = it.weekly ? `<small>${chk.d.weeklyLast[it.item] ? esc(t('lastDone', {d: shortDate(chk.d.weeklyLast[it.item])})) : esc(t('notDoneYet'))} · ${esc(t('leaveBlank'))}</small>` : '';
+      el.innerHTML = `<div class="ctop"><div class="nm">${esc(it.item)}${sub}</div>
+          <div class="seg"><button class="ok ${a.v === 'ok' ? 'on' : ''}" aria-label="${esc(t('noFault'))}">${TICK}</button><button class="bad ${a.v === 'fault' ? 'on' : ''}" aria-label="${esc(t('actionRequired'))}">${CROSS}</button></div></div>
+        ${a.v === 'fault' ? `<div class="fx"><textarea placeholder="${esc(t('whatWrong'))}">${esc(a.note || '')}</textarea>${photoBlock(it, a)}</div>` : ''}`;
       const [ok, bad] = el.querySelectorAll('.seg button');
       ok.onclick = () => { a.v = a.v === 'ok' && it.weekly ? '' : 'ok'; saveDraft(); renderChecklist(); };
-      bad.onclick = () => { a.v = 'fault'; saveDraft(); renderChecklist(); setTimeout(() => { const t = document.querySelector(`[data-item="${CSS.escape(it.item)}"] textarea`); t && t.focus(); }, 0); };
+      bad.onclick = () => { a.v = 'fault'; saveDraft(); renderChecklist(); setTimeout(() => { const ta = document.querySelector(`[data-item="${CSS.escape(it.item)}"] textarea`); ta && ta.focus(); }, 0); };
       const ta = el.querySelector('textarea');
       if(ta) ta.addEventListener('input', () => { a.note = ta.value; saveDraft(); });
     }
@@ -653,13 +1028,13 @@ function renderChecklist(){
 
 function photoBlock(it, a){
   if(it.photo === 'no') return '';
-  const label = a.thumb || a.photo ? 'Retake / change photo' : (it.photo === 'required' ? 'Take photo of the meter (required)' : 'Add photo (optional)');
+  const label = a.thumb || a.photo ? t('photoRetake') : (it.photo === 'required' ? t('photoRequired') : t('photoOptional'));
   let status = '';
-  if(a.up === 'saving') status = '<i class="dot saving"></i> Uploading…';
-  else if(a.up === 'err') status = '<i class="dot err" data-retry></i> Not uploaded — tap red dot to retry';
-  else if(a.photo) status = '<i class="dot ok"></i> Saved to Drive';
+  if(a.up === 'saving') status = `<i class="dot saving"></i> ${esc(t('uploading'))}`;
+  else if(a.up === 'err') status = `<i class="dot err" data-retry></i> ${esc(t('notUploaded'))}`;
+  else if(a.photo) status = `<i class="dot ok"></i> ${esc(t('savedDrive'))}`;
   const img = a.thumb ? `<img src="${a.thumb}" alt="">` : '';
-  return `<button type="button" class="pbtn ${it.photo === 'required' && !a.photo ? 'req' : ''}">${CAM}<span>${label}</span></button>
+  return `<button type="button" class="pbtn ${it.photo === 'required' && !a.photo ? 'req' : ''}">${CAM}<span>${esc(label)}</span></button>
           ${img || status ? `<div class="thumb">${img}<small>${status}</small></div>` : ''}`;
 }
 
@@ -670,9 +1045,9 @@ function checkReading(it, a, el){
   const prev = parseFloat(String(last.value).replace(',', '.'));
   if(isNaN(prev)) return;
   const days = Math.max(1, Math.round((new Date(chk.d.today) - new Date(last.date)) / 864e5));
-  if(n < prev){ el.textContent = `Lower than the last reading (${last.value}). Please check the meter photo.`; el.className = 'hint warn'; }
-  else if(/hour/i.test(it.item) && n - prev > 24 * days){ el.textContent = `+${(n - prev).toFixed(1)} h in ${days} day${days > 1 ? 's' : ''} — more than 24 h a day. Please check.`; el.className = 'hint warn'; }
-  else el.textContent = `+${(n - prev).toFixed(1)} since last reading`;
+  if(n < prev){ el.textContent = t('lowerThanLast', {v: last.value}); el.className = 'hint warn'; }
+  else if(/hour/i.test(it.item) && n - prev > 24 * days){ el.textContent = tn('over24', days, {x: '+' + (n - prev).toFixed(1), d: days}); el.className = 'hint warn'; }
+  else el.textContent = t('sinceLast', {x: '+' + (n - prev).toFixed(1)});
 }
 
 function updateChkCount(){
@@ -699,7 +1074,7 @@ $('photoPick').addEventListener('change', async () => {
   try{
     const img = await loadImage(f);
     a.full = scaled(img, 1600, 0.82); a.thumb = scaled(img, 240, 0.7); a.photo = '';
-  }catch(e){ toast('Could not read that photo'); return; }
+  }catch(e){ toast(t('cantReadPhoto')); return; }
   uploadFor(photoFor);
 });
 async function uploadFor(item){
@@ -709,13 +1084,13 @@ async function uploadFor(item){
     const r = await api('uploadPhoto', {type: chk.type, unit: chk.unit, kind: item, data: a.full});
     if(!r.ok) throw new Error(r.error);
     a.photo = r.url; a.up = ''; delete a.full;
-  }catch(e){ a.up = 'err'; if(session) toast('Photo not uploaded: ' + (e.message || 'no connection')); }
+  }catch(e){ a.up = 'err'; if(session) toast(t('photoNotUploaded', {e: trErr(e.message) || t('noConnection')})); }
   saveDraft(); renderChecklist();
 }
 
 $('cUnit').onchange = () => openChecklist(chk.type, $('cUnit').value);
 $('cBack').onclick = () => {
-  if(chk && Object.values(chk.ans).some(a => a.up === 'saving')){ toast('A photo is still uploading…'); return; }
+  if(chk && Object.values(chk.ans).some(a => a.up === 'saving')){ toast(t('photoUploading')); return; }
   showHome();
 };
 
@@ -725,18 +1100,18 @@ $('cSubmit').onclick = async () => {
   let firstEl = null;
   chk.d.items.forEach(it => {
     const a = ans[it.item]; let bad = false;
-    if(it.input === 'reading'){ if(!a.value){ missing.push(it.item); bad = true; } if(it.photo === 'required' && !a.photo){ missing.push('meter photo'); bad = true; } }
+    if(it.input === 'reading'){ if(!a.value){ missing.push(it.item); bad = true; } if(it.photo === 'required' && !a.photo){ missing.push(t('meterPhoto')); bad = true; } }
     else if(!it.weekly && !a.v){ missing.push(it.item); bad = true; }
-    if(a.v === 'fault' && !String(a.note || '').trim()){ missing.push('describe fault: ' + it.item); bad = true; }
+    if(a.v === 'fault' && !String(a.note || '').trim()){ missing.push(t('describeFault', {x: it.item})); bad = true; }
     if(bad && !firstEl) firstEl = document.querySelector(`[data-item="${CSS.escape(it.item)}"]`);
   });
-  if(Object.values(ans).some(a => a.up === 'saving')){ note.textContent = 'Wait for the photo to finish uploading.'; return; }
+  if(Object.values(ans).some(a => a.up === 'saving')){ note.textContent = t('waitPhoto'); return; }
   if(missing.length){
-    note.textContent = missing.length === 1 ? 'Still needed: ' + missing[0] : `${missing.length} items still needed (first: ${missing[0]})`;
+    note.textContent = missing.length === 1 ? t('stillNeeded', {x: missing[0]}) : t('itemsNeeded', {n: missing.length, x: missing[0]});
     firstEl && firstEl.scrollIntoView({block:'center', behavior:'smooth'});
     return;
   }
-  note.textContent = ''; b.disabled = true; b.textContent = 'Submitting…';
+  note.textContent = ''; b.disabled = true; b.textContent = t('submitting');
   const data = {answers: {}};
   Object.entries(ans).forEach(([k, a]) => data.answers[k] = {v: a.v || '', note: a.note || '', value: a.value || '', photo: a.photo || ''});
   try{
@@ -744,12 +1119,12 @@ $('cSubmit').onclick = async () => {
     if(!r.ok) throw new Error(r.error);
     try{ localStorage.removeItem(draftKey()); }catch(e){}
     showSubmitted(r.at, r.by, r.status, false);
-    b.className = 'primary green'; b.textContent = r.faults ? `✓ Submitted — ${r.faults} fault${r.faults > 1 ? 's' : ''} reported` : '✓ Submitted — all OK';
-    toast('Daily check saved — thank you');
+    b.className = 'primary green'; b.textContent = r.faults ? tn('submittedFaults', r.faults) : t('submittedOK');
+    toast(t('checkSaved'));
     setTimeout(() => showHome(), 2200);
   }catch(e){
-    b.disabled = false; b.textContent = 'Submit daily check';
-    if(session) note.textContent = 'Could not submit: ' + (e.message || 'no connection');
+    b.disabled = false; b.textContent = t('submitCheck');
+    if(session) note.textContent = t('couldNotSubmit', {e: trErr(e.message) || t('noConnection')});
   }
 };
 
@@ -760,7 +1135,7 @@ function toast(s){ const e=$('toast'); e.textContent=s; e.classList.add('show');
 $('form').addEventListener('submit', async ev => {
   ev.preventDefault();
   const btn = $('btn'); $('msg').textContent = '';
-  btn.disabled = true; btn.textContent = 'Signing in…';
+  btn.disabled = true; btn.textContent = t('signingIn');
   const u = $('username').value.trim(), p = $('pin').value.trim();
   try{
     const r = await post({action:'login', username: u, pin: p});
@@ -770,13 +1145,13 @@ $('form').addEventListener('submit', async ev => {
       if(!$('auto').checked) $('pin').value = '';
       showHome();
     } else {
-      $('msg').textContent = r.error || 'Sign in failed';
+      $('msg').textContent = trErr(r.error) || t('signInFailed');
       if(remember.get()){ remember.clear(); $('auto').checked = false; }   // saved PIN no longer valid
     }
   }catch(e){
-    $('msg').textContent = 'No connection — check internet and try again';
+    $('msg').textContent = t('noConnLogin');
   }finally{
-    btn.disabled = false; btn.textContent = 'Sign in';
+    btn.disabled = false; btn.textContent = t('signIn');
   }
 });
 
@@ -784,8 +1159,10 @@ $('form').addEventListener('submit', async ev => {
 $('auto').addEventListener('change', () => { if(!$('auto').checked){ remember.clear(); $('pin').value = ''; } });
 
 $('logout').onclick = () => {
+  closeSettings();
   store.clear(); session = null; signedOut.set(true);
   fillRemembered();            // keep the saved user filled in, but don't sign in again by itself
+  $('msg').textContent = '';
   showView('login');
 };
 
@@ -796,6 +1173,8 @@ function fillRemembered(){
 }
 
 /* ---------- start ---------- */
+applyTheme(prefs.get('holoul_theme'));
+applyLang(LANG);
 session = store.get();
 if(session) showHome();
 else {

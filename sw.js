@@ -1,6 +1,6 @@
 // Caches the app shell so it opens offline. Sign-in still needs internet.
-const CACHE = 'holoul-v7';
-const SHELL = ['./', 'index.html', 'manifest.json', 'icon.svg'];
+const CACHE = 'holoul-v8';
+const SHELL = ['./', 'index.html', 'manifest.json', 'icon.svg', 'icon-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x)))));
