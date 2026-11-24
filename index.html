@@ -530,7 +530,7 @@
         <span data-i18n="signOut">Sign out</span>
       </button>
     </div>
-    <div class="sfoot">Holoul Maintenance · v11</div>
+    <div class="sfoot">Holoul Maintenance · v12</div>
   </div>
 </div>
 
@@ -549,7 +549,7 @@
 <input type="file" id="photoPick" accept="image/*" class="hidden">
 <div class="toast" id="toast"></div>
 
-<script src="sync.js?v=11"></script>
+<script src="sync.js?v=12"></script>
 <script>
 const HS = window.HoloulSync;
 
@@ -1659,7 +1659,7 @@ let dashLoading = null;
 function loadDash(){
   if(window.HoloulDash) return Promise.resolve(window.HoloulDash);
   if(!dashLoading) dashLoading = new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = 'dash.js?v=11';
+    const s = document.createElement('script'); s.src = 'dash.js?v=12';
     s.onload = () => res(window.HoloulDash); s.onerror = () => { dashLoading = null; rej(new Error('dash')); };
     document.head.appendChild(s);
   });

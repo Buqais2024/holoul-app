@@ -164,8 +164,50 @@
     .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
     .kpi b{font-size:24px}
   }
-  @media (min-width:1024px){ .dtabs{display:none} }`;
+  @media (min-width:1024px){ .dtabs{display:none} }
+  .dtable tr.grp td{background:var(--panel2);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:6px 8px}
+  .dtable small{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:2px}
+  .clickrow{cursor:pointer} .clickrow:hover td{background:var(--accent-soft)}
+  .eqno{font-weight:700;color:var(--accent);direction:ltr;unicode-bidi:isolate;white-space:nowrap}
+  .eqback{margin-bottom:12px}
+  .eqhead{margin-bottom:14px} .eqhead h3{font-size:18px;margin:0}
+  .eqmeta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--muted)}
+  .evrow td{background:var(--panel2)} .evlist{display:grid;gap:6px;font-size:12px;padding:4px 0}
+  .spseg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;background:var(--panel2);border:1px solid var(--line);margin-bottom:12px;max-width:460px}
+  .spseg button{height:40px;border:0;border-radius:11px;background:transparent;color:var(--muted);font:inherit;font-weight:700;cursor:pointer;display:flex;gap:8px;align-items:center;justify-content:center}
+  .spseg button.on{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
+  .spseg span{font-size:11px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:1px 7px}
+  .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;margin-inline-start:4px}
+  .spsum{margin:-2px 2px 10px}
+  .toolbar .chk input[type=checkbox]{width:18px;height:18px;margin:0;padding:0;flex:none;accent-color:var(--brand)}
+  .spst{font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap;color:var(--ok-text);background:var(--ok-bg)}
+  .spst.low{color:var(--err);background:color-mix(in srgb,var(--err) 12%,transparent)}`;
   if (!$('dashStyle')) { const st = document.createElement('style'); st.id = 'dashStyle'; st.textContent = css; document.head.appendChild(st); }
+
+  Object.assign(I18N.en, {
+    dEquip:'Equipment', dSpares:'Spare parts', eqAll:'All equipment', eqJobs:'Jobs', eqOpenCol:'Open', eqLastDone:'Last finished',
+    eqNumber:'Number', eqLocation:'Location', eqHistTitle:'Maintenance history', eqHistEmpty:'No maintenance recorded on this equipment yet.',
+    eqHistLoading:'Loading history…', eqHistErr:'History could not be loaded: {e}', eqStatDone:'Finished', eqStatOpen:'Still open', eqStatLast:'Last finished',
+    hCreated:'Created', hJob:'Job', hStatus:'Status', hWho:'Assigned to', hFinished:'Finished', hNote:'Note',
+    'ev.Created':'Created', 'ev.Started':'Started', 'ev.Done':'Done', 'ev.Cancelled':'Cancelled', 'ev.Reopened':'Reopened', 'ev.Edited':'Edited',
+    spElect:'Electrical', spMech:'Mechanical', spSearch:'Search by part number, name or brand…', spLowOnly:'Low or out of stock only',
+    spOutOnly:'Out of stock only', spParts:'{n} parts', spLowN:'{n} low stock', spOutN:'{n} out of stock', spEmpty:'No parts match your search',
+    spLoading:'Loading spare parts…', spErr:'Spare parts could not be loaded: {e}', spOK:'OK', spLow:'Low stock',
+    spPartNo:'Part no.', spItemNo:'Part / item no.', spName:'Part', spBrand:'Brand', spDesc:'Description', spQty:'Qty', spReq:'Required',
+    spAvail:'Available', spUsed:'Used', spRem:'Remaining', spStatus:'Status', spMachine:'Machine'
+  });
+  Object.assign(I18N.ar, {
+    dEquip:'المعدات', dSpares:'قطع الغيار', eqAll:'كل المعدات', eqJobs:'الأعمال', eqOpenCol:'مفتوحة', eqLastDone:'آخر إنجاز',
+    eqNumber:'الرقم', eqLocation:'الموقع', eqHistTitle:'سجل الصيانة', eqHistEmpty:'لا توجد عمليات صيانة مسجلة على هذه المعدة بعد.',
+    eqHistLoading:'جارٍ تحميل السجل…', eqHistErr:'تعذّر تحميل السجل: {e}', eqStatDone:'منجزة', eqStatOpen:'ما زالت مفتوحة', eqStatLast:'آخر إنجاز',
+    hCreated:'تاريخ الإنشاء', hJob:'العمل', hStatus:'الحالة', hWho:'المكلّف', hFinished:'الإنجاز', hNote:'ملاحظة',
+    'ev.Created':'أُنشئت', 'ev.Started':'بدأت', 'ev.Done':'أُنجزت', 'ev.Cancelled':'أُلغيت', 'ev.Reopened':'أُعيد فتحها', 'ev.Edited':'تعديل',
+    spElect:'كهربائية', spMech:'ميكانيكية', spSearch:'ابحث برقم القطعة أو الاسم أو الماركة…', spLowOnly:'المنخفض أو المنتهي فقط',
+    spOutOnly:'المنتهي فقط', spParts:'{n} قطعة', spLowN:'{n} منخفضة', spOutN:'{n} منتهية', spEmpty:'لا توجد قطع مطابقة للبحث',
+    spLoading:'جارٍ تحميل قطع الغيار…', spErr:'تعذّر تحميل قطع الغيار: {e}', spOK:'متوفرة', spLow:'منخفضة',
+    spPartNo:'رقم القطعة', spItemNo:'رقم القطعة / الصنف', spName:'القطعة', spBrand:'الماركة', spDesc:'الوصف', spQty:'الكمية', spReq:'المطلوب',
+    spAvail:'المتوفر', spUsed:'المستخدم', spRem:'المتبقي', spStatus:'الحالة', spMachine:'الماكينة'
+  });
 
   const ICON = {
     overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
@@ -175,14 +217,16 @@
     refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     back: '<path d="M15 18l-6-6 6-6"/>',
+    equipment: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
+    spares: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
     gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     page: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
     photo: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/>',
     link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'
   };
   const svg = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke-width="${w || 2}" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>`;
-  const SECTIONS = ['overview', 'tasks', 'team', 'monthly'];
-  const TITLE = { overview: 'dOverview', tasks: 'dTasks', team: 'dTeam', monthly: 'dMonthly' };
+  const SECTIONS = ['overview', 'tasks', 'equipment', 'spares', 'team', 'monthly'];
+  const TITLE = { overview: 'dOverview', tasks: 'dTasks', equipment: 'dEquip', spares: 'dSpares', team: 'dTeam', monthly: 'dMonthly' };
 
   let data = null, section = 'overview', loading = false, loadErr = false, timer = null, month = null, who = '', q = '', lineF = '';
   const key = () => `dash:${me()}`;
@@ -255,19 +299,177 @@
     D.querySelectorAll('[data-act="settings"]').forEach(b => b.onclick = openSettings);
     D.querySelectorAll('[data-act="app"]').forEach(b => b.onclick = () => showHome(true));
     D.querySelectorAll('[data-act="new"]').forEach(b => b.onclick = () => taskForm(null));
-    $('dRefresh').onclick = load;
+    $('dRefresh').onclick = () => {
+      load();
+      if (section === 'spares') loadSpares(true);
+      if (section === 'equipment' && eqSel) { eqHistKey = ''; ensureHist(eqSel); }
+    };
     D.querySelectorAll('[data-tid]').forEach(b => b.onclick = () => taskDetail(b.dataset.tid));
     D.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { section = b.dataset.go; render(); });
     D.querySelectorAll('[data-month]').forEach(b => b.onclick = () => { month = b.dataset.month; render(); });
     const fw = $('dWho'); if (fw) fw.onchange = () => { who = fw.value; render(); };
     const fl = $('dLine'); if (fl) fl.onchange = () => { lineF = fl.value; render(); };
     const fq = $('dQ'); if (fq) { fq.oninput = () => { q = fq.value; renderBoardOnly(); }; }
+    bindEquipment();
+    D.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { spTab = b.dataset.sp; render(); });
+    const sq = $('spQ'); if (sq) sq.oninput = () => { spQ = sq.value; $('spBody').innerHTML = spTable(); };
+    const sl = $('spLow'); if (sl) sl.onchange = () => { spLow = sl.checked; $('spBody').innerHTML = spTable(); };
   }
   function body() {
     if (section === 'tasks') return tasksView();
     if (section === 'team') return teamView();
     if (section === 'monthly') return monthlyView();
+    if (section === 'equipment') return equipmentView();
+    if (section === 'spares') return sparesView();
     return overview();
+  }
+
+  /* ---------- equipment: systems -> equipment -> maintenance history ---------- */
+  let eqQ = '', eqLineF = '', eqLocF = '', eqSel = null, eqShown = [], eqHist = null, eqHistKey = '', eqHistErr = '', eqOpen = {};
+  let spData = null, spLoading = false, spErr = '', spTab = 'electrical', spQ = '', spLow = false;
+  const eqKey = e => [e.no, e.name, e.line, e.loc].join('|');
+  const isLowM = p => /low/i.test(p.status || '');
+  const isOutE = p => p.qty !== '' && Number(p.qty) <= 0;
+  const evLabel = a => ['Created', 'Started', 'Done', 'Cancelled', 'Reopened', 'Edited'].indexOf(a) >= 0 ? t('ev.' + a) : a;
+
+  function eqFiltered() {
+    const s = eqQ.trim().toLowerCase();
+    return (data.equipment || []).filter(e => (!eqLineF || e.line === eqLineF) && (!eqLocF || e.loc === eqLocF) &&
+      (!s || [e.name, e.no, e.line, e.loc, e.cat].join(' ').toLowerCase().indexOf(s) >= 0))
+      .sort((a, b) => String(a.line).localeCompare(String(b.line)) || String(a.loc).localeCompare(String(b.loc)));
+  }
+  function eqRows() {
+    eqShown = eqFiltered();
+    if (!eqShown.length) return `<tr><td colspan="6" class="dempty">${esc(t('noData'))}</td></tr>`;
+    let rows = '', grp = null;
+    eqShown.forEach((e, i) => {
+      const g = (e.line || '—') + (e.loc ? ' · ' + e.loc : '');
+      if (g !== grp) { grp = g; rows += `<tr class="grp"><td colspan="6">${esc(g)}</td></tr>`; }
+      rows += `<tr class="clickrow" data-eqi="${i}"><td><b>${esc(e.name)}</b>${e.cat ? `<small>${esc(e.cat)}</small>` : ''}</td>
+        <td>${e.no ? `<span class="eqno">${esc(e.no)}</span>` : '—'}</td><td>${esc(e.loc || '—')}</td>
+        <td class="num">${e.jobs || 0}</td><td class="num">${e.open ? `<b>${e.open}</b>` : 0}</td>
+        <td>${e.lastDone ? esc(shortDate(e.lastDone)) : '—'}</td></tr>`;
+    });
+    return rows;
+  }
+  function bindEquipment() {
+    const D = $('dash');
+    D.querySelectorAll('[data-eqi]').forEach(b => b.onclick = () => { eqSel = eqShown[+b.dataset.eqi]; eqHistKey = ''; eqOpen = {}; render(); window.scrollTo(0, 0); });
+    D.querySelectorAll('[data-eqo]').forEach(b => b.onclick = () => { eqOpen[b.dataset.eqo] = !eqOpen[b.dataset.eqo]; render(); });
+    const eb = D.querySelector('[data-eqback]'); if (eb) eb.onclick = () => { eqSel = null; render(); window.scrollTo(0, 0); };
+    const ef = $('eqQ'); if (ef) ef.oninput = () => { eqQ = ef.value; $('eqTbody').innerHTML = eqRows(); bindEquipment(); };
+    const elf = $('eqLineF'); if (elf) elf.onchange = () => { eqLineF = elf.value; render(); };
+    const elc = $('eqLocF'); if (elc) elc.onchange = () => { eqLocF = elc.value; render(); };
+  }
+  function equipmentView() {
+    if (data.equipmentError) return `<div class="dnote">${esc(t('eqListErr', { e: data.equipmentError }))}</div>`;
+    if (eqSel) return equipDetail();
+    const eq = data.equipment || [];
+    if (!eq.length) return `<div class="dempty">${esc(t('noData'))}</div>`;
+    const lines = [...new Set(eq.map(e => e.line).filter(Boolean))].sort();
+    const locs = [...new Set(eq.map(e => e.loc).filter(Boolean))].sort();
+    return `<div class="toolbar"><select id="eqLocF"><option value="">${esc(t('eqAllLoc'))}</option>${locs.map(l => `<option value="${esc(l)}" ${l === eqLocF ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+      <select id="eqLineF"><option value="">${esc(t('eqAllLine'))}</option>${lines.map(l => `<option value="${esc(l)}" ${l === eqLineF ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+      <input id="eqQ" type="search" dir="auto" placeholder="${esc(t('eqSearch'))}" value="${esc(eqQ)}"></div>
+      <section class="dcard"><div class="tscroll"><table class="dtable"><thead><tr>
+        <th>${esc(t('dEquip'))}</th><th>${esc(t('eqNumber'))}</th><th>${esc(t('eqLocation'))}</th><th class="num">${esc(t('eqJobs'))}</th><th class="num">${esc(t('eqOpenCol'))}</th><th>${esc(t('eqLastDone'))}</th>
+      </tr></thead><tbody id="eqTbody">${eqRows()}</tbody></table></div></section>`;
+  }
+  /** Loads the full history of one equipment row (all dates, all statuses) once per selection. */
+  function ensureHist(e) {
+    const k = eqKey(e);
+    if (eqHistKey === k) return;
+    eqHistKey = k; eqHist = null; eqHistErr = '';
+    HS.api('equipmentHistory', { equipment: { name: e.name, no: e.no, line: e.line, loc: e.loc } }, 45000).then(r => {
+      if (eqHistKey !== k) return;
+      if (r && r.ok) eqHist = r.tasks; else eqHistErr = r && r.error ? trErr(r.error) : '';
+    }).catch(err => {
+      if (eqHistKey === k) eqHistErr = err.message || String(err);
+      if (err.auth) { authLost = true; syncUI(); }
+    }).finally(() => { if (!$('dash').classList.contains('hidden')) render(); });
+  }
+  function equipDetail() {
+    const e = eqSel;
+    ensureHist(e);
+    const tasks = eqHist || [];
+    const done = tasks.filter(x => x.status === 'Done');
+    const open = tasks.filter(x => x.status === 'Open' || x.status === 'In progress');
+    const last = done.map(x => String(x.done).slice(0, 10)).sort().pop();
+    const rows = tasks.map(x => {
+      const photo = /^https?:/.test(x.donePhoto || '') ? ` <a href="${esc(x.donePhoto)}" target="_blank" rel="noopener">${esc(t('openPhoto'))}</a>` : '';
+      const where = [x.line, x.location].filter(Boolean).join(' · ');
+      const ev = eqOpen[x.id] ? `<tr class="evrow"><td colspan="6"><div class="evlist">${(x.events || []).map(v =>
+        `<div><b>${esc(fmtStamp(v.at))}</b> · ${esc(evLabel(v.action))}${v.by ? ' · ' + esc(nameOf(v.by)) : ''}${v.note ? ` <span class="mini">— ${esc(v.note)}</span>` : ''}</div>`).join('') || '<span class="mini">—</span>'}</div></td></tr>` : '';
+      return `<tr class="clickrow" data-eqo="${esc(x.id)}"><td>${esc(fmtStamp(x.created))}</td>
+        <td><b>${esc(x.title)}</b><small>${esc(x.id)}${where ? ' · ' + esc(where) : ''}</small></td>
+        <td><span class="chip ${STATUS_CLASS(x.status)}">${esc(t('status.' + x.status))}</span></td>
+        <td>${esc(x.assigneeName || nameOf(x.assignee))}</td>
+        <td>${x.done ? esc(fmtStamp(x.done)) : x.started ? esc(fmtStamp(x.started)) : '—'}</td>
+        <td>${x.doneNote ? esc(x.doneNote) : '—'}${photo}</td></tr>${ev}`;
+    }).join('');
+    const histBody = eqHist === null
+      ? `<div class="dempty">${esc(eqHistErr ? t('eqHistErr', { e: eqHistErr }) : t('eqHistLoading'))}</div>`
+      : tasks.length
+        ? `<div class="tscroll"><table class="dtable"><thead><tr><th>${esc(t('hCreated'))}</th><th>${esc(t('hJob'))}</th><th>${esc(t('hStatus'))}</th><th>${esc(t('hWho'))}</th><th>${esc(t('hFinished'))}</th><th>${esc(t('hNote'))}</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        : `<div class="dempty">${esc(t('eqHistEmpty'))}</div>`;
+    return `<div class="eqback"><button class="btn" type="button" data-eqback>${svg('back', 2.2)}<span>${esc(t('eqAll'))}</span></button></div>
+      <section class="dcard eqhead"><div><h3>${esc(e.name)}</h3>${e.cat ? `<small>${esc(e.cat)}</small>` : ''}</div>
+        <div class="eqmeta"><span class="chip">${esc(e.line || '—')}</span><span>${esc(e.loc || '')}</span>${e.no ? `<span class="eqno">${esc(e.no)}</span>` : ''}</div></section>
+      <div class="kpis">
+        <div class="kpi"><small>${esc(t('eqJobs'))}</small><b>${eqHist ? tasks.length : '…'}</b></div>
+        <div class="kpi"><small>${esc(t('eqStatDone'))}</small><b>${eqHist ? done.length : '…'}</b></div>
+        <div class="kpi"><small>${esc(t('eqStatOpen'))}</small><b>${eqHist ? open.length : '…'}</b></div>
+        <div class="kpi"><small>${esc(t('eqStatLast'))}</small><b>${last ? esc(shortDate(last)) : '—'}</b></div>
+      </div>
+      <section class="dcard"><h4>${esc(t('eqHistTitle'))}<span>${eqHist ? tasks.length : ''}</span></h4>${histBody}</section>`;
+  }
+
+  /* ---------- spare parts (Maintainance Inventory sheet) ---------- */
+  function loadSpares(force) {
+    if (spLoading) return;
+    spLoading = true; spErr = '';
+    HS.api('spares', force ? { fresh: true } : {}, 45000).then(r => {
+      if (r && r.ok) spData = r.spares; else spErr = r && r.error ? trErr(r.error) : '';
+    }).catch(err => {
+      spErr = err.message || String(err);
+      if (err.auth) { authLost = true; syncUI(); }
+    }).finally(() => { spLoading = false; if (!$('dash').classList.contains('hidden')) render(); });
+  }
+  function spList() {
+    const s = spQ.trim().toLowerCase();
+    if (spTab === 'electrical')
+      return spData.electrical.filter(p => (!s || [p.no, p.brand, p.desc].join(' ').toLowerCase().indexOf(s) >= 0) && (!spLow || isOutE(p)));
+    return spData.mechanical.filter(p => (!s || [p.no, p.name, p.machine].join(' ').toLowerCase().indexOf(s) >= 0) && (!spLow || isLowM(p)));
+  }
+  function spTable() {
+    const list = spList();
+    if (!list.length) return `<div class="dempty">${esc(t('spEmpty'))}</div>`;
+    if (spTab === 'electrical') return `<table class="dtable"><thead><tr><th>${esc(t('spPartNo'))}</th><th>${esc(t('spBrand'))}</th><th>${esc(t('spDesc'))}</th><th class="num">${esc(t('spQty'))}</th></tr></thead><tbody>
+      ${list.map(p => `<tr><td><span class="eqno">${esc(p.no)}</span></td><td>${esc(p.brand || '—')}</td><td>${esc(p.desc)}</td>
+        <td class="num ${isOutE(p) ? 'late' : ''}">${esc(p.qty || '—')}</td></tr>`).join('')}</tbody></table>`;
+    return `<table class="dtable"><thead><tr><th>${esc(t('spPartNo'))}</th><th>${esc(t('spName'))}</th><th class="num">${esc(t('spReq'))}</th><th class="num">${esc(t('spAvail'))}</th>
+      <th class="num">${esc(t('spUsed'))}</th><th class="num">${esc(t('spRem'))}</th><th>${esc(t('spStatus'))}</th><th>${esc(t('spMachine'))}</th></tr></thead><tbody>
+      ${list.map(p => `<tr><td><span class="eqno">${esc(p.no)}</span></td><td>${esc(p.name)}</td><td class="num">${esc(p.required || '—')}</td>
+        <td class="num">${esc(p.available || '—')}</td><td class="num">${esc(p.used || '—')}</td><td class="num ${isLowM(p) ? 'late' : ''}">${esc(p.remaining || '—')}</td>
+        <td>${p.status ? `<span class="spst ${isLowM(p) ? 'low' : 'ok'}">${esc(isLowM(p) ? t('spLow') : t('spOK'))}</span>` : '—'}</td>
+        <td>${esc(p.machine || '—')}</td></tr>`).join('')}</tbody></table>`;
+  }
+  function sparesView() {
+    if (!spData) {
+      if (spErr) return `<div class="dnote">${esc(t('spErr', { e: spErr }))}</div>`;
+      loadSpares();
+      return `<div class="dempty">${esc(t('spLoading'))}</div>`;
+    }
+    const E = spData.electrical, M = spData.mechanical;
+    const outE = E.filter(isOutE).length, lowM = M.filter(isLowM).length;
+    const summary = spTab === 'electrical' ? `${t('spParts', { n: E.length })} · ${t('spOutN', { n: outE })}` : `${t('spParts', { n: M.length })} · ${t('spLowN', { n: lowM })}`;
+    return `<div class="spseg">
+        <button type="button" data-sp="electrical" class="${spTab === 'electrical' ? 'on' : ''}">${esc(t('spElect'))}<span>${E.length}</span></button>
+        <button type="button" data-sp="mechanical" class="${spTab === 'mechanical' ? 'on' : ''}">${esc(t('spMech'))}<span>${M.length}</span></button></div>
+      <div class="toolbar"><input id="spQ" type="search" dir="auto" placeholder="${esc(t('spSearch'))}" value="${esc(spQ)}">
+        <label class="chk"><input type="checkbox" id="spLow" ${spLow ? 'checked' : ''}> ${esc(t(spTab === 'electrical' ? 'spOutOnly' : 'spLowOnly'))}</label></div>
+      <div class="mini spsum">${esc(summary)}</div>
+      <section class="dcard"><div class="tscroll" id="spBody">${spTable()}</div></section>`;
   }
 
   /* ---------- overview ---------- */
@@ -569,5 +771,5 @@
                       : { equipment: $('fEq').value.trim(), equipmentNo: '', line: '', location: '' };
   }
 
-  window.HoloulDash = { open, refresh: load, render: () => { if (!$('dash').classList.contains('hidden')) render(); }, reset: () => { data = null; clearInterval(timer); section = 'overview'; who = ''; q = ''; } };
+  window.HoloulDash = { open, refresh: load, render: () => { if (!$('dash').classList.contains('hidden')) render(); }, reset: () => { data = null; clearInterval(timer); section = 'overview'; who = ''; q = ''; eqSel = null; eqHistKey = ''; spData = null; spErr = ''; } };
 })();
