@@ -530,7 +530,7 @@
         <span data-i18n="signOut">Sign out</span>
       </button>
     </div>
-    <div class="sfoot">Holoul Maintenance · v10</div>
+    <div class="sfoot">Holoul Maintenance · v11</div>
   </div>
 </div>
 
@@ -549,7 +549,7 @@
 <input type="file" id="photoPick" accept="image/*" class="hidden">
 <div class="toast" id="toast"></div>
 
-<script src="sync.js?v=10"></script>
+<script src="sync.js?v=11"></script>
 <script>
 const HS = window.HoloulSync;
 
@@ -618,7 +618,7 @@ const I18N = {
     'mod.Thermo Rec':'Thermo Rec', 'sub.Thermo Rec':'Motor & gearbox temps',
     'mod.Forklift':'Forklift', 'sub.Forklift':'Daily forklift check',
     'mod.Bobcat':'Bobcat', 'sub.Bobcat':'Daily bobcat check',
-    myTasks:'My tasks', noTasks:'No tasks right now', taskNew:'New',
+    myTasks:'My tasks', noTasks:'No tasks right now', taskNew:'New', line:'Line / location',
     'status.Open':'Not started', 'status.In progress':'In progress', 'status.Done':'Done', 'status.Cancelled':'Cancelled',
     'prio.Low':'Low', 'prio.Normal':'Normal', 'prio.High':'High', 'prio.Urgent':'Urgent',
     overdue:'Overdue', dueToday:'Due today', dueOn:'Due {d}', due:'Due', doneAt:'Done {d}', doneRecently:'Done recently ({n})',
@@ -683,7 +683,7 @@ const I18N = {
     'mod.Thermo Rec':'قراءات الحرارة', 'sub.Thermo Rec':'حرارة المحركات وعلب التروس',
     'mod.Forklift':'الرافعة الشوكية', 'sub.Forklift':'الفحص اليومي للرافعة الشوكية',
     'mod.Bobcat':'البوبكات', 'sub.Bobcat':'الفحص اليومي للبوبكات',
-    myTasks:'مهامي', noTasks:'لا توجد مهام حالياً', taskNew:'جديدة',
+    myTasks:'مهامي', noTasks:'لا توجد مهام حالياً', taskNew:'جديدة', line:'الخط / الموقع',
     'status.Open':'لم تبدأ', 'status.In progress':'قيد التنفيذ', 'status.Done':'منجزة', 'status.Cancelled':'ملغاة',
     'prio.Low':'منخفضة', 'prio.Normal':'عادية', 'prio.High':'عالية', 'prio.Urgent':'عاجلة',
     overdue:'متأخرة', dueToday:'مطلوبة اليوم', dueOn:'مطلوبة {d}', due:'الموعد', doneAt:'أُنجزت {d}', doneRecently:'أُنجزت مؤخراً ({n})',
@@ -1659,7 +1659,7 @@ let dashLoading = null;
 function loadDash(){
   if(window.HoloulDash) return Promise.resolve(window.HoloulDash);
   if(!dashLoading) dashLoading = new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = 'dash.js?v=10';
+    const s = document.createElement('script'); s.src = 'dash.js?v=11';
     s.onload = () => res(window.HoloulDash); s.onerror = () => { dashLoading = null; rej(new Error('dash')); };
     document.head.appendChild(s);
   });
@@ -1682,6 +1682,7 @@ const fmtStamp = s => {   // '2026-11-23 09:10' or ISO -> '23 Nov 09:10'
 };
 const dueText = d => d === todayISO() ? t('dueToday') : t('dueOn', {d: shortDate(d)});
 const isLate = tk => (tk.status === 'Open' || tk.status === 'In progress') && tk.due && tk.due < todayISO();
+const eqLabel = tk => tk.equipment ? tk.equipment + (tk.equipmentNo && tk.equipmentNo !== tk.equipment ? ' (' + tk.equipmentNo + ')' : '') : '';
 const taskWaiting = tk => [...pend.values()].some(o => o.action === 'taskUpdate' && o.task === tk.id && !o.failed);
 
 async function loadTasks(){
@@ -1724,7 +1725,7 @@ function setBadge(){
 
 function taskCard(tk){
   const meta = [];
-  if(tk.equipment) meta.push(esc(tk.equipment));
+  if(tk.equipment) meta.push(esc(eqLabel(tk)));
   if(tk.due && tk.status !== 'Done') meta.push(isLate(tk) ? `<span class="late">${esc(t('overdue'))} · ${esc(shortDate(tk.due))}</span>` : esc(dueText(tk.due)));
   if(tk.status === 'Done' && tk.done) meta.push(esc(t('doneAt', {d: fmtStamp(tk.done)})));
   const isNew = tk.status === 'Open' && !seenTasks.has(tk.id);
@@ -1775,7 +1776,8 @@ function renderTaskSheet(){
   if(!tk){ closeTask(); return; }
   $('taskId').textContent = tk.id;
   const info = [];
-  if(tk.equipment) info.push([t('equipment'), esc(tk.equipment)]);
+  if(tk.equipment) info.push([t('equipment'), esc(eqLabel(tk))]);
+  if(tk.line || tk.location) info.push([t('line'), esc([tk.line, tk.location].filter(Boolean).join(' · '))]);
   if(tk.due) info.push([t('due'), isLate(tk) ? `<span class="late">${esc(shortDate(tk.due))} · ${esc(t('overdue'))}</span>` : esc(shortDate(tk.due))]);
   info.push([t('assignedBy'), esc(tk.creatorName || tk.createdBy) + ' · ' + esc(fmtStamp(tk.created))]);
   if(tk.started) info.push([t('startedLabel'), esc(fmtStamp(tk.started))]);

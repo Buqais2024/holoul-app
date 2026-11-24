@@ -25,7 +25,9 @@
     aEdit:'Edit', aReassign:'Reassign', aCancel:'Cancel task', aCancelSure:'Tap again to cancel this task', aReopen:'Reopen', aSave:'Save',
     assignedTo:'Assigned to', createdBy:'Created by', doneNoteLabel:'Note',
     sentOk:'Assigned to {n} — notification sent', sentNoPhone:'Assigned to {n} — their notifications are not on yet; they will see it in the app',
-    saved:'Saved', needOnline:'Needs internet', dashLoadErr:'Could not refresh — showing the last saved copy', dashEmpty:'No data yet — connect to the internet'
+    saved:'Saved', needOnline:'Needs internet', dashLoadErr:'Could not refresh — showing the last saved copy', dashEmpty:'No data yet — connect to the internet',
+    eqSearch:'Search by name or number — e.g. CV16, MPR120, Shutter', eqAllLoc:'All locations', eqAllLine:'All lines / systems', eqChange:'Change',
+    eqFree:'Not in the list — will be saved as typed: {q}', eqMore:'{n} more — type to narrow the list', eqListErr:'Equipment list could not be read: {e}', fLineAll:'All lines'
   });
   Object.assign(I18N.ar, {
     dOverview:'نظرة عامة', dTasks:'المهام', dTeam:'الفريق', dMonthly:'الملخص الشهري', dPages:'صفحات القراءات',
@@ -47,7 +49,9 @@
     aEdit:'تعديل', aReassign:'إعادة إسناد', aCancel:'إلغاء المهمة', aCancelSure:'اضغط مرة أخرى لإلغاء المهمة', aReopen:'إعادة فتح', aSave:'حفظ',
     assignedTo:'مُسندة إلى', createdBy:'أنشأها', doneNoteLabel:'ملاحظة',
     sentOk:'أُسندت إلى {n} — تم إرسال الإشعار', sentNoPhone:'أُسندت إلى {n} — الإشعارات غير مفعّلة لديه بعد، وسيراها في التطبيق',
-    saved:'تم الحفظ', needOnline:'يحتاج اتصال بالإنترنت', dashLoadErr:'تعذّر التحديث — تُعرض آخر نسخة محفوظة', dashEmpty:'لا توجد بيانات بعد — اتصل بالإنترنت'
+    saved:'تم الحفظ', needOnline:'يحتاج اتصال بالإنترنت', dashLoadErr:'تعذّر التحديث — تُعرض آخر نسخة محفوظة', dashEmpty:'لا توجد بيانات بعد — اتصل بالإنترنت',
+    eqSearch:'ابحث بالاسم أو الرقم — مثال CV16 أو MPR120 أو Shutter', eqAllLoc:'كل المواقع', eqAllLine:'كل الخطوط / الأنظمة', eqChange:'تغيير',
+    eqFree:'غير موجودة في القائمة — ستُحفظ كما كُتبت: {q}', eqMore:'{n} أخرى — اكتب لتضييق القائمة', eqListErr:'تعذّرت قراءة قائمة المعدات: {e}', fLineAll:'كل الخطوط'
   });
 
   const css = `
@@ -133,6 +137,19 @@
   .dangerbtn{height:44px;border-radius:12px;border:1px solid var(--bad-line);background:var(--bad-bg);color:var(--err);font-weight:700;cursor:pointer;width:100%}
   .dact{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .reass{display:flex;gap:8px} .reass select{flex:1;margin:0}
+  .eqlist{max-height:250px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;margin:-4px 0 12px;background:var(--panel)}
+  .eqlist:empty{display:none}
+  .eqgrp{position:sticky;top:0;background:var(--panel2);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:6px 12px;border-bottom:1px solid var(--line)}
+  .eqitem{display:flex;align-items:baseline;gap:8px;width:100%;text-align:start;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);padding:9px 12px;cursor:pointer;font:inherit;flex-wrap:wrap}
+  .eqitem:last-child{border-bottom:0}
+  .eqitem:hover,.eqitem:focus,.eqitem.first{background:var(--accent-soft);outline:none}
+  .eqitem b{font-size:14px;font-weight:600}
+  .eqno{font-size:12px;font-weight:700;color:var(--accent);direction:ltr;unicode-bidi:isolate}
+  .eqitem small{flex-basis:100%;font-size:11px;color:var(--muted)}
+  .eqnote{font-size:12px;color:var(--muted);padding:8px 12px}
+  .eqsel{display:flex;align-items:center;gap:10px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:12px;padding:10px 12px;margin-bottom:12px}
+  .eqsel .eqtxt{flex:1;min-width:0} .eqsel b{display:block;font-size:15px} .eqsel small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .eqsel .btn{box-shadow:none}
   @media (max-width:1023px){
     .dsh{grid-template-columns:1fr}
     .dside{display:none}
@@ -167,7 +184,7 @@
   const SECTIONS = ['overview', 'tasks', 'team', 'monthly'];
   const TITLE = { overview: 'dOverview', tasks: 'dTasks', team: 'dTeam', monthly: 'dMonthly' };
 
-  let data = null, section = 'overview', loading = false, loadErr = false, timer = null, month = null, who = '', q = '';
+  let data = null, section = 'overview', loading = false, loadErr = false, timer = null, month = null, who = '', q = '', lineF = '';
   const key = () => `dash:${me()}`;
   const nameOf = u => { const p = data && data.people.find(x => x.username.toLowerCase() === String(u || '').toLowerCase()); return p ? p.name : u; };
   const monthName = m => { try { return new Date(m + '-15T12:00:00').toLocaleDateString(LANG === 'ar' ? 'ar-u-nu-latn-ca-gregory' : 'en-GB', { month: 'long', year: 'numeric' }); } catch (e) { return m; } };
@@ -243,6 +260,7 @@
     D.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { section = b.dataset.go; render(); });
     D.querySelectorAll('[data-month]').forEach(b => b.onclick = () => { month = b.dataset.month; render(); });
     const fw = $('dWho'); if (fw) fw.onchange = () => { who = fw.value; render(); };
+    const fl = $('dLine'); if (fl) fl.onchange = () => { lineF = fl.value; render(); };
     const fq = $('dQ'); if (fq) { fq.oninput = () => { q = fq.value; renderBoardOnly(); }; }
   }
   function body() {
@@ -302,7 +320,7 @@
     const late = isLate(x);
     const meta = [];
     meta.push(`<span>${esc(x.assigneeName || nameOf(x.assignee))}</span>`);
-    if (x.equipment) meta.push(`<span>${esc(x.equipment)}</span>`);
+    if (x.equipment) meta.push(`<span>${esc(eqLabel(x))}</span>`);
     if (x.status === 'Done') meta.push(`<span>${esc(t('doneAt', { d: fmtStamp(x.done) }))}</span>`);
     else if (x.due) meta.push(`<span class="${late ? 'late' : ''}">${esc(late ? t('overdue') + ' · ' + shortDate(x.due) : dueText(x.due))}</span>`);
     if (x.link) meta.push(`<span title="${esc(modName(x.link))}">↗ ${esc(modName(x.link))}</span>`);
@@ -312,7 +330,8 @@
   function filtered() {
     const s = q.trim().toLowerCase();
     return data.tasks.filter(x => x.status !== 'Cancelled' && (!who || x.assignee.toLowerCase() === who.toLowerCase()) &&
-      (!s || [x.title, x.details, x.equipment, x.assigneeName, x.id].join(' ').toLowerCase().indexOf(s) >= 0));
+      (!lineF || (x.line || '') === lineF) &&
+      (!s || [x.title, x.details, x.equipment, x.equipmentNo, x.line, x.location, x.assigneeName, x.id].join(' ').toLowerCase().indexOf(s) >= 0));
   }
   function boardHtml() {
     const list = filtered();
@@ -323,7 +342,10 @@
   }
   function tasksView() {
     const people = data.assignable.map(p => `<option value="${esc(p.username)}" ${p.username === who ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+    const lines = [...new Set((data.equipment || []).map(e => e.line).concat(data.tasks.map(x => x.line)).filter(Boolean))].sort();
+    const lineOpts = lines.map(l => `<option value="${esc(l)}" ${l === lineF ? 'selected' : ''}>${esc(l)}</option>`).join('');
     return `<div class="toolbar"><select id="dWho"><option value="">${esc(t('fAll'))}</option>${people}</select>
+      ${lines.length ? `<select id="dLine"><option value="">${esc(t('fLineAll'))}</option>${lineOpts}</select>` : ''}
       <input id="dQ" type="search" dir="auto" placeholder="${esc(t('fSearch'))}" value="${esc(q)}"></div>
       <div class="board" id="dBoard">${boardHtml()}</div>`;
   }
@@ -399,7 +421,8 @@
     if (!x) return;
     cancelArmed = false;
     const info = [[t('assignedTo'), esc(x.assigneeName || nameOf(x.assignee))]];
-    if (x.equipment) info.push([t('equipment'), esc(x.equipment)]);
+    if (x.equipment) info.push([t('equipment'), esc(eqLabel(x))]);
+    if (x.line || x.location) info.push([t('line'), esc([x.line, x.location].filter(Boolean).join(' · '))]);
     if (x.due) info.push([t('due'), isLate(x) ? `<span class="late">${esc(shortDate(x.due))} · ${esc(t('overdue'))}</span>` : esc(shortDate(x.due))]);
     if (x.link) info.push([t('fLink'), esc(modName(x.link))]);
     info.push([t('createdBy'), esc(x.creatorName || x.createdBy) + ' · ' + esc(fmtStamp(x.created))]);
@@ -445,7 +468,6 @@
   function taskForm(x) {
     if (!data) { toast(t('needOnline')); return; }
     const pr = (x && x.priority) || 'Normal';
-    const equips = [...new Set(data.tasks.map(k => k.equipment).filter(Boolean))];
     const people = data.assignable.map(p => `<option value="${esc(p.username)}" ${x && p.username.toLowerCase() === x.assignee.toLowerCase() ? 'selected' : ''}>${esc(p.name)} — ${esc(roleName(p.role))}</option>`).join('');
     const links = ['', 'Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Bobcat', 'Forklift'].map(l => `<option value="${esc(l)}" ${x && x.link === l ? 'selected' : ''}>${esc(l ? modName(l) : t('fNone'))}</option>`).join('');
     showModal(`<h2>${esc(t(x ? 'fEditTitle' : 'fNewTitle'))}</h2>
@@ -456,23 +478,24 @@
         <select class="ffield" id="fWho" required>${x ? '' : `<option value="">${esc(t('fChoose'))}</option>`}${people}</select>
         <label>${esc(t('fPriority'))}</label>
         <div class="segctl four" id="fPrio">${['Low', 'Normal', 'High', 'Urgent'].map(p => `<button type="button" data-p="${p}" class="${p === pr ? 'on' : ''}">${esc(t('prio.' + p))}</button>`).join('')}</div>
+        <label for="fEq">${esc(t('fEquip'))}</label>
+        ${equipPicker(x)}
         <div class="row2">
           <div><label for="fDue">${esc(t('fDue'))}</label><input class="ffield" id="fDue" type="date" value="${esc(x ? x.due : todayISO())}"></div>
-          <div><label for="fEq">${esc(t('fEquip'))}</label><input class="ffield" id="fEq" dir="auto" list="fEqList" placeholder="${esc(t('fEquipPh'))}" value="${esc(x ? x.equipment : '')}"><datalist id="fEqList">${equips.map(e => `<option value="${esc(e)}">`).join('')}</datalist></div>
+          <div><label for="fLink">${esc(t('fLink'))}</label><select class="ffield" id="fLink">${links}</select></div>
         </div>
-        <label for="fLink">${esc(t('fLink'))}</label>
-        <select class="ffield" id="fLink">${links}</select>
         <label for="fDet">${esc(t('fDetails'))}</label>
         <textarea class="ffield" id="fDet" dir="auto">${esc(x ? x.details : '')}</textarea>
         <div class="msg" id="fMsg"></div>
         <button class="primary" type="submit" id="fGo">${esc(t(x ? 'fSave' : 'fCreate'))}</button>
       </form>`, x ? x.id : '');
     let prio = pr;
+    const getEquip = wirePicker(x);
     $('fPrio').querySelectorAll('button').forEach(b => b.onclick = () => { prio = b.dataset.p; $('fPrio').querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); });
     setTimeout(() => $('fTitle').focus(), 60);
     $('dForm').onsubmit = async ev => {
       ev.preventDefault();
-      const f = { title: $('fTitle').value.trim(), assignee: $('fWho').value, priority: prio, due: $('fDue').value, equipment: $('fEq').value.trim(), link: $('fLink').value, details: $('fDet').value.trim() };
+      const f = Object.assign({ title: $('fTitle').value.trim(), assignee: $('fWho').value, priority: prio, due: $('fDue').value, link: $('fLink').value, details: $('fDet').value.trim() }, getEquip());
       if (!f.title || !f.assignee) { $('fMsg').textContent = !f.title ? t('fTitle') + ' *' : t('fAssignee') + ' *'; return; }
       $('fGo').disabled = true; $('fMsg').textContent = '';
       try {
@@ -484,6 +507,66 @@
         upsert(r.task); section = section === 'overview' && !x ? 'tasks' : section; render(); load();
       } catch (e) { $('fMsg').textContent = e.auth ? t('sessionExpired') : t('needOnline'); $('fGo').disabled = false; }
     };
+  }
+
+  /* ---------- equipment picker (from "Equipments and system in Holoul factory") ---------- */
+  function equipPicker(x) {
+    const eq = data.equipment || [];
+    const has = !!(x && x.equipment);
+    const locs = [...new Set(eq.map(e => e.loc).filter(Boolean))];
+    return `<div class="eqsel ${has ? '' : 'hidden'}" id="eqSel"><div class="eqtxt"><b id="eqSelName"></b><small id="eqSelMeta"></small></div>
+        <button type="button" class="btn" id="eqChange">${esc(t('eqChange'))}</button></div>
+      <div class="${has ? 'hidden' : ''}" id="eqFind">
+        ${eq.length ? `<div class="row2"><select class="ffield" id="eqLoc"><option value="">${esc(t('eqAllLoc'))}</option>${locs.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join('')}</select>
+          <select class="ffield" id="eqLine"></select></div>` : ''}
+        ${data.equipmentError ? `<div class="dnote">${esc(t('eqListErr', { e: data.equipmentError }))}</div>` : ''}
+        <input class="ffield" id="fEq" dir="auto" autocomplete="off" placeholder="${esc(t(eq.length ? 'eqSearch' : 'fEquipPh'))}">
+        <div class="eqlist" id="eqList" role="listbox"></div>
+      </div>`;
+  }
+  /** Wires the picker; returns a function giving { equipment, equipmentNo, line, location } for the form. */
+  function wirePicker(x) {
+    const eq = data.equipment || [];
+    let pick = x && x.equipment ? { name: x.equipment, no: x.equipmentNo || '', line: x.line || '', loc: x.location || '' } : null;
+    const meta = e => [e.no, e.line, e.loc, e.cat].filter(Boolean).join(' · ');
+    const showPick = () => {
+      $('eqSel').classList.toggle('hidden', !pick); $('eqFind').classList.toggle('hidden', !!pick);
+      if (pick) { $('eqSelName').textContent = pick.name; $('eqSelMeta').textContent = meta(pick); }
+    };
+    const fillLines = () => {
+      if (!$('eqLine')) return;
+      const loc = $('eqLoc').value, cur = $('eqLine').value;
+      const lines = [...new Set(eq.filter(e => !loc || e.loc === loc).map(e => e.line).filter(Boolean))];
+      $('eqLine').innerHTML = `<option value="">${esc(t('eqAllLine'))}</option>` + lines.map(l => `<option value="${esc(l)}" ${l === cur ? 'selected' : ''}>${esc(l)}</option>`).join('');
+    };
+    let shown = [];
+    const list = () => {
+      const qq = $('fEq').value.trim().toLowerCase();
+      const loc = $('eqLoc') ? $('eqLoc').value : '', line = $('eqLine') ? $('eqLine').value : '';
+      const words = qq.split(/\s+/).filter(Boolean);
+      shown = eq.filter(e => (!loc || e.loc === loc) && (!line || e.line === line) &&
+        words.every(w => [e.name, e.no, e.line, e.loc, e.cat].join(' ').toLowerCase().indexOf(w) >= 0));
+      if (!eq.length) { $('eqList').innerHTML = ''; return; }
+      const max = 60;
+      let html = '', grp = null;
+      shown.slice(0, max).forEach((e, i) => {
+        const g = e.line + (e.loc ? ' · ' + e.loc : '');
+        if (g !== grp) { grp = g; html += `<div class="eqgrp">${esc(g)}</div>`; }
+        html += `<button type="button" class="eqitem${i === 0 && qq ? ' first' : ''}" data-i="${i}" role="option"><b>${esc(e.name)}</b>${e.no && e.no !== e.name ? `<span class="eqno">${esc(e.no)}</span>` : ''}${e.cat ? `<small>${esc(e.cat)}</small>` : ''}</button>`;
+      });
+      if (shown.length > max) html += `<div class="eqnote">${esc(t('eqMore', { n: shown.length - max }))}</div>`;
+      if (!shown.length && qq) html = `<div class="eqnote">${esc(t('eqFree', { q: $('fEq').value.trim() }))}</div>`;
+      $('eqList').innerHTML = html;
+      $('eqList').querySelectorAll('[data-i]').forEach(b => b.onclick = () => choose(shown[+b.dataset.i]));
+    };
+    const choose = e => { pick = e; showPick(); };
+    $('eqChange').onclick = () => { pick = null; showPick(); list(); setTimeout(() => $('fEq').focus(), 30); };
+    if ($('eqLoc')) { $('eqLoc').onchange = () => { fillLines(); list(); }; $('eqLine').onchange = list; fillLines(); }
+    $('fEq').oninput = list;
+    $('fEq').onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); if (shown.length && $('fEq').value.trim()) choose(shown[0]); } };
+    showPick(); list();
+    return () => pick ? { equipment: pick.name, equipmentNo: pick.no || '', line: pick.line || '', location: pick.loc || '' }
+                      : { equipment: $('fEq').value.trim(), equipmentNo: '', line: '', location: '' };
   }
 
   window.HoloulDash = { open, refresh: load, render: () => { if (!$('dash').classList.contains('hidden')) render(); }, reset: () => { data = null; clearInterval(timer); section = 'overview'; who = ''; q = ''; } };
