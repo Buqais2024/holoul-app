@@ -549,7 +549,7 @@
 <input type="file" id="photoPick" accept="image/*" class="hidden">
 <div class="toast" id="toast"></div>
 
-<script src="sync.js?v=12"></script>
+<script src="sync.js?v=13"></script>
 <script>
 const HS = window.HoloulSync;
 
@@ -568,6 +568,7 @@ const MODULES = {
 const I18N = {
   en: {
     brandSub:'maintenance', company:'Holoul Electronic Recycling',
+    flEquip:'Equipment', flEquipSub:'Add and edit equipment and photos', flSpares:'Spare parts', flSparesSub:'Add and edit parts and photos', flTask:'New task', flTaskSub:'Assign a job to a technician or operator',
     signInTo:'Sign in to continue', username:'Username', pin:'PIN', autoSignIn:'Auto sign in on this device',
     signIn:'Sign in', signingIn:'Signing in…', signInFailed:'Sign in failed',
     noConnLogin:'No connection — check internet and try again', sessionExpired:'Session expired — please sign in again',
@@ -635,6 +636,7 @@ const I18N = {
   },
   ar: {
     brandSub:'الصيانة', company:'حلول لمعالجة النفايات الإلكترونية',
+    flEquip:'المعدات', flEquipSub:'إضافة المعدات وتعديلها وصورها', flSpares:'قطع الغيار', flSparesSub:'إضافة القطع وتعديلها وصورها', flTask:'مهمة جديدة', flTaskSub:'أسند عملاً إلى فني أو مشغّل',
     signInTo:'سجّل الدخول للمتابعة', username:'اسم المستخدم', pin:'الرمز السري', autoSignIn:'دخول تلقائي على هذا الجهاز',
     signIn:'تسجيل الدخول', signingIn:'جارٍ تسجيل الدخول…', signInFailed:'تعذّر تسجيل الدخول',
     noConnLogin:'لا يوجد اتصال — تأكد من الإنترنت وحاول مرة أخرى', sessionExpired:'انتهت الجلسة — سجّل الدخول مرة أخرى',
@@ -737,6 +739,35 @@ const SERVER_AR = [
   [/^Please complete: (.+)$/, m => 'أكمل: ' + m[1]],
   [/^Photo is too large$/, 'حجم الصورة كبير جداً'],
   [/^Not an image$/, 'الملف ليس صورة'],
+  [/^Enter the full name$/, 'اكتب الاسم الكامل'],
+  [/^Username: 3 to 30/, 'اسم المستخدم: من 3 إلى 30 حرفاً أو رقماً أو نقطة أو شرطة'],
+  [/^Choose a valid role$/, 'اختر وظيفة صحيحة'],
+  [/^Choose the equipment for this operator/, 'اختر المعدة لهذا المشغّل (Forklift أو Bobcat)'],
+  [/^PIN must be 4 to 8 digits$/, 'الرمز السري من 4 إلى 8 أرقام'],
+  [/^This username is already used$/, 'اسم المستخدم مستخدم من قبل'],
+  [/^You cannot deactivate yourself/, 'لا يمكنك تعطيل حسابك أو تغيير وظيفتك'],
+  [/^Employee not found/, 'الموظف غير موجود — أعد تحميل القائمة'],
+  [/^Only a supervisor can manage employees$/, 'المشرف فقط يدير الموظفين'],
+  [/^Only a supervisor can see the team list$/, 'المشرف فقط يرى قائمة الفريق'],
+  [/^Enter the equipment name$/, 'اكتب اسم المعدة'],
+  [/^Choose the line \/ system$/, 'اختر الخط / النظام'],
+  [/^Add a main photo for the new/, 'أضف الصورة الرئيسية للعنصر الجديد'],
+  [/^Enter the part number$/, 'اكتب رقم القطعة'],
+  [/^Enter the part name$/, 'اكتب اسم القطعة'],
+  [/^Enter the description$/, 'اكتب الوصف'],
+  [/^Quantity must be a number$/, 'الكمية يجب أن تكون رقماً'],
+  [/^Required qty must be a number$/, 'الكمية المطلوبة يجب أن تكون رقماً'],
+  [/^Available qty must be a number$/, 'الكمية المتوفرة يجب أن تكون رقماً'],
+  [/^Used qty must be a number$/, 'الكمية المستخدمة يجب أن تكون رقماً'],
+  [/^Row not found/, 'البند غير موجود — أعد تحميل القائمة'],
+  [/^Photo is too large/, 'الصورة كبيرة جداً (الحد 8 ميجا)'],
+  [/^Unknown photo slot$/, 'موضع الصورة غير معروف'],
+  [/^You do not have permission to create tasks$/, 'ليس لديك صلاحية إنشاء المهام'],
+  [/^You do not have permission to change equipment$/, 'ليس لديك صلاحية تعديل المعدات'],
+  [/^You do not have permission to change spare parts$/, 'ليس لديك صلاحية تعديل قطع الغيار'],
+  [/^You do not have access to equipment$/, 'ليس لديك صلاحية الوصول إلى المعدات'],
+  [/^You do not have access to spare parts$/, 'ليس لديك صلاحية الوصول إلى قطع الغيار'],
+  [/^You do not have permission for this$/, 'ليس لديك صلاحية لهذا الإجراء'],
   [/^Invalid row$/, 'بند غير صحيح'],
   [/^Date (\S+) is more than (\d+) days old$/, m => 'التاريخ ' + m[1] + ' أقدم من ' + m[2] + ' أيام'],
   [/^No connection$|^Timed out$|^Failed to fetch$|^Load failed$|^NetworkError/i, 'لا يوجد اتصال']
@@ -910,7 +941,7 @@ function prefetch(force){
         if(r.pushKey) HS.kv.set('pushKey', r.pushKey).catch(()=>{});
         if(Array.isArray(r.tasks) && isAssignee()) await saveTasks(overlayTasks(r.tasks));
         if(r.user && session && r.user.username === session.user.username){
-          const changed = JSON.stringify(r.user.access) !== JSON.stringify(session.user.access) || r.user.name !== session.user.name;
+          const changed = JSON.stringify(r.user.access) !== JSON.stringify(session.user.access) || r.user.name !== session.user.name || JSON.stringify(r.user.perms || {}) !== JSON.stringify(session.user.perms || {});
           session.user = Object.assign({}, session.user, r.user); store.set(session);
           if(changed && !$('home').classList.contains('hidden')) showHome();
         }
@@ -1050,18 +1081,29 @@ function showHome(appView){
   syncUI();
 
   const tl = $('tiles'); tl.innerHTML = '';
-  if(!u.access || !u.access.length){
+  const extra = flaggedTiles(u);
+  const total = (u.access || []).length + extra.length;
+  if(!total){
     tl.innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(t('noPages'))}</div>`;
     return;
   }
-  u.access.forEach(name => {
+  (u.access || []).forEach(name => {
     const m = MODULES[name] || {icon:''};
     const b = document.createElement('button');
-    b.className = 'tile' + (u.access.length === 1 ? ' one' : '');
+    b.className = 'tile' + (total === 1 ? ' one' : '');
     b.innerHTML = `<svg class="go" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
                    <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m.icon}</svg></div>
                    <div><b>${esc(modName(name))}</b><span>${esc(modSub(name))}</span></div>`;
     b.onclick = () => m.dash ? openDash(m.dash) : m.checklist ? openChecklist(name) : m.ready ? openRecord(name) : toast(t('comingNext', {name: modName(name)}));
+    tl.appendChild(b);
+  });
+  extra.forEach(x => {
+    const b = document.createElement('button');
+    b.className = 'tile' + (total === 1 ? ' one' : '');
+    b.innerHTML = `<svg class="go" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                   <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${x.icon}</svg></div>
+                   <div><b>${esc(x.title)}</b><span>${esc(x.sub)}</span></div>`;
+    b.onclick = () => openDash(x.go);
     tl.appendChild(b);
   });
   renderTasks(); pushUI(); setBadge();
@@ -1659,11 +1701,20 @@ let dashLoading = null;
 function loadDash(){
   if(window.HoloulDash) return Promise.resolve(window.HoloulDash);
   if(!dashLoading) dashLoading = new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = 'dash.js?v=12';
+    const s = document.createElement('script'); s.src = 'dash.js?v=13';
     s.onload = () => res(window.HoloulDash); s.onerror = () => { dashLoading = null; rej(new Error('dash')); };
     document.head.appendChild(s);
   });
   return dashLoading;
+}
+/** Tiles for technicians / operators with Edit equipment, Edit spare parts or Create tasks. */
+function flaggedTiles(u){
+  if(isManagerUser()) return [];
+  const p = u.perms || {}, out = [];
+  if(p.equipment) out.push({icon:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>', title:t('flEquip'), sub:t('flEquipSub'), go:'equipment'});
+  if(p.spares) out.push({icon:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>', title:t('flSpares'), sub:t('flSparesSub'), go:'spares'});
+  if(p.tasks) out.push({icon:'<path d="M12 5v14M5 12h14"/>', title:t('flTask'), sub:t('flTaskSub'), go:'newtask'});
+  return out;
 }
 async function openDash(section){
   try{ const D = await loadDash(); D.open(section || 'overview'); }

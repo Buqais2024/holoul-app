@@ -25,6 +25,11 @@
  *  - reads "Equipments and system in Holoul factory" (first tab) so supervisors pick the exact
  *    equipment when assigning a task; edit that sheet and the app follows (within 10 minutes)
  *  - tasks keep Equipment No, Line and Location
+ *
+ * v9 (Nov 2026) - dashboard: spare parts (electrical + mechanical) and equipment maintenance history
+ *
+ * v10 (Nov 2026) - employees and permissions from the app; add / edit / delete equipment and spare parts
+ *   with photos; Users sheet columns M-O (Create tasks, Edit equipment, Edit spare parts)
  */
 
 const SHEET_ID     = '1ohP2VDJitA_ZxiY3Sk6V22Z6yGHZjvgsBg58pMwac_4';   // Holoul App - Users
@@ -88,9 +93,18 @@ function doPost(e) {
       case 'taskEdit':     out = withUser(body, u => locked(() => taskEdit(u, body.task))); break;
       case 'taskUpdate':   out = withUser(body, u => locked(() => taskUpdate(u, body))); break;
       case 'dashboard':    out = withUser(body, u => dashboard(u)); break;
-      case 'equipment':    out = withUser(body, u => { if (!isManager(u)) throw new Error('Dashboard is for supervisors'); return { ok: true, equipment: equipmentList(!!body.fresh) }; }); break;
+      case 'equipment':    out = withUser(body, u => { if (!canSeeEquipment(u)) throw new Error('You do not have access to equipment'); const all = !!body.all && canEditEquipment(u); return { ok: true, equipment: equipmentList(!!body.fresh || all, all) }; }); break;
       case 'equipmentHistory': out = withUser(body, u => equipmentHistory(u, body.equipment || {})); break;
-      case 'spares':       out = withUser(body, u => { if (!isManager(u)) throw new Error('Dashboard is for supervisors'); return { ok: true, spares: sparesList(!!body.fresh) }; }); break;
+      case 'spares':       out = withUser(body, u => { if (!canSeeSpares(u)) throw new Error('You do not have access to spare parts'); const all = !!body.all && canEditSpares(u); return { ok: true, spares: sparesList(!!body.fresh || all, all) }; }); break;
+      case 'people':       out = withUser(body, u => { if (!canCreateTasks(u)) throw new Error('You do not have permission to create tasks'); return { ok: true, assignable: assignable() }; }); break;
+      case 'employees':    out = withUser(body, u => employeesList(u)); break;
+      case 'employeeSave': out = withUser(body, u => locked(() => employeeSave(u, body.employee))); break;
+      case 'equipmentSave':   out = withUser(body, u => locked(() => equipmentSave(u, body.item))); break;
+      case 'equipmentStatus': out = withUser(body, u => locked(() => equipmentStatus(u, body.row, body.status))); break;
+      case 'spareSave':    out = withUser(body, u => locked(() => spareSave(u, body.item))); break;
+      case 'spareStatus':  out = withUser(body, u => locked(() => spareStatus(u, body.kind, body.row, body.status))); break;
+      case 'itemPhotos':   out = withUser(body, u => itemPhotos(u, body.kind, body.key)); break;
+      case 'itemPhotoSave': out = withUser(body, u => locked(() => itemPhotoSave(u, body.kind, body.key, body.slot, body.data))); break;
       case 'pushSubscribe':   out = withUser(body, u => locked(() => pushSubscribe(u, body.sub, body.device))); break;
       case 'pushUnsubscribe': out = withUser(body, u => locked(() => pushUnsubscribe(u, body.endpoint))); break;
       case 'pushInbox':    out = withUser(body, u => pushInbox(u)); break;
@@ -104,7 +118,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 9 }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 10 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -127,17 +141,30 @@ function usersTable(fresh) {
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i], username = String(r[c('Username')]).trim();
     if (!username) continue;
+    const yes = name => c(name) >= 0 && String(r[c(name)]).trim() === 'Yes';
     list.push({ id: r[c('User ID')], name: r[c('Full Name')], username: username,
                 pin: String(r[c('PIN')]).trim(), active: r[c('Active')] === 'Yes',
-                role: r[c('Role')], equipment: r[c('Assigned Equipment')] });
+                role: r[c('Role')], equipment: r[c('Assigned Equipment')],
+                canTasks: yes(PERM_HEAD.tasks), canEquipment: yes(PERM_HEAD.equipment), canSpares: yes(PERM_HEAD.spares) });
   }
   try { cache.put('users_v1', JSON.stringify(list), USERS_CACHE_SECS); } catch (err) {}
   return list;
 }
 
+/** Extra rights per employee (Yes / No columns M–O in the Users sheet). Managers always have all of them. */
+const PERM_HEAD = { tasks: 'Create tasks', equipment: 'Edit equipment', spares: 'Edit spare parts' };
+function permsOf(u) {
+  const m = MANAGER_ROLES.indexOf(u.role) >= 0;
+  return { manager: m, tasks: m || !!u.canTasks, equipment: m || !!u.canEquipment, spares: m || !!u.canSpares };
+}
+const canCreateTasks = u => !!u && !!u.perms && u.perms.tasks;
+const canSeeEquipment = u => !!u && !!u.perms && (u.perms.equipment || u.perms.manager);
+const canSeeSpares = u => !!u && !!u.perms && (u.perms.spares || u.perms.manager);
+
 function publicUser(u) {
+  const perms = permsOf(u);
   return { id: u.id, name: u.name, username: u.username, role: u.role, equipment: u.equipment, access: accessFor(u.role, u.equipment),
-           manager: MANAGER_ROLES.indexOf(u.role) >= 0 };
+           manager: perms.manager, perms: { manager: perms.manager, tasks: perms.tasks, equipment: perms.equipment, spares: perms.spares } };
 }
 
 /** Active user by username (fresh role / access), or null. */
@@ -198,6 +225,7 @@ function readToken(token) {
 function withUser(body, fn) {
   const user = readToken(body.token);
   if (!user) return { ok: false, auth: true, error: 'Session expired — please sign in again' };
+  if (!user.perms) user.perms = permsOf(user);   // sessions from before v10
   return fn(user);
 }
 
@@ -976,7 +1004,7 @@ function actionTime(at) {
 }
 
 function taskCreate(user, f) {
-  if (!isManager(user)) throw new Error('Only a supervisor can assign tasks');
+  if (!canCreateTasks(user)) throw new Error('You do not have permission to create tasks');
   f = f || {};
   const title = String(f.title || '').trim().slice(0, 140);
   if (!title) throw new Error('Enter a task title');
@@ -1072,9 +1100,9 @@ function equipLabel(t) {
 
 /** Every equipment row: { name, no, line, loc, cat }. Columns are found by their header names.
  *  Rows without a name (e.g. AC units) are named from their type and numbered: "Split AC #3". */
-function equipmentList(fresh) {
+function equipmentList(fresh, withDeleted) {
   const cache = CacheService.getScriptCache();
-  if (!fresh) { const hit = cache.get('equip_v1'); if (hit) return JSON.parse(hit); }
+  if (!fresh && !withDeleted) { const hit = cache.get('equip_v1'); if (hit) return JSON.parse(hit); }
   const ss = SpreadsheetApp.openById(props().getProperty('EQUIPMENT_SS_ID') || EQUIPMENT_ID);
   const rows = ss.getSheets()[0].getDataRange().getDisplayValues();
   let hi = rows.findIndex(r => r.some(c => /equipment\s*name/i.test(String(c))));
@@ -1083,6 +1111,7 @@ function equipmentList(fresh) {
   const col = re => h.findIndex(c => re.test(c));
   const cName = col(/equipment\s*name|^name$/), cNo = col(/number|serial|^no\b|^pos/), cLine = col(/^line|system/),
         cLoc = col(/^location|^site/), cCat = col(/categor|type/);
+  const cStatus = col(/^record\s*status$/);
   const seen = {}, list = [];
   for (let i = hi + 1; i < rows.length; i++) {
     const r = rows[i], g = c => c >= 0 ? String(r[c] == null ? '' : r[c]).trim() : '';
@@ -1095,9 +1124,12 @@ function equipmentList(fresh) {
       seen[k] = (seen[k] || 0) + 1;
       name = base + ' #' + seen[k];
     }
-    list.push({ name: name, no: no, line: line, loc: loc, cat: cat });
+    // deleted rows keep their number (so names of unnamed rows do not shift); listed only for editors (withDeleted)
+    const deleted = lc(g(cStatus)) === 'deleted';
+    if (deleted && !withDeleted) continue;
+    list.push({ name: name, no: no, line: line, loc: loc, cat: cat, row: i + 1, deleted: deleted });
   }
-  try { cache.put('equip_v1', JSON.stringify(list), EQUIPMENT_CACHE_SECS); } catch (err) {}
+  if (!withDeleted) { try { cache.put('equip_v1', JSON.stringify(list), EQUIPMENT_CACHE_SECS); } catch (err) {} }
   return list;
 }
 
@@ -1109,26 +1141,34 @@ const SPARES_MECH_GID = 1717920569;    // mechanical tab: Part No. | Part Name |
 const SPARES_CACHE_SECS = 600;
 
 /** Both spare-part tabs (read by tab id, so renaming a tab does not break it). Cached 10 minutes. */
-function sparesList(fresh) {
+function sparesList(fresh, withDeleted) {
   const cache = CacheService.getScriptCache();
-  if (!fresh) { const hit = cache.get('spares_v1'); if (hit) return JSON.parse(hit); }
+  if (!fresh && !withDeleted) { const hit = cache.get('spares_v1'); if (hit) return JSON.parse(hit); }
   const ss = SpreadsheetApp.openById(props().getProperty('SPARES_SS_ID') || SPARES_ID);
   const el = ss.getSheetById(SPARES_ELECT_GID), me = ss.getSheetById(SPARES_MECH_GID);
   if (!el || !me) throw new Error('Spare parts tabs not found in the inventory sheet');
   const electrical = [], mechanical = [];
-  el.getDataRange().getDisplayValues().slice(1).forEach(r => {
+  const ev = el.getDataRange().getDisplayValues();
+  const eStat = recordStatusIndex(ev[0] || []);
+  ev.slice(1).forEach((r, i) => {
     const no = String(r[1] || '').trim(), desc = String(r[3] || '').trim();
     if (!no && !desc) return;
-    electrical.push({ no: no, brand: String(r[2] || '').trim(), desc: desc, qty: String(r[4] || '').trim() });
+    const deleted = eStat >= 0 && lc(r[eStat]) === 'deleted';
+    if (deleted && !withDeleted) return;
+    electrical.push({ row: i + 2, no: no, brand: String(r[2] || '').trim(), desc: desc, qty: String(r[4] || '').trim(), deleted: deleted });
   });
-  me.getDataRange().getDisplayValues().slice(1).forEach(r => {
+  const mv = me.getDataRange().getDisplayValues();
+  const mStat = recordStatusIndex(mv[0] || []);
+  mv.slice(1).forEach((r, i) => {
     const no = String(r[0] || '').trim(), name = String(r[1] || '').trim();
     if (!no && !name) return;
-    mechanical.push({ no: no, name: name, required: String(r[2] || '').trim(), available: String(r[3] || '').trim(),
-      used: String(r[4] || '').trim(), remaining: String(r[5] || '').trim(), status: String(r[6] || '').trim(), machine: String(r[7] || '').trim() });
+    const deleted = mStat >= 0 && lc(r[mStat]) === 'deleted';
+    if (deleted && !withDeleted) return;
+    mechanical.push({ row: i + 2, no: no, name: name, required: String(r[2] || '').trim(), available: String(r[3] || '').trim(),
+      used: String(r[4] || '').trim(), remaining: String(r[5] || '').trim(), status: String(r[6] || '').trim(), machine: String(r[7] || '').trim(), deleted: deleted });
   });
   const out = { electrical: electrical, mechanical: mechanical };
-  try { cache.put('spares_v1', JSON.stringify(out), SPARES_CACHE_SECS); } catch (err) {}
+  if (!withDeleted) { try { cache.put('spares_v1', JSON.stringify(out), SPARES_CACHE_SECS); } catch (err) {} }
   return out;
 }
 
@@ -1144,7 +1184,7 @@ function sameEquipment(t, e) {
 
 /** Every task ever recorded on this equipment (all statuses, all dates), with its event timeline. */
 function equipmentHistory(user, e) {
-  if (!isManager(user)) throw new Error('Dashboard is for supervisors');
+  if (!canSeeEquipment(user)) throw new Error('You do not have access to equipment');
   const eq = { name: String(e.name || ''), no: String(e.no || ''), line: String(e.line || ''), loc: String(e.loc || '') };
   const tasks = readTasks().map(taskOut).filter(t => sameEquipment(t, eq));
   const ids = {}; tasks.forEach(t => { ids[t.id] = true; t.events = []; });
@@ -1485,3 +1525,363 @@ function setupV7() {
   UrlFetchApp.fetch('https://www.google.com/generate_204', { muteHttpExceptions: true });
   Logger.log('v7 ready.');
 }
+
+/* ================= v10: employees, equipment and spare parts from the app =================
+ * Supervisors and Operations Managers can do everything here. Other employees get the
+ * extra rights set on their row in the Users sheet (columns M–O, Yes / No):
+ *   Create tasks  -> create tasks (Tasks tab)
+ *   Edit equipment -> add / edit / delete equipment (+ its photos)
+ *   Edit spare parts -> add / edit / delete spare parts (+ their photos)
+ * Equipment and spare parts stay in their original sheets. Deleting is soft: the row gets
+ * Record Status = Deleted (a column added at the end of the tab) and is hidden from the app.
+ * Photos are kept in Drive: Photos/Equipment/<key> and Photos/Spares/<key> with
+ * main.jpg (required for a new item), extra-1.jpg and extra-2.jpg (optional). */
+
+const EMPLOYEE_ROLES = ['Maintenance Technician', 'Operator', 'Supervisor', 'Operations Manager'];
+const EMPLOYEE_EQUIPMENT = ['Forklift', 'Bobcat'];
+const ITEM_FILES = { main: 'main.jpg', extra1: 'extra-1.jpg', extra2: 'extra-2.jpg' };
+const USER_HEAD = { id: 'User ID', name: 'Full Name', role: 'Role', equipment: 'Assigned Equipment', user: 'Username', pin: 'PIN', active: 'Active' };
+const PERM_KEYS = [['tasks', 'Create tasks'], ['equipment', 'Edit equipment'], ['spares', 'Edit spare parts']];
+const EQUIP_SPEC = { loc: /^location/, line: /^line/, name: /equipment\s*name/, no: /number|serial/, cat: /categor/ };
+const SPARE_E_SPEC = { no: /part|item/, brand: /brand/, desc: /description/, qty: /quantity/ };
+const SPARE_M_SPEC = { no: /^part no/, name: /^part name/, required: /required/, available: /available/, used: /^used/, remaining: /remaining/, status: /^status$/, machine: /machine/ };
+
+const clean = (s, max) => String(s == null ? '' : s).trim().slice(0, max || 200);
+const colLetter = n => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+const safeKey = s => clean(s, 80).replace(/[\\\/:*?"<>|#%{}~&\[\]]+/g, '-').replace(/\s+/g, ' ').replace(/^[-.\s]+|[-.\s]+$/g, '') || 'item';
+const canEditEquipment = u => !!u && !!u.perms && !!u.perms.equipment;
+const canEditSpares = u => !!u && !!u.perms && !!u.perms.spares;
+
+/** A number from a cell ('' when empty). Text is refused. */
+function numCell(v, label) {
+  const s = clean(v, 20).replace(/,/g, '');
+  if (s === '') return '';
+  if (!/^-?\d+(\.\d+)?$/.test(s)) throw new Error(label + ' must be a number');
+  return Number(s);
+}
+
+/** Column numbers (1-based) found by header name. Record Status is added at the end when missing. */
+function findCols(sh, spec, addStatus) {
+  const last = Math.max(sh.getLastColumn(), 1);
+  const head = sh.getRange(1, 1, 1, last).getDisplayValues()[0].map(h => lc(h));
+  const out = {};
+  Object.keys(spec).forEach(k => {
+    const i = head.findIndex(h => spec[k].test(h));
+    if (i < 0) throw new Error('The sheet is missing the column for ' + k);
+    out[k] = i + 1;
+  });
+  const r = head.indexOf('record status');
+  if (r >= 0) out.rec = r + 1;
+  else if (addStatus) {
+    out.rec = last + 1;
+    sh.getRange(1, out.rec).setValue('Record Status').setFontWeight('bold');
+  }
+  return out;
+}
+
+function checkRow(sh, row) {
+  const r = Number(row);
+  if (!(r >= 2) || r > sh.getLastRow()) throw new Error('Row not found — reload the list and try again');
+  return r;
+}
+
+/* ---- photos (Drive) ---- */
+
+/** Validates a data: image and returns its bytes. Throws before anything is written. */
+function photoBlob(dataUrl) {
+  const m = String(dataUrl || '').match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
+  if (!m) throw new Error('Not an image');
+  const bytes = Utilities.base64Decode(m[2]);
+  if (bytes.length > 8 * 1024 * 1024) throw new Error('Photo is too large (8 MB max)');
+  return { bytes: bytes, mime: m[1] };
+}
+
+/** Folder for one item: Photos/Equipment/<key> or Photos/Spares/<key>. */
+function itemFolder(kind, key, create) {
+  const root = DriveApp.getFolderById(props().getProperty('PHOTOS_FOLDER_ID'));
+  const typeName = kind === 'equipment' ? 'Equipment' : 'Spares';
+  const ti = root.getFoldersByName(typeName);
+  const type = ti.hasNext() ? ti.next() : (create ? root.createFolder(typeName) : null);
+  if (!type) return null;
+  const ki = type.getFoldersByName(key);
+  if (ki.hasNext()) return ki.next();
+  return create ? type.createFolder(key) : null;
+}
+
+/** The item's number changed: keep its photos by renaming the folder. */
+function renameItemFolder(kind, oldKey, newKey) {
+  const old = itemFolder(kind, oldKey, false);
+  if (!old || itemFolder(kind, newKey, false)) return;
+  old.setName(newKey);
+}
+
+/** Replaces one slot (main / extra1 / extra2) of an item's photos. */
+function saveItemPhoto(kind, key, slot, photo) {
+  const folder = itemFolder(kind, key, true);
+  const name = ITEM_FILES[slot];
+  const old = folder.getFilesByName(name);
+  while (old.hasNext()) old.next().setTrashed(true);
+  folder.createFile(Utilities.newBlob(photo.bytes, photo.mime, name));
+}
+
+function itemAccess(user, kind, write) {
+  const ok = kind === 'equipment'
+    ? (write ? canEditEquipment(user) : canSeeEquipment(user))
+    : (write ? canEditSpares(user) : canSeeSpares(user));
+  if (!ok) throw new Error('You do not have permission for this');
+}
+
+/** Photos of one item: { main, extra1, extra2 } with a small thumbnail each. */
+function itemPhotos(user, kind, key) {
+  if (kind !== 'equipment' && kind !== 'spare') throw new Error('Unknown item type');
+  itemAccess(user, kind, false);
+  const folder = itemFolder(kind, safeKey(key), false);
+  const out = {};
+  if (folder) Object.keys(ITEM_FILES).forEach(slot => {
+    const it = folder.getFilesByName(ITEM_FILES[slot]);
+    if (!it.hasNext()) return;
+    const f = it.next();
+    let thumb = '';
+    try { const b = f.getThumbnail(); if (b) thumb = 'data:image/png;base64,' + Utilities.base64Encode(b.getBytes()); } catch (err) {}
+    out[slot] = { id: f.getId(), url: f.getUrl(), thumb: thumb };
+  });
+  return { ok: true, photos: out };
+}
+
+function itemPhotoSave(user, kind, key, slot, dataUrl) {
+  if (kind !== 'equipment' && kind !== 'spare') throw new Error('Unknown item type');
+  if (!ITEM_FILES[slot]) throw new Error('Unknown photo slot');
+  itemAccess(user, kind, true);
+  const photo = photoBlob(dataUrl);
+  saveItemPhoto(kind, safeKey(key), slot, photo);
+  return { ok: true };
+}
+
+/* ---- employees (Users sheet) ---- */
+
+/** Users sheet columns. Creates "Create tasks", "Edit equipment", "Edit spare parts" in M–O on first use,
+ *  with Yes / No choices; blank flags are filled once (managers Yes, others No). */
+function userCols(sh) {
+  const last = Math.max(sh.getLastColumn(), 12);
+  const head = sh.getRange(1, 1, 1, last).getDisplayValues()[0].map(h => lc(h));
+  const cols = {};
+  Object.keys(USER_HEAD).forEach(k => {
+    const i = head.indexOf(lc(USER_HEAD[k]));
+    if (i < 0) throw new Error('Users sheet is missing the column: ' + USER_HEAD[k]);
+    cols[k] = i + 1;
+  });
+  PERM_KEYS.forEach(([k, label], j) => {
+    const i = head.indexOf(lc(label));
+    if (i >= 0) { cols['perm.' + k] = i + 1; return; }
+    const c = 13 + j;   // M, N, O
+    if (sh.getRange(1, c).getDisplayValue() !== '') throw new Error('Users sheet: column ' + colLetter(c) + ' is already used. Move it and try again.');
+    sh.getRange(1, c).setValue(label).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff').setWrap(true);
+    sh.setColumnWidth(c, 95);
+    cols['perm.' + k] = c;
+  });
+  const n = 499;
+  const roles = sh.getRange(2, cols.role, n, 1).getDisplayValues();
+  const users = sh.getRange(2, cols.user, n, 1).getDisplayValues();
+  PERM_KEYS.forEach(([k]) => {
+    const rng = sh.getRange(2, cols['perm.' + k], n, 1);
+    rng.setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['Yes', 'No'], true).setAllowInvalid(false).build());
+    rng.setHorizontalAlignment('center');
+    const cur = rng.getDisplayValues();
+    let changed = false;
+    const out = cur.map((r, i) => {
+      if (String(r[0]).trim() !== '' || String(users[i][0]).trim() === '') return r;
+      changed = true;
+      return [MANAGER_ROLES.indexOf(String(roles[i][0]).trim()) >= 0 ? 'Yes' : 'No'];
+    });
+    if (changed) rng.setValues(out);
+  });
+  return cols;
+}
+
+function employeesList(user) {
+  if (!isManager(user)) throw new Error('Only a supervisor can see the team list');
+  userCols(book().getSheetByName(USERS_SHEET));
+  CacheService.getScriptCache().remove('users_v1');
+  const list = usersTable(true).map(u => ({ id: u.id, name: u.name, username: u.username, role: u.role,
+    equipment: u.equipment || '', active: !!u.active, perms: { tasks: !!u.canTasks, equipment: !!u.canEquipment, spares: !!u.canSpares } }));
+  return { ok: true, roles: EMPLOYEE_ROLES, equipment: EMPLOYEE_EQUIPMENT, employees: list };
+}
+
+/** Adds or updates one employee. A blank PIN on an existing employee keeps the current PIN. */
+function employeeSave(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can manage employees');
+  f = f || {};
+  const sh = book().getSheetByName(USERS_SHEET);
+  const cols = userCols(sh);
+  const name = clean(f.name, 80);
+  if (!name) throw new Error('Enter the full name');
+  const username = clean(f.username, 30);
+  if (!/^[A-Za-z0-9._-]{3,30}$/.test(username)) throw new Error('Username: 3 to 30 letters, digits, dot, dash or underscore');
+  const role = clean(f.role, 60);
+  if (EMPLOYEE_ROLES.indexOf(role) < 0) throw new Error('Choose a valid role');
+  const equipment = role === 'Operator' ? clean(f.equipment, 20) : '';
+  if (role === 'Operator' && EMPLOYEE_EQUIPMENT.indexOf(equipment) < 0) throw new Error('Choose the equipment for this operator (Forklift or Bobcat)');
+  const pin = clean(f.pin, 8);
+  const isNew = !f.id;
+  if ((isNew || pin !== '') && !/^\d{4,8}$/.test(pin)) throw new Error('PIN must be 4 to 8 digits');
+  const active = f.active !== false;
+  const perms = f.perms || {};
+
+  const data = sh.getRange(1, 1, Math.max(sh.getLastRow(), 2), sh.getLastColumn()).getDisplayValues();
+  let row = -1, prevNum = 0, dupRow = -1, freeRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    const r = data[i], id = String(r[cols.id - 1]).trim(), un = lc(r[cols.user - 1]);
+    prevNum = Math.max(prevNum, Number(id.replace(/\D/g, '')) || 0);
+    if (!isNew && id === String(f.id)) row = i + 1;
+    if (un && un === lc(username)) dupRow = i + 1;
+    if (!un && freeRow < 0) freeRow = i + 1;
+  }
+  if (dupRow > 0 && dupRow !== row) throw new Error('This username is already used');
+  if (!isNew && row < 0) throw new Error('Employee not found — reload the list');
+  if (!isNew && lc(username) === lc(user.username) && (!active || role !== user.role)) throw new Error('You cannot deactivate yourself or change your own role');
+  if (isNew) row = freeRow > 0 ? freeRow : data.length + 1;
+
+  const put = (c, v) => sh.getRange(row, c).setValue(v);
+  if (isNew) put(cols.id, 'U' + String(prevNum + 1).padStart(3, '0'));
+  put(cols.name, name); put(cols.role, role); put(cols.equipment, equipment); put(cols.user, username);
+  if (pin) { sh.getRange(row, cols.pin).setNumberFormat('@'); put(cols.pin, pin); }
+  put(cols.active, active ? 'Yes' : 'No');
+  put(cols['perm.tasks'], perms.tasks ? 'Yes' : 'No');
+  put(cols['perm.equipment'], perms.equipment ? 'Yes' : 'No');
+  put(cols['perm.spares'], perms.spares ? 'Yes' : 'No');
+  CacheService.getScriptCache().remove('users_v1');
+  return { ok: true, id: String(sh.getRange(row, cols.id).getDisplayValue()), row: row };
+}
+
+/* ---- equipment (original "Equipments and system in Holoul factory" sheet) ---- */
+
+const equipSheet = () => SpreadsheetApp.openById(props().getProperty('EQUIPMENT_SS_ID') || EQUIPMENT_ID).getSheets()[0];
+const equipmentKey = (no, name) => safeKey(no && !/^-+$/.test(no) ? no : name);
+
+function equipmentSave(user, f) {
+  if (!canEditEquipment(user)) throw new Error('You do not have permission to change equipment');
+  f = f || {};
+  const sh = equipSheet();
+  const cols = findCols(sh, EQUIP_SPEC, true);
+  const isNew = !f.row;
+  const name = clean(f.name, 120), line = clean(f.line, 80), no = clean(f.no, 60).replace(/^-+$/, '');
+  const loc = clean(f.location, 40), cat = clean(f.category, 80);
+  if (!name) throw new Error('Enter the equipment name');
+  if (!line) throw new Error('Choose the line / system');
+  const photo = f.photo ? photoBlob(f.photo) : null;
+  if (isNew && !photo) throw new Error('Add a main photo for the new equipment');
+  const row = isNew ? sh.getLastRow() + 1 : checkRow(sh, f.row);
+  let oldKey = '';
+  if (!isNew) {
+    const cur = sh.getRange(row, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
+    oldKey = equipmentKey(String(cur[cols.no - 1] || '').trim(), String(cur[cols.name - 1] || '').trim());
+  }
+  const newKey = equipmentKey(no, name);
+  const put = (c, v) => sh.getRange(row, c).setValue(v);
+  put(cols.loc, loc); put(cols.line, line); put(cols.name, name); put(cols.no, no); put(cols.cat, cat);
+  if (isNew) put(cols.rec, 'Active');
+  if (oldKey && oldKey !== newKey) renameItemFolder('equipment', oldKey, newKey);
+  if (photo) saveItemPhoto('equipment', newKey, 'main', photo);
+  CacheService.getScriptCache().remove('equip_v1');
+  return { ok: true, row: row, key: newKey };
+}
+
+/** Soft delete (status Deleted) or restore (status Active). */
+function equipmentStatus(user, row, status) {
+  if (!canEditEquipment(user)) throw new Error('You do not have permission to change equipment');
+  if (status !== 'Active' && status !== 'Deleted') throw new Error('Unknown status');
+  const sh = equipSheet();
+  const cols = findCols(sh, EQUIP_SPEC, true);
+  sh.getRange(checkRow(sh, row), cols.rec).setValue(status);
+  CacheService.getScriptCache().remove('equip_v1');
+  return { ok: true };
+}
+
+/* ---- spare parts (Maintainance Inventory: electrical and mechanical tabs) ---- */
+
+const spareSheet = kind => {
+  const ss = SpreadsheetApp.openById(props().getProperty('SPARES_SS_ID') || SPARES_ID);
+  const sh = ss.getSheetById(kind === 'mechanical' ? SPARES_MECH_GID : SPARES_ELECT_GID);
+  if (!sh) throw new Error('Spare parts tab not found in the inventory sheet');
+  return sh;
+};
+const spareKey = (kind, no) => safeKey((kind === 'mechanical' ? 'M-' : 'E-') + String(no || '').trim());
+const recordStatusIndex = head => head.map(h => lc(h)).indexOf('record status');
+
+/** First electrical row with no part number, description and quantity (or the row after the last). */
+function electricalSlot(sh, cols) {
+  const last = sh.getLastRow();
+  if (last >= 2) {
+    const vals = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getDisplayValues();
+    for (let i = 0; i < vals.length; i++) {
+      const r = vals[i];
+      if (!String(r[cols.no - 1]).trim() && !String(r[cols.desc - 1]).trim() && !String(r[cols.qty - 1]).trim()) return i + 2;
+    }
+  }
+  return last + 1;
+}
+
+function spareSave(user, f) {
+  if (!canEditSpares(user)) throw new Error('You do not have permission to change spare parts');
+  f = f || {};
+  const kind = f.kind === 'mechanical' ? 'mechanical' : 'electrical';
+  const sh = spareSheet(kind);
+  const isNew = !f.row;
+  const no = clean(f.no, 60);
+  if (!no) throw new Error('Enter the part number');
+  const photo = f.photo ? photoBlob(f.photo) : null;
+  if (isNew && !photo) throw new Error('Add a main photo for the new spare part');
+  const res = kind === 'mechanical' ? saveMechanical(sh, f, no, isNew) : saveElectrical(sh, f, no, isNew);
+  if (res.oldKey && res.oldKey !== res.key) renameItemFolder('spare', res.oldKey, res.key);
+  if (photo) saveItemPhoto('spare', res.key, 'main', photo);
+  CacheService.getScriptCache().remove('spares_v1');
+  return { ok: true, row: res.row, key: res.key };
+}
+
+function saveElectrical(sh, f, no, isNew) {
+  const cols = findCols(sh, SPARE_E_SPEC, true);
+  const desc = clean(f.desc, 200), brand = clean(f.brand, 60);
+  if (!desc) throw new Error('Enter the description');
+  const qty = numCell(f.qty, 'Quantity');
+  const row = isNew ? electricalSlot(sh, cols) : checkRow(sh, f.row);
+  let oldKey = '';
+  if (!isNew) oldKey = spareKey('electrical', sh.getRange(row, cols.no).getDisplayValue());
+  const put = (c, v) => sh.getRange(row, c).setValue(v);
+  put(cols.no, no); put(cols.brand, brand); put(cols.desc, desc); put(cols.qty, qty);
+  if (isNew) {
+    if (!String(sh.getRange(row, 1).getDisplayValue()).trim()) put(1, row - 1);   // the "#" column
+    put(cols.rec, 'Active');
+  }
+  return { row: row, oldKey: oldKey, key: spareKey('electrical', no) };
+}
+
+function saveMechanical(sh, f, no, isNew) {
+  const cols = findCols(sh, SPARE_M_SPEC, true);
+  const name = clean(f.name, 200), machine = clean(f.machine, 80);
+  if (!name) throw new Error('Enter the part name');
+  const req = numCell(f.required, 'Required qty'), avail = numCell(f.available, 'Available qty'), used = numCell(f.used, 'Used qty');
+  const row = isNew ? sh.getLastRow() + 1 : checkRow(sh, f.row);
+  let oldKey = '';
+  if (!isNew) oldKey = spareKey('mechanical', sh.getRange(row, cols.no).getDisplayValue());
+  const put = (c, v) => sh.getRange(row, c).setValue(v);
+  put(cols.no, no); put(cols.name, name); put(cols.required, req); put(cols.available, avail); put(cols.used, used); put(cols.machine, machine);
+  if (isNew) {
+    // same formulas as the rows above (Remaining = Available - Used, Status against Required)
+    put(cols.remaining, '=' + colLetter(cols.available) + row + '-' + colLetter(cols.used) + row);
+    put(cols.status, '=IF(' + colLetter(cols.remaining) + row + '<' + colLetter(cols.required) + row + ',"LOW STOCK","OK")');
+    put(cols.rec, 'Active');
+  }
+  return { row: row, oldKey: oldKey, key: spareKey('mechanical', no) };
+}
+
+function spareStatus(user, kind, row, status) {
+  if (!canEditSpares(user)) throw new Error('You do not have permission to change spare parts');
+  if (status !== 'Active' && status !== 'Deleted') throw new Error('Unknown status');
+  const k = kind === 'mechanical' ? 'mechanical' : 'electrical';
+  const sh = spareSheet(k);
+  const cols = findCols(sh, k === 'mechanical' ? SPARE_M_SPEC : SPARE_E_SPEC, true);
+  sh.getRange(checkRow(sh, row), cols.rec).setValue(status);
+  CacheService.getScriptCache().remove('spares_v1');
+  return { ok: true };
+}
+

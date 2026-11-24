@@ -1,6 +1,7 @@
-/* Holoul Maintenance — dashboard for the Supervisor / Operations Manager.
- * Computer: sidebar + wide layout. Phone: same sections as tabs.
- * Uses helpers from index.html (t, esc, HS, session, showView, toast, ...). */
+/* Holoul Maintenance — dashboard (app v13).
+ * Supervisor / Operations Manager: every section.
+ * Technician / operator: only the sections their rights open (Equipment, Spare parts) and New task.
+ * Uses helpers from index.html (t, esc, HS, session, showView, toast, loadImage, scaled, roleName, modName, ...). */
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -76,6 +77,7 @@
   .btn{height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-weight:600;font-size:14px;padding:0 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:var(--shadow)}
   .btn svg{width:17px;height:17px;stroke:currentColor}
   .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn:disabled{opacity:.55;cursor:default}
   .btn.spin svg{animation:dspin 1s linear infinite} @keyframes dspin{to{transform:rotate(360deg)}}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:18px}
   .kpi{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);text-align:start;color:var(--text)}
@@ -135,7 +137,7 @@
   .tform label{margin-bottom:6px}
   .tform .primary{margin-top:6px}
   .dangerbtn{height:44px;border-radius:12px;border:1px solid var(--bad-line);background:var(--bad-bg);color:var(--err);font-weight:700;cursor:pointer;width:100%}
-  .dact{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .dact{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
   .reass{display:flex;gap:8px} .reass select{flex:1;margin:0}
   .eqlist{max-height:250px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;margin:-4px 0 12px;background:var(--panel)}
   .eqlist:empty{display:none}
@@ -168,6 +170,8 @@
   .dtable tr.grp td{background:var(--panel2);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:6px 8px}
   .dtable small{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:2px}
   .clickrow{cursor:pointer} .clickrow:hover td{background:var(--accent-soft)}
+  .dtable tr.off td{color:var(--muted)}
+  .deltag{display:inline-block;font-size:11px;font-weight:700;background:var(--bad-bg);color:var(--bad-text);border-radius:999px;padding:2px 8px;margin-inline-start:6px;vertical-align:middle}
   .eqno{font-weight:700;color:var(--accent);direction:ltr;unicode-bidi:isolate;white-space:nowrap}
   .eqback{margin-bottom:12px}
   .eqhead{margin-bottom:14px} .eqhead h3{font-size:18px;margin:0}
@@ -179,9 +183,21 @@
   .spseg span{font-size:11px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:1px 7px}
   .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;margin-inline-start:4px}
   .spsum{margin:-2px 2px 10px}
-  .toolbar .chk input[type=checkbox]{width:18px;height:18px;margin:0;padding:0;flex:none;accent-color:var(--brand)}
+  .toolbar .chk input[type=checkbox],.chkrow input[type=checkbox]{width:18px;height:18px;margin:0;padding:0;flex:none;accent-color:var(--brand)}
   .spst{font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap;color:var(--ok-text);background:var(--ok-bg)}
-  .spst.low{color:var(--err);background:color-mix(in srgb,var(--err) 12%,transparent)}`;
+  .spst.low{color:var(--err);background:color-mix(in srgb,var(--err) 12%,transparent)}
+  .chkrow{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:14px;font-weight:600;cursor:pointer}
+  .chkrow small{display:block;color:var(--muted);font-weight:500;font-size:12px}
+  .chkrow:has(input:disabled){opacity:.6;cursor:default}
+  .fnote{font-size:12px;color:var(--muted);margin:6px 0 12px;line-height:1.45}
+  .phrow{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .phrow .mini{flex:1;min-width:120px}
+  .gal{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .gslot{position:relative;aspect-ratio:4/3;border-radius:12px;border:1px dashed var(--line);background:var(--panel2);overflow:hidden;display:grid;place-items:center;color:var(--muted);font-size:12px;text-align:center;padding:6px}
+  .gslot.main{border-style:solid}
+  .gslot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+  .gslot .cap{position:absolute;inset-inline-start:6px;top:6px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;border-radius:999px;padding:2px 8px;pointer-events:none}
+  .gslot .btn{position:absolute;bottom:6px;inset-inline-end:6px;height:30px;font-size:12px;padding:0 10px;box-shadow:none}`;
   if (!$('dashStyle')) { const st = document.createElement('style'); st.id = 'dashStyle'; st.textContent = css; document.head.appendChild(st); }
 
   Object.assign(I18N.en, {
@@ -194,7 +210,20 @@
     spOutOnly:'Out of stock only', spParts:'{n} parts', spLowN:'{n} low stock', spOutN:'{n} out of stock', spEmpty:'No parts match your search',
     spLoading:'Loading spare parts…', spErr:'Spare parts could not be loaded: {e}', spOK:'OK', spLow:'Low stock',
     spPartNo:'Part no.', spItemNo:'Part / item no.', spName:'Part', spBrand:'Brand', spDesc:'Description', spQty:'Qty', spReq:'Required',
-    spAvail:'Available', spUsed:'Used', spRem:'Remaining', spStatus:'Status', spMachine:'Machine'
+    spAvail:'Available', spUsed:'Used', spRem:'Remaining', spStatus:'Status', spMachine:'Machine',
+    dAddEq:'Add equipment', dEditEq:'Edit equipment', dEqDel:'Delete', dEqRestore:'Restore', dEqDelSure:'Tap again to delete', dShowDel:'Show deleted', dDeleted:'Deleted',
+    dEqfName:'Equipment name', dEqfLine:'Line / system', dEqfNo:'Number', dEqfLoc:'Location', dEqfCat:'Category',
+    dEqfPhotoNew:'Main photo (required)', dEqfPhoto:'Main photo', dChoosePhoto:'Choose photo', dPhotoSel:'Photo selected', dKeepPhoto:'Keep the current photo',
+    dSaveEq:'Save equipment', dSavePart:'Save part', dCancel:'Cancel', dNeedVal:'Fill in the required fields', dLoadEq:'Loading equipment…', dLoadSp:'Loading spare parts…',
+    dPhotos:'Photos', dPhMain:'Main', dPhX1:'Detail 1', dPhX2:'Detail 2', dPhAdd:'Add photo', dPhReplace:'Replace', dPhNone:'No photo', dPhLoading:'Loading photos…',
+    dPhErr:'Photos could not be loaded: {e}', dPhBusy:'Saving photo…', dPhDone:'Photo saved', dPhBad:'Choose an image file',
+    dAddPart:'Add part', dEditPart:'Edit part', dPartNew:'New part', dSpfNo:'Part / item number', dSpfBrand:'Brand', dSpfDesc:'Description', dSpfQty:'Quantity',
+    dSpfName:'Part name', dSpfReq:'Required qty', dSpfAvail:'Available qty', dSpfUsed:'Used qty', dSpfMachine:'Machine', dSpDel:'Delete part',
+    dEmp:'Employees', dAddEmp:'Add employee', dEditEmp:'Edit employee', dNewEmp:'New employee', dEmpName:'Full name', dEmpUser:'Username', dEmpRole:'Role',
+    dEmpEq:'Equipment (operators)', dEmpPin:'PIN (4 to 8 digits)', dEmpPinKeep:'New PIN (leave blank to keep the current one)', dEmpActive:'Active',
+    dEmpPerms:'Extra rights', dPermTasks:'Create tasks', dPermEq:'Edit equipment', dPermSp:'Edit spare parts', dPermMgr:'Supervisors and operations managers always have all rights',
+    dEmpSave:'Save employee', dSelfNote:'You cannot deactivate yourself or change your own role', dRights:'Rights', dAllRights:'All rights',
+    dActive:'Active', dInactive:'Inactive', dNoRights:'—', dLoadTeam:'Loading the team…', dPerf:'Performance'
   });
   Object.assign(I18N.ar, {
     dEquip:'المعدات', dSpares:'قطع الغيار', eqAll:'كل المعدات', eqJobs:'الأعمال', eqOpenCol:'مفتوحة', eqLastDone:'آخر إنجاز',
@@ -206,7 +235,20 @@
     spOutOnly:'المنتهي فقط', spParts:'{n} قطعة', spLowN:'{n} منخفضة', spOutN:'{n} منتهية', spEmpty:'لا توجد قطع مطابقة للبحث',
     spLoading:'جارٍ تحميل قطع الغيار…', spErr:'تعذّر تحميل قطع الغيار: {e}', spOK:'متوفرة', spLow:'منخفضة',
     spPartNo:'رقم القطعة', spItemNo:'رقم القطعة / الصنف', spName:'القطعة', spBrand:'الماركة', spDesc:'الوصف', spQty:'الكمية', spReq:'المطلوب',
-    spAvail:'المتوفر', spUsed:'المستخدم', spRem:'المتبقي', spStatus:'الحالة', spMachine:'الماكينة'
+    spAvail:'المتوفر', spUsed:'المستخدم', spRem:'المتبقي', spStatus:'الحالة', spMachine:'الماكينة',
+    dAddEq:'إضافة معدة', dEditEq:'تعديل المعدة', dEqDel:'حذف', dEqRestore:'استرجاع', dEqDelSure:'اضغط مرة أخرى للحذف', dShowDel:'عرض المحذوف', dDeleted:'محذوف',
+    dEqfName:'اسم المعدة', dEqfLine:'الخط / النظام', dEqfNo:'الرقم', dEqfLoc:'الموقع', dEqfCat:'التصنيف',
+    dEqfPhotoNew:'الصورة الرئيسية (مطلوبة)', dEqfPhoto:'الصورة الرئيسية', dChoosePhoto:'اختر صورة', dPhotoSel:'تم اختيار الصورة', dKeepPhoto:'الإبقاء على الصورة الحالية',
+    dSaveEq:'حفظ المعدة', dSavePart:'حفظ القطعة', dCancel:'إلغاء', dNeedVal:'املأ الحقول المطلوبة', dLoadEq:'جارٍ تحميل المعدات…', dLoadSp:'جارٍ تحميل قطع الغيار…',
+    dPhotos:'الصور', dPhMain:'رئيسية', dPhX1:'تفصيل 1', dPhX2:'تفصيل 2', dPhAdd:'إضافة صورة', dPhReplace:'استبدال', dPhNone:'لا توجد صورة', dPhLoading:'جارٍ تحميل الصور…',
+    dPhErr:'تعذّر تحميل الصور: {e}', dPhBusy:'جارٍ حفظ الصورة…', dPhDone:'تم حفظ الصورة', dPhBad:'اختر ملف صورة',
+    dAddPart:'إضافة قطعة', dEditPart:'تعديل القطعة', dPartNew:'قطعة جديدة', dSpfNo:'رقم القطعة / الصنف', dSpfBrand:'الماركة', dSpfDesc:'الوصف', dSpfQty:'الكمية',
+    dSpfName:'اسم القطعة', dSpfReq:'الكمية المطلوبة', dSpfAvail:'الكمية المتوفرة', dSpfUsed:'الكمية المستخدمة', dSpfMachine:'الماكينة', dSpDel:'حذف القطعة',
+    dEmp:'الموظفون', dAddEmp:'إضافة موظف', dEditEmp:'تعديل الموظف', dNewEmp:'موظف جديد', dEmpName:'الاسم الكامل', dEmpUser:'اسم المستخدم', dEmpRole:'الوظيفة',
+    dEmpEq:'المعدة (للمشغلين)', dEmpPin:'الرمز السري (4 إلى 8 أرقام)', dEmpPinKeep:'رمز سري جديد (اتركه فارغاً للإبقاء على الحالي)', dEmpActive:'نشط',
+    dEmpPerms:'صلاحيات إضافية', dPermTasks:'إنشاء المهام', dPermEq:'تعديل المعدات', dPermSp:'تعديل قطع الغيار', dPermMgr:'المشرف والمدير العام لديهم كل الصلاحيات دائماً',
+    dEmpSave:'حفظ الموظف', dSelfNote:'لا يمكنك تعطيل حسابك أو تغيير وظيفتك', dRights:'الصلاحيات', dAllRights:'كل الصلاحيات',
+    dActive:'نشط', dInactive:'موقوف', dNoRights:'—', dLoadTeam:'جارٍ تحميل الفريق…', dPerf:'الأداء'
   });
 
   const ICON = {
@@ -229,42 +271,65 @@
   const TITLE = { overview: 'dOverview', tasks: 'dTasks', equipment: 'dEquip', spares: 'dSpares', team: 'dTeam', monthly: 'dMonthly' };
 
   let data = null, section = 'overview', loading = false, loadErr = false, timer = null, month = null, who = '', q = '', lineF = '';
+  let pendingNew = false;
   const key = () => `dash:${me()}`;
   const nameOf = u => { const p = data && data.people.find(x => x.username.toLowerCase() === String(u || '').toLowerCase()); return p ? p.name : u; };
   const monthName = m => { try { return new Date(m + '-15T12:00:00').toLocaleDateString(LANG === 'ar' ? 'ar-u-nu-latn-ca-gregory' : 'en-GB', { month: 'long', year: 'numeric' }); } catch (e) { return m; } };
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
+  /* ---------- who may see what ---------- */
+  const isMgr = () => isManagerUser();
+  const perm = k => isMgr() || !!(session && session.user && session.user.perms && session.user.perms[k]);
+  const canEq = () => perm('equipment');
+  const canSp = () => perm('spares');
+  const canTask = () => perm('tasks');
+  const isMgrRole = r => /^(Supervisor|Operations Manager)$/.test(r);
+  /** Sections this user may open, in menu order. */
+  const visible = () => SECTIONS.filter(s => (s === 'equipment' && canEq()) || (s === 'spares' && canSp()) ||
+    (isMgr() && (s === 'overview' || s === 'tasks' || s === 'team' || s === 'monthly')));
+
   async function open(sec) {
-    if (SECTIONS.indexOf(sec) >= 0) section = sec;
+    if (sec === 'newtask') pendingNew = true;
+    else if (SECTIONS.indexOf(sec) >= 0) section = sec;
+    if (visible().indexOf(section) < 0) section = visible()[0] || 'overview';
     showView('dash');
-    if (!data) { try { const c = await HS.kv.get(key()); if (c && c.data) data = c.data; } catch (e) {} }
+    if (!data && isMgr()) { try { const c = await HS.kv.get(key()); if (c && c.data) data = c.data; } catch (e) {} }
     render();
     load();
     clearInterval(timer);
     timer = setInterval(() => { if (document.visibilityState === 'visible' && !$('dash').classList.contains('hidden')) load(); }, 120000);
+    if (pendingNew) { pendingNew = false; taskForm(null).catch(() => {}); }
   }
   async function load() {
-    if (loading || !session) return;
+    if (loading || !session || !isMgr()) return;
     loading = true; spin(true);
     try {
       const r = await HS.api('dashboard', {}, 45000);
-      if (r && r.ok) { data = r; loadErr = false; HS.kv.set(key(), { data: r, at: Date.now() }).catch(() => {}); }
+      if (r && r.ok) { data = r; loadErr = false; mergeStats(); HS.kv.set(key(), { data: r, at: Date.now() }).catch(() => {}); }
       else { loadErr = true; if (r && r.error) toast(trErr(r.error)); }
     } catch (e) { loadErr = true; if (e.auth) { authLost = true; syncUI(); } }
     loading = false;
     if (!$('dash').classList.contains('hidden')) render();
   }
   function spin(on) { const b = $('dRefresh'); if (b) b.classList.toggle('spin', on); }
+  function refreshCurrent() {
+    if (isMgr()) load();
+    if (section === 'equipment') { loadEquip(true); if (eqSel) { eqHistKey = ''; ensureHist(eqSel); } }
+    if (section === 'spares') loadSpares(true);
+    if (section === 'team') loadTeam(true);
+  }
 
   function render() {
     const u = session && session.user;
     if (!u) return;
     const tasks = data ? data.tasks : [];
     const activeCount = tasks.filter(x => x.status === 'Open' || x.status === 'In progress').length;
-    const nav = SECTIONS.map(s => `<button type="button" data-sec="${s}" class="${s === section ? 'on' : ''}">${svg(s)}<span>${esc(t(TITLE[s]))}</span>${s === 'tasks' && activeCount ? `<span class="cnt">${activeCount}</span>` : ''}</button>`).join('');
+    const vis = visible();
+    const nav = vis.map(s => `<button type="button" data-sec="${s}" class="${s === section ? 'on' : ''}">${svg(s)}<span>${esc(t(TITLE[s]))}</span>${s === 'tasks' && activeCount ? `<span class="cnt">${activeCount}</span>` : ''}</button>`).join('');
     const pages = ['Amp Rec', 'Vibration Rec', 'Thermo Rec'].filter(p => (u.access || []).indexOf(p) >= 0)
       .map(p => `<button type="button" data-page="${esc(p)}">${svg('page')}<span>${esc(modName(p))}</span></button>`).join('');
     const updated = data ? t('dUpdated', { t: fmtStamp(data.generatedAt) }) : '';
+    const needData = !data && isMgr() && section !== 'equipment' && section !== 'spares' && section !== 'team';
     $('dash').innerHTML = `
       <div class="dsh">
         <aside class="dside">
@@ -280,16 +345,16 @@
             <h2>${esc(t(TITLE[section]))}</h2>
             <button class="iconbtn sm" type="button" data-act="settings" aria-label="${esc(t('settings'))}">${svg('gear')}</button>
           </div>
-          <div class="dtabs">${SECTIONS.map(s => `<button type="button" data-sec="${s}" class="${s === section ? 'on' : ''}">${esc(t(TITLE[s]))}</button>`).join('')}</div>
+          <div class="dtabs">${vis.map(s => `<button type="button" data-sec="${s}" class="${s === section ? 'on' : ''}">${esc(t(TITLE[s]))}</button>`).join('')}</div>
           <header class="dhead">
             <div><h1>${esc(t(TITLE[section]))}</h1><small>${esc(longDate())}${updated ? ' · ' + esc(updated) : ''}</small></div>
             <div class="dtools">
               <button class="btn" type="button" id="dRefresh">${svg('refresh')}<span>${esc(t('dRefresh'))}</span></button>
-              <button class="btn pri" type="button" data-act="new">${svg('plus', 2.4)}<span>${esc(t('dNewTask'))}</span></button>
+              ${canTask() ? `<button class="btn pri" type="button" data-act="new">${svg('plus', 2.4)}<span>${esc(t('dNewTask'))}</span></button>` : ''}
             </div>
           </header>
           ${loadErr && data ? `<div class="dnote">${esc(t('dashLoadErr'))}</div>` : ''}
-          <div id="dBody">${data ? body() : `<div class="dempty">${esc(loading ? t('dLoading') : t('dashEmpty'))}</div>`}</div>
+          <div id="dBody">${needData ? `<div class="dempty">${esc(loading ? t('dLoading') : t('dashEmpty'))}</div>` : body()}</div>
         </main>
       </div>`;
     spin(loading);
@@ -298,12 +363,8 @@
     D.querySelectorAll('[data-page]').forEach(b => b.onclick = () => openRecord(b.dataset.page));
     D.querySelectorAll('[data-act="settings"]').forEach(b => b.onclick = openSettings);
     D.querySelectorAll('[data-act="app"]').forEach(b => b.onclick = () => showHome(true));
-    D.querySelectorAll('[data-act="new"]').forEach(b => b.onclick = () => taskForm(null));
-    $('dRefresh').onclick = () => {
-      load();
-      if (section === 'spares') loadSpares(true);
-      if (section === 'equipment' && eqSel) { eqHistKey = ''; ensureHist(eqSel); }
-    };
+    D.querySelectorAll('[data-act="new"]').forEach(b => b.onclick = () => taskForm(null).catch(() => {}));
+    $('dRefresh').onclick = refreshCurrent;
     D.querySelectorAll('[data-tid]').forEach(b => b.onclick = () => taskDetail(b.dataset.tid));
     D.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { section = b.dataset.go; render(); });
     D.querySelectorAll('[data-month]').forEach(b => b.onclick = () => { month = b.dataset.month; render(); });
@@ -311,11 +372,13 @@
     const fl = $('dLine'); if (fl) fl.onchange = () => { lineF = fl.value; render(); };
     const fq = $('dQ'); if (fq) { fq.oninput = () => { q = fq.value; renderBoardOnly(); }; }
     bindEquipment();
-    D.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { spTab = b.dataset.sp; render(); });
-    const sq = $('spQ'); if (sq) sq.oninput = () => { spQ = sq.value; $('spBody').innerHTML = spTable(); };
-    const sl = $('spLow'); if (sl) sl.onchange = () => { spLow = sl.checked; $('spBody').innerHTML = spTable(); };
+    bindSpares();
+    bindTeam();
+    D.querySelectorAll('[data-ph]').forEach(b => b.onclick = () => addPhoto(b.dataset.ph));
+    D.querySelectorAll('[data-img]').forEach(b => b.onclick = () => window.open(b.dataset.img, '_blank', 'noopener'));
   }
   function body() {
+    if (visible().indexOf(section) < 0) return `<div class="dempty">${esc(t('noData'))}</div>`;
     if (section === 'tasks') return tasksView();
     if (section === 'team') return teamView();
     if (section === 'monthly') return monthlyView();
@@ -324,17 +387,97 @@
     return overview();
   }
 
-  /* ---------- equipment: systems -> equipment -> maintenance history ---------- */
+  /* ---------- shared: photos (Drive, one main + up to two details) ---------- */
+  const filePick = document.createElement('input');
+  filePick.type = 'file'; filePick.accept = 'image/*'; filePick.className = 'hidden'; filePick.id = 'dashPick';
+  document.body.appendChild(filePick);
+  function pickFile() {
+    return new Promise(res => { filePick.value = ''; filePick.onchange = () => res(filePick.files[0] || null); filePick.click(); });
+  }
+  async function photoFrom(file) { const img = await loadImage(file); return scaled(img, 1600, 0.82); }
+
+  let phState = { id: '', photos: null, err: '' };
+  const eqPhotoKey = e => (e.no && !/^-+$/.test(e.no)) ? e.no : e.name;
+  const spPhotoKey = p => (p.kind === 'mechanical' ? 'M-' : 'E-') + String(p.no || '').trim();
+  function ensurePhotos(kind, key) {
+    const id = kind + '|' + key;
+    if (phState.id === id) return;
+    phState = { id: id, photos: null, err: '' };
+    HS.api('itemPhotos', { kind: kind, key: key }, 45000).then(r => {
+      if (phState.id !== id) return;
+      if (r && r.ok) phState.photos = r.photos || {}; else phState.err = r && r.error ? trErr(r.error) : '';
+    }).catch(err => {
+      if (phState.id === id) phState.err = err.message || String(err);
+      if (err.auth) { authLost = true; syncUI(); }
+    }).finally(() => { if (!$('dash').classList.contains('hidden')) render(); });
+  }
+  function gallery(canEdit) {
+    if (phState.photos === null) return `<div class="dempty">${esc(phState.err ? t('dPhErr', { e: phState.err }) : t('dPhLoading'))}</div>`;
+    const ph = phState.photos;
+    const slots = [['main', 'dPhMain'], ['extra1', 'dPhX1'], ['extra2', 'dPhX2']];
+    return `<div class="gal">${slots.map(([slot, lab]) => {
+      const p = ph[slot];
+      const img = p && p.thumb ? `<img src="${p.thumb}" alt="" data-img="${esc(p.url || p.thumb)}">` : `<span>${esc(t('dPhNone'))}</span>`;
+      const btn = canEdit ? `<button type="button" class="btn" data-ph="${slot}">${esc(t(p ? 'dPhReplace' : 'dPhAdd'))}</button>` : '';
+      return `<div class="gslot ${slot === 'main' ? 'main' : ''}">${img}<span class="cap">${esc(t(lab))}</span>${btn}</div>`;
+    }).join('')}</div>`;
+  }
+  async function addPhoto(slot) {
+    const i = phState.id.indexOf('|');
+    if (i < 0) return;
+    const kind = phState.id.slice(0, i), key = phState.id.slice(i + 1);
+    const f = await pickFile();
+    if (!f) return;
+    toast(t('dPhBusy'));
+    try {
+      const data = await photoFrom(f);
+      const r = await HS.api('itemPhotoSave', { kind: kind, key: key, slot: slot, data: data }, 90000);
+      if (!r || !r.ok) { toast(trErr(r && r.error) || t('needOnline')); return; }
+      toast(t('dPhDone'));
+      phState = { id: '', photos: null, err: '' };
+      ensurePhotos(kind, key);
+    } catch (err) {
+      toast(err.auth ? t('sessionExpired') : (/image/i.test(err.message || '') ? t('dPhBad') : t('needOnline')));
+    }
+  }
+
+  /* ---------- equipment: systems -> equipment -> details, photos, history ---------- */
   let eqQ = '', eqLineF = '', eqLocF = '', eqSel = null, eqShown = [], eqHist = null, eqHistKey = '', eqHistErr = '', eqOpen = {};
-  let spData = null, spLoading = false, spErr = '', spTab = 'electrical', spQ = '', spLow = false;
+  let eqAll = null, eqErr = '', eqLoading = false, eqShowDel = false;
+  let spData = null, spLoading = false, spErr = '', spTab = 'electrical', spQ = '', spLow = false, spShowDel = false, spSel = null, spShown = [];
+  let armKey = '';
   const eqKey = e => [e.no, e.name, e.line, e.loc].join('|');
   const isLowM = p => /low/i.test(p.status || '');
   const isOutE = p => p.qty !== '' && Number(p.qty) <= 0;
   const evLabel = a => ['Created', 'Started', 'Done', 'Cancelled', 'Reopened', 'Edited'].indexOf(a) >= 0 ? t('ev.' + a) : a;
+  /** Active equipment (for pickers). */
+  const eqActive = () => (eqAll || (data && data.equipment) || []).filter(e => !e.deleted);
+  const eqSource = () => eqShowDel ? (eqAll || (data && data.equipment) || []) : eqActive();
 
+  /** Job counts come from the dashboard (managers only); copy them onto the equipment list by name / number / system / location. */
+  function mergeStats() {
+    if (!eqAll || !data || !data.equipment) return;
+    const st = {};
+    data.equipment.forEach(x => { st[eqKey(x)] = x; });
+    eqAll.forEach(e => { const s = st[eqKey(e)]; if (s) { e.jobs = s.jobs; e.open = s.open; e.lastDone = s.lastDone; } });
+  }
+  function loadEquip(force) {
+    if (eqLoading) return Promise.resolve();
+    eqLoading = true; eqErr = '';
+    return HS.api('equipment', { all: canEq(), fresh: !!force }, 45000).then(r => {
+      if (r && r.ok) {
+        eqAll = r.equipment || [];
+        mergeStats();
+        if (eqSel) eqSel = eqAll.find(x => x.row === eqSel.row) || null;
+      } else eqErr = r && r.error ? trErr(r.error) : '';
+    }).catch(err => {
+      eqErr = err.message || String(err);
+      if (err.auth) { authLost = true; syncUI(); }
+    }).finally(() => { eqLoading = false; if (!$('dash').classList.contains('hidden')) render(); });
+  }
   function eqFiltered() {
     const s = eqQ.trim().toLowerCase();
-    return (data.equipment || []).filter(e => (!eqLineF || e.line === eqLineF) && (!eqLocF || e.loc === eqLocF) &&
+    return eqSource().filter(e => (!eqLineF || e.line === eqLineF) && (!eqLocF || e.loc === eqLocF) &&
       (!s || [e.name, e.no, e.line, e.loc, e.cat].join(' ').toLowerCase().indexOf(s) >= 0))
       .sort((a, b) => String(a.line).localeCompare(String(b.line)) || String(a.loc).localeCompare(String(b.loc)));
   }
@@ -345,7 +488,7 @@
     eqShown.forEach((e, i) => {
       const g = (e.line || '—') + (e.loc ? ' · ' + e.loc : '');
       if (g !== grp) { grp = g; rows += `<tr class="grp"><td colspan="6">${esc(g)}</td></tr>`; }
-      rows += `<tr class="clickrow" data-eqi="${i}"><td><b>${esc(e.name)}</b>${e.cat ? `<small>${esc(e.cat)}</small>` : ''}</td>
+      rows += `<tr class="clickrow ${e.deleted ? 'off' : ''}" data-eqi="${i}"><td><b>${esc(e.name)}</b>${e.deleted ? `<span class="deltag">${esc(t('dDeleted'))}</span>` : ''}${e.cat ? `<small>${esc(e.cat)}</small>` : ''}</td>
         <td>${e.no ? `<span class="eqno">${esc(e.no)}</span>` : '—'}</td><td>${esc(e.loc || '—')}</td>
         <td class="num">${e.jobs || 0}</td><td class="num">${e.open ? `<b>${e.open}</b>` : 0}</td>
         <td>${e.lastDone ? esc(shortDate(e.lastDone)) : '—'}</td></tr>`;
@@ -354,26 +497,33 @@
   }
   function bindEquipment() {
     const D = $('dash');
-    D.querySelectorAll('[data-eqi]').forEach(b => b.onclick = () => { eqSel = eqShown[+b.dataset.eqi]; eqHistKey = ''; eqOpen = {}; render(); window.scrollTo(0, 0); });
+    D.querySelectorAll('[data-eqi]').forEach(b => b.onclick = () => { eqSel = eqShown[+b.dataset.eqi]; eqHistKey = ''; eqOpen = {}; armKey = ''; phState = { id: '', photos: null, err: '' }; render(); window.scrollTo(0, 0); });
     D.querySelectorAll('[data-eqo]').forEach(b => b.onclick = () => { eqOpen[b.dataset.eqo] = !eqOpen[b.dataset.eqo]; render(); });
     const eb = D.querySelector('[data-eqback]'); if (eb) eb.onclick = () => { eqSel = null; render(); window.scrollTo(0, 0); };
+    D.querySelectorAll('[data-eqact]').forEach(b => b.onclick = () => eqAction(b.dataset.eqact));
+    const ab = D.querySelector('[data-act="addEq"]'); if (ab) ab.onclick = () => eqForm(null);
     const ef = $('eqQ'); if (ef) ef.oninput = () => { eqQ = ef.value; $('eqTbody').innerHTML = eqRows(); bindEquipment(); };
     const elf = $('eqLineF'); if (elf) elf.onchange = () => { eqLineF = elf.value; render(); };
     const elc = $('eqLocF'); if (elc) elc.onchange = () => { eqLocF = elc.value; render(); };
+    const dl = $('eqDel'); if (dl) dl.onchange = () => { eqShowDel = dl.checked; render(); };
   }
   function equipmentView() {
-    if (data.equipmentError) return `<div class="dnote">${esc(t('eqListErr', { e: data.equipmentError }))}</div>`;
+    if (eqAll === null) {
+      if (!eqLoading && !eqErr) loadEquip(false);
+      return eqErr ? `<div class="dnote">${esc(t('eqListErr', { e: eqErr }))}</div>` : `<div class="dempty">${esc(t('dLoadEq'))}</div>`;
+    }
     if (eqSel) return equipDetail();
-    const eq = data.equipment || [];
-    if (!eq.length) return `<div class="dempty">${esc(t('noData'))}</div>`;
-    const lines = [...new Set(eq.map(e => e.line).filter(Boolean))].sort();
-    const locs = [...new Set(eq.map(e => e.loc).filter(Boolean))].sort();
+    const eq = eqSource();
+    const lines = [...new Set(eqAll.map(e => e.line).filter(Boolean))].sort();
+    const locs = [...new Set(eqAll.map(e => e.loc).filter(Boolean))].sort();
     return `<div class="toolbar"><select id="eqLocF"><option value="">${esc(t('eqAllLoc'))}</option>${locs.map(l => `<option value="${esc(l)}" ${l === eqLocF ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
       <select id="eqLineF"><option value="">${esc(t('eqAllLine'))}</option>${lines.map(l => `<option value="${esc(l)}" ${l === eqLineF ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
-      <input id="eqQ" type="search" dir="auto" placeholder="${esc(t('eqSearch'))}" value="${esc(eqQ)}"></div>
+      <input id="eqQ" type="search" dir="auto" placeholder="${esc(t('eqSearch'))}" value="${esc(eqQ)}">
+      <label class="chk"><input type="checkbox" id="eqDel" ${eqShowDel ? 'checked' : ''}> ${esc(t('dShowDel'))}</label>
+      ${canEq() ? `<button type="button" class="btn pri" data-act="addEq">${svg('plus', 2.4)}<span>${esc(t('dAddEq'))}</span></button>` : ''}</div>
       <section class="dcard"><div class="tscroll"><table class="dtable"><thead><tr>
         <th>${esc(t('dEquip'))}</th><th>${esc(t('eqNumber'))}</th><th>${esc(t('eqLocation'))}</th><th class="num">${esc(t('eqJobs'))}</th><th class="num">${esc(t('eqOpenCol'))}</th><th>${esc(t('eqLastDone'))}</th>
-      </tr></thead><tbody id="eqTbody">${eqRows()}</tbody></table></div></section>`;
+      </tr></thead><tbody id="eqTbody">${eq.length ? eqRows() : `<tr><td colspan="6" class="dempty">${esc(t('noData'))}</td></tr>`}</tbody></table></div></section>`;
   }
   /** Loads the full history of one equipment row (all dates, all statuses) once per selection. */
   function ensureHist(e) {
@@ -391,6 +541,7 @@
   function equipDetail() {
     const e = eqSel;
     ensureHist(e);
+    ensurePhotos('equipment', eqPhotoKey(e));
     const tasks = eqHist || [];
     const done = tasks.filter(x => x.status === 'Done');
     const open = tasks.filter(x => x.status === 'Open' || x.status === 'In progress');
@@ -412,9 +563,14 @@
       : tasks.length
         ? `<div class="tscroll"><table class="dtable"><thead><tr><th>${esc(t('hCreated'))}</th><th>${esc(t('hJob'))}</th><th>${esc(t('hStatus'))}</th><th>${esc(t('hWho'))}</th><th>${esc(t('hFinished'))}</th><th>${esc(t('hNote'))}</th></tr></thead><tbody>${rows}</tbody></table></div>`
         : `<div class="dempty">${esc(t('eqHistEmpty'))}</div>`;
+    const armed = armKey === 'eq|' + eqKey(e);
+    const actions = canEq() ? `<div class="dact"><button type="button" class="ghostbtn" data-eqact="edit">${esc(t('aEdit'))}</button>
+      ${e.deleted ? `<button type="button" class="ghostbtn" data-eqact="restore">${esc(t('dEqRestore'))}</button>`
+        : `<button type="button" class="dangerbtn" data-eqact="del">${esc(armed ? t('dEqDelSure') : t('dEqDel'))}</button>`}</div>` : '';
     return `<div class="eqback"><button class="btn" type="button" data-eqback>${svg('back', 2.2)}<span>${esc(t('eqAll'))}</span></button></div>
-      <section class="dcard eqhead"><div><h3>${esc(e.name)}</h3>${e.cat ? `<small>${esc(e.cat)}</small>` : ''}</div>
-        <div class="eqmeta"><span class="chip">${esc(e.line || '—')}</span><span>${esc(e.loc || '')}</span>${e.no ? `<span class="eqno">${esc(e.no)}</span>` : ''}</div></section>
+      <section class="dcard eqhead"><div><h3>${esc(e.name)}</h3>${e.deleted ? `<span class="deltag">${esc(t('dDeleted'))}</span>` : ''}${e.cat ? `<small>${esc(e.cat)}</small>` : ''}</div>
+        <div class="eqmeta"><span class="chip">${esc(e.line || '—')}</span><span>${esc(e.loc || '')}</span>${e.no ? `<span class="eqno">${esc(e.no)}</span>` : ''}</div>${actions}</section>
+      <section class="dcard"><h4>${esc(t('dPhotos'))}</h4>${gallery(canEq())}</section>
       <div class="kpis">
         <div class="kpi"><small>${esc(t('eqJobs'))}</small><b>${eqHist ? tasks.length : '…'}</b></div>
         <div class="kpi"><small>${esc(t('eqStatDone'))}</small><b>${eqHist ? done.length : '…'}</b></div>
@@ -423,53 +579,321 @@
       </div>
       <section class="dcard"><h4>${esc(t('eqHistTitle'))}<span>${eqHist ? tasks.length : ''}</span></h4>${histBody}</section>`;
   }
+  function eqAction(a) {
+    if (!eqSel) return;
+    if (a === 'edit') return eqForm(eqSel);
+    if (a === 'del') {
+      const k = 'eq|' + eqKey(eqSel);
+      if (armKey !== k) { armKey = k; render(); return; }
+      return setEqStatus(eqSel, 'Deleted');
+    }
+    if (a === 'restore') return setEqStatus(eqSel, 'Active');
+  }
+  async function setEqStatus(e, status) {
+    try {
+      const r = await HS.api('equipmentStatus', { row: e.row, status: status }, 45000);
+      if (!r || !r.ok) { toast(trErr(r && r.error) || t('needOnline')); return; }
+      armKey = ''; toast(t('saved'));
+      await loadEquip(true);
+    } catch (err) { toast(err.auth ? t('sessionExpired') : t('needOnline')); }
+  }
 
-  /* ---------- spare parts (Maintainance Inventory sheet) ---------- */
+  /** Form for a new equipment (main photo required) or an existing one (photo optional). */
+  function eqForm(e) {
+    const isNew = !e;
+    let photo = null;
+    const all = eqAll || [];
+    const uniq = f => [...new Set(all.map(f).filter(Boolean))].sort();
+    const opts = arr => arr.map(v => `<option value="${esc(v)}"></option>`).join('');
+    showModal(`<h2>${esc(t(isNew ? 'dAddEq' : 'dEditEq'))}</h2>
+      <form class="tform" id="eqF" autocomplete="off">
+        ${fld('eqN', 'dEqfName', e ? e.name : '', { max: 120 })}
+        ${fld('eqL', 'dEqfLine', e ? e.line : '', { max: 80, list: 'eqLinesL' })}<datalist id="eqLinesL">${opts(uniq(x => x.line))}</datalist>
+        <div class="row2"><div>${fld('eqNo', 'dEqfNo', e ? e.no : '', { max: 60, ltr: true })}</div>
+          <div>${fld('eqLo', 'dEqfLoc', e ? e.loc : '', { max: 40, list: 'eqLocsL' })}<datalist id="eqLocsL">${opts(uniq(x => x.loc))}</datalist></div></div>
+        ${fld('eqC', 'dEqfCat', e ? e.cat : '', { max: 80, list: 'eqCatsL' })}<datalist id="eqCatsL">${opts(uniq(x => x.cat))}</datalist>
+        ${photoRow('eqPh', isNew)}
+        <div class="msg" id="eqMsg"></div>
+        <button class="primary" type="submit" id="eqGo">${esc(t('dSaveEq'))}</button>
+      </form>`, '');
+    $('eqPh').onclick = async () => {
+      const f = await pickFile(); if (!f) return;
+      try { photo = await photoFrom(f); $('eqPhName').textContent = t('dPhotoSel'); } catch (err) { $('eqMsg').textContent = t('dPhBad'); }
+    };
+    $('eqF').onsubmit = async ev => {
+      ev.preventDefault();
+      const item = { name: $('eqN').value.trim(), line: $('eqL').value.trim(), no: $('eqNo').value.trim(), location: $('eqLo').value.trim(), category: $('eqC').value.trim() };
+      if (!item.name || !item.line) { $('eqMsg').textContent = t('dNeedVal'); return; }
+      if (!isNew) item.row = e.row;
+      if (photo) item.photo = photo;
+      $('eqGo').disabled = true; $('eqMsg').textContent = '';
+      try {
+        const r = await HS.api('equipmentSave', { item: item }, 90000);
+        if (!r || !r.ok) { $('eqMsg').textContent = trErr(r && r.error) || t('needOnline'); $('eqGo').disabled = false; return; }
+        hideModal(); toast(t('saved'));
+        if (isNew) { eqSel = null; eqQ = ''; }
+        phState = { id: '', photos: null, err: '' };
+        eqHistKey = '';
+        await loadEquip(true);
+      } catch (err) { $('eqMsg').textContent = err.auth ? t('sessionExpired') : t('needOnline'); $('eqGo').disabled = false; }
+    };
+  }
+
+  /* ---------- spare parts (Maintainance Inventory: electrical and mechanical tabs) ---------- */
   function loadSpares(force) {
     if (spLoading) return;
     spLoading = true; spErr = '';
-    HS.api('spares', force ? { fresh: true } : {}, 45000).then(r => {
-      if (r && r.ok) spData = r.spares; else spErr = r && r.error ? trErr(r.error) : '';
+    HS.api('spares', { fresh: !!force, all: canSp() }, 45000).then(r => {
+      if (r && r.ok) { spData = r.spares; if (spSel) spSel = findSpare(spSel.kind, spSel.row); }
+      else spErr = r && r.error ? trErr(r.error) : '';
     }).catch(err => {
       spErr = err.message || String(err);
       if (err.auth) { authLost = true; syncUI(); }
     }).finally(() => { spLoading = false; if (!$('dash').classList.contains('hidden')) render(); });
   }
+  function findSpare(kind, row) {
+    const list = kind === 'mechanical' ? spData.mechanical : spData.electrical;
+    const p = list.find(x => x.row === row);
+    return p ? Object.assign({ kind: kind }, p) : null;
+  }
   function spList() {
     const s = spQ.trim().toLowerCase();
     if (spTab === 'electrical')
-      return spData.electrical.filter(p => (!s || [p.no, p.brand, p.desc].join(' ').toLowerCase().indexOf(s) >= 0) && (!spLow || isOutE(p)));
-    return spData.mechanical.filter(p => (!s || [p.no, p.name, p.machine].join(' ').toLowerCase().indexOf(s) >= 0) && (!spLow || isLowM(p)));
+      return spData.electrical.filter(p => (spShowDel || !p.deleted) && (!s || [p.no, p.brand, p.desc].join(' ').toLowerCase().indexOf(s) >= 0) && (!spLow || isOutE(p)))
+        .map(p => Object.assign({ kind: 'electrical' }, p));
+    return spData.mechanical.filter(p => (spShowDel || !p.deleted) && (!s || [p.no, p.name, p.machine].join(' ').toLowerCase().indexOf(s) >= 0) && (!spLow || isLowM(p)))
+      .map(p => Object.assign({ kind: 'mechanical' }, p));
   }
   function spTable() {
-    const list = spList();
-    if (!list.length) return `<div class="dempty">${esc(t('spEmpty'))}</div>`;
+    spShown = spList();
+    if (!spShown.length) return `<div class="dempty">${esc(t('spEmpty'))}</div>`;
     if (spTab === 'electrical') return `<table class="dtable"><thead><tr><th>${esc(t('spPartNo'))}</th><th>${esc(t('spBrand'))}</th><th>${esc(t('spDesc'))}</th><th class="num">${esc(t('spQty'))}</th></tr></thead><tbody>
-      ${list.map(p => `<tr><td><span class="eqno">${esc(p.no)}</span></td><td>${esc(p.brand || '—')}</td><td>${esc(p.desc)}</td>
+      ${spShown.map((p, i) => `<tr class="clickrow ${p.deleted ? 'off' : ''}" data-spi="${i}"><td><span class="eqno">${esc(p.no)}</span>${p.deleted ? `<span class="deltag">${esc(t('dDeleted'))}</span>` : ''}</td><td>${esc(p.brand || '—')}</td><td>${esc(p.desc)}</td>
         <td class="num ${isOutE(p) ? 'late' : ''}">${esc(p.qty || '—')}</td></tr>`).join('')}</tbody></table>`;
     return `<table class="dtable"><thead><tr><th>${esc(t('spPartNo'))}</th><th>${esc(t('spName'))}</th><th class="num">${esc(t('spReq'))}</th><th class="num">${esc(t('spAvail'))}</th>
       <th class="num">${esc(t('spUsed'))}</th><th class="num">${esc(t('spRem'))}</th><th>${esc(t('spStatus'))}</th><th>${esc(t('spMachine'))}</th></tr></thead><tbody>
-      ${list.map(p => `<tr><td><span class="eqno">${esc(p.no)}</span></td><td>${esc(p.name)}</td><td class="num">${esc(p.required || '—')}</td>
+      ${spShown.map((p, i) => `<tr class="clickrow ${p.deleted ? 'off' : ''}" data-spi="${i}"><td><span class="eqno">${esc(p.no)}</span>${p.deleted ? `<span class="deltag">${esc(t('dDeleted'))}</span>` : ''}</td><td>${esc(p.name)}</td><td class="num">${esc(p.required || '—')}</td>
         <td class="num">${esc(p.available || '—')}</td><td class="num">${esc(p.used || '—')}</td><td class="num ${isLowM(p) ? 'late' : ''}">${esc(p.remaining || '—')}</td>
         <td>${p.status ? `<span class="spst ${isLowM(p) ? 'low' : 'ok'}">${esc(isLowM(p) ? t('spLow') : t('spOK'))}</span>` : '—'}</td>
         <td>${esc(p.machine || '—')}</td></tr>`).join('')}</tbody></table>`;
   }
+  function bindSpares() {
+    const D = $('dash');
+    D.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { spTab = b.dataset.sp; render(); });
+    D.querySelectorAll('[data-spi]').forEach(b => b.onclick = () => { spSel = Object.assign({}, spShown[+b.dataset.spi]); armKey = ''; phState = { id: '', photos: null, err: '' }; render(); window.scrollTo(0, 0); });
+    D.querySelectorAll('[data-spact]').forEach(b => b.onclick = () => spAction(b.dataset.spact));
+    const sa = D.querySelector('[data-act="addSp"]'); if (sa) sa.onclick = () => spForm(null);
+    const sb = D.querySelector('[data-spback]'); if (sb) sb.onclick = () => { spSel = null; render(); window.scrollTo(0, 0); };
+    const sq = $('spQ'); if (sq) sq.oninput = () => { spQ = sq.value; $('spBody').innerHTML = spTable(); bindSpares(); };
+    const sl = $('spLow'); if (sl) sl.onchange = () => { spLow = sl.checked; $('spBody').innerHTML = spTable(); bindSpares(); };
+    const sd = $('spDel'); if (sd) sd.onchange = () => { spShowDel = sd.checked; render(); };
+  }
   function sparesView() {
     if (!spData) {
       if (spErr) return `<div class="dnote">${esc(t('spErr', { e: spErr }))}</div>`;
-      loadSpares();
-      return `<div class="dempty">${esc(t('spLoading'))}</div>`;
+      if (!spLoading) loadSpares(false);
+      return `<div class="dempty">${esc(t('dLoadSp'))}</div>`;
     }
-    const E = spData.electrical, M = spData.mechanical;
+    if (spSel) return spDetail();
+    const E = spData.electrical.filter(p => !p.deleted), M = spData.mechanical.filter(p => !p.deleted);
     const outE = E.filter(isOutE).length, lowM = M.filter(isLowM).length;
     const summary = spTab === 'electrical' ? `${t('spParts', { n: E.length })} · ${t('spOutN', { n: outE })}` : `${t('spParts', { n: M.length })} · ${t('spLowN', { n: lowM })}`;
     return `<div class="spseg">
         <button type="button" data-sp="electrical" class="${spTab === 'electrical' ? 'on' : ''}">${esc(t('spElect'))}<span>${E.length}</span></button>
         <button type="button" data-sp="mechanical" class="${spTab === 'mechanical' ? 'on' : ''}">${esc(t('spMech'))}<span>${M.length}</span></button></div>
       <div class="toolbar"><input id="spQ" type="search" dir="auto" placeholder="${esc(t('spSearch'))}" value="${esc(spQ)}">
-        <label class="chk"><input type="checkbox" id="spLow" ${spLow ? 'checked' : ''}> ${esc(t(spTab === 'electrical' ? 'spOutOnly' : 'spLowOnly'))}</label></div>
+        <label class="chk"><input type="checkbox" id="spLow" ${spLow ? 'checked' : ''}> ${esc(t(spTab === 'electrical' ? 'spOutOnly' : 'spLowOnly'))}</label>
+        <label class="chk"><input type="checkbox" id="spDel" ${spShowDel ? 'checked' : ''}> ${esc(t('dShowDel'))}</label>
+        ${canSp() ? `<button type="button" class="btn pri" data-act="addSp">${svg('plus', 2.4)}<span>${esc(t('dAddPart'))}</span></button>` : ''}</div>
       <div class="mini spsum">${esc(summary)}</div>
       <section class="dcard"><div class="tscroll" id="spBody">${spTable()}</div></section>`;
+  }
+  function spDetail() {
+    const p = spSel;
+    ensurePhotos('spare', spPhotoKey(p));
+    const isM = p.kind === 'mechanical';
+    const info = isM
+      ? [[t('spPartNo'), p.no], [t('spName'), p.name], [t('spReq'), p.required], [t('spAvail'), p.available], [t('spUsed'), p.used], [t('spRem'), p.remaining], [t('spStatus'), p.status], [t('spMachine'), p.machine]]
+      : [[t('spPartNo'), p.no], [t('spBrand'), p.brand], [t('spDesc'), p.desc], [t('spQty'), p.qty]];
+    const armed = armKey === 'sp|' + p.kind + '|' + p.row;
+    const actions = canSp() ? `<div class="dact"><button type="button" class="ghostbtn" data-spact="edit">${esc(t('aEdit'))}</button>
+      ${p.deleted ? `<button type="button" class="ghostbtn" data-spact="restore">${esc(t('dEqRestore'))}</button>`
+        : `<button type="button" class="dangerbtn" data-spact="del">${esc(armed ? t('dEqDelSure') : t('dSpDel'))}</button>`}</div>` : '';
+    return `<div class="eqback"><button class="btn" type="button" data-spback>${svg('back', 2.2)}<span>${esc(t('dSpares'))}</span></button></div>
+      <section class="dcard eqhead"><div><h3>${esc(isM ? p.name : p.desc)}</h3>${p.deleted ? `<span class="deltag">${esc(t('dDeleted'))}</span>` : ''}
+        <small>${esc(t(isM ? 'spMech' : 'spElect'))}${isM && p.machine ? ' · ' + esc(p.machine) : ''}</small></div>
+        <div class="eqmeta"><span class="eqno">${esc(p.no)}</span></div>${actions}</section>
+      <section class="dcard"><h4>${esc(t('dPhotos'))}</h4>${gallery(canSp())}</section>
+      <section class="dcard"><dl class="tinfo">${info.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b === undefined || b === '' ? '—' : b)}</dd>`).join('')}</dl></section>`;
+  }
+  function spAction(a) {
+    if (!spSel) return;
+    if (a === 'edit') return spForm(spSel);
+    if (a === 'del') {
+      const k = 'sp|' + spSel.kind + '|' + spSel.row;
+      if (armKey !== k) { armKey = k; render(); return; }
+      return setSpStatus(spSel, 'Deleted');
+    }
+    if (a === 'restore') return setSpStatus(spSel, 'Active');
+  }
+  async function setSpStatus(p, status) {
+    try {
+      const r = await HS.api('spareStatus', { kind: p.kind, row: p.row, status: status }, 45000);
+      if (!r || !r.ok) { toast(trErr(r && r.error) || t('needOnline')); return; }
+      armKey = ''; toast(t('saved'));
+      loadSpares(true);
+    } catch (err) { toast(err.auth ? t('sessionExpired') : t('needOnline')); }
+  }
+  /** Form for an electrical or mechanical spare part. A new part needs its main photo. */
+  function spForm(p) {
+    const isNew = !p;
+    const kind = isNew ? spTab : p.kind;
+    const isM = kind === 'mechanical';
+    let photo = null;
+    const v = k => p && p[k] != null ? p[k] : '';
+    const fields = isM
+      ? `${fld('sNo', 'dSpfNo', v('no'), { max: 60, ltr: true })}${fld('sName', 'dSpfName', v('name'), { max: 200 })}
+         <div class="row2"><div>${fld('sReq', 'dSpfReq', v('required'), { max: 20, ltr: true, num: true })}</div><div>${fld('sAv', 'dSpfAvail', v('available'), { max: 20, ltr: true, num: true })}</div></div>
+         <div class="row2"><div>${fld('sUsed', 'dSpfUsed', v('used'), { max: 20, ltr: true, num: true })}</div><div>${fld('sMach', 'dSpfMachine', v('machine'), { max: 80 })}</div></div>`
+      : `${fld('sNo', 'dSpfNo', v('no'), { max: 60, ltr: true })}${fld('sBrand', 'dSpfBrand', v('brand'), { max: 60 })}${fld('sDesc', 'dSpfDesc', v('desc'), { max: 200 })}${fld('sQty', 'dSpfQty', v('qty'), { max: 20, ltr: true, num: true })}`;
+    showModal(`<h2>${esc(t(isNew ? 'dAddPart' : 'dEditPart'))}</h2>
+      <form class="tform" id="spF" autocomplete="off">${fields}${photoRow('sPh', isNew)}
+        <div class="msg" id="sMsg"></div>
+        <button class="primary" type="submit" id="sGo">${esc(t('dSavePart'))}</button>
+      </form>`, '');
+    $('sPh').onclick = async () => {
+      const f = await pickFile(); if (!f) return;
+      try { photo = await photoFrom(f); $('sPhName').textContent = t('dPhotoSel'); } catch (err) { $('sMsg').textContent = t('dPhBad'); }
+    };
+    $('spF').onsubmit = async ev => {
+      ev.preventDefault();
+      const item = isM
+        ? { kind: kind, no: $('sNo').value.trim(), name: $('sName').value.trim(), required: $('sReq').value.trim(), available: $('sAv').value.trim(), used: $('sUsed').value.trim(), machine: $('sMach').value.trim() }
+        : { kind: kind, no: $('sNo').value.trim(), brand: $('sBrand').value.trim(), desc: $('sDesc').value.trim(), qty: $('sQty').value.trim() };
+      if (!item.no || (isM ? (!item.name || item.required === '' || item.available === '') : (!item.desc || item.qty === ''))) { $('sMsg').textContent = t('dNeedVal'); return; }
+      if (!isNew) item.row = p.row;
+      if (photo) item.photo = photo;
+      $('sGo').disabled = true; $('sMsg').textContent = '';
+      try {
+        const r = await HS.api('spareSave', { item: item }, 90000);
+        if (!r || !r.ok) { $('sMsg').textContent = trErr(r && r.error) || t('needOnline'); $('sGo').disabled = false; return; }
+        hideModal(); toast(t('saved'));
+        phState = { id: '', photos: null, err: '' };
+        if (isNew) spSel = null;
+        await loadSpares(true);
+      } catch (err) { $('sMsg').textContent = err.auth ? t('sessionExpired') : t('needOnline'); $('sGo').disabled = false; }
+    };
+  }
+
+  /* ---------- team: employees and their rights (supervisor / operations manager) ---------- */
+  let teamData = null, teamErr = '', teamLoading = false;
+  function loadTeam(force) {
+    if (teamLoading) return;
+    teamLoading = true; teamErr = '';
+    HS.api('employees', { fresh: !!force }, 45000).then(r => {
+      if (r && r.ok) teamData = r; else teamErr = r && r.error ? trErr(r.error) : '';
+    }).catch(err => {
+      teamErr = err.message || String(err);
+      if (err.auth) { authLost = true; syncUI(); }
+    }).finally(() => { teamLoading = false; if (!$('dash').classList.contains('hidden')) render(); });
+  }
+  function rightsText(p) {
+    if (p.perms && p.perms.manager) return `<span class="chip">${esc(t('dAllRights'))}</span>`;
+    const r = [];
+    if (p.perms && p.perms.tasks) r.push(t('dPermTasks'));
+    if (p.perms && p.perms.equipment) r.push(t('dPermEq'));
+    if (p.perms && p.perms.spares) r.push(t('dPermSp'));
+    return r.length ? esc(r.join(' · ')) : esc(t('dNoRights'));
+  }
+  function teamView() {
+    let emp;
+    if (!teamData) {
+      if (!teamLoading && !teamErr) loadTeam(false);
+      emp = teamErr ? `<div class="dnote">${esc(teamErr)}</div>` : `<div class="dempty">${esc(t('dLoadTeam'))}</div>`;
+    } else {
+      const list = teamData.employees || [];
+      emp = `<div class="tscroll"><table class="dtable"><thead><tr>
+        <th>${esc(t('tName'))}</th><th>${esc(t('dEmpUser'))}</th><th>${esc(t('dEmpRole'))}</th><th>${esc(t('dRights'))}</th><th>${esc(t('dEmpActive'))}</th>
+        </tr></thead><tbody>${list.map((p, i) => `<tr class="clickrow ${p.active ? '' : 'off'}" data-emp="${i}">
+          <td><b>${esc(p.name)}</b></td><td><span class="eqno">${esc(p.username)}</span></td>
+          <td>${esc(roleName(p.role))}${p.equipment ? ' · ' + esc(modName(p.equipment)) : ''}</td>
+          <td>${rightsText(p)}</td>
+          <td><span class="st ${p.active ? 'ok' : 'none'}">${esc(t(p.active ? 'dActive' : 'dInactive'))}</span></td></tr>`).join('') || `<tr><td colspan="5" class="dempty">${esc(t('noData'))}</td></tr>`}</tbody></table></div>`;
+    }
+    const perf = data ? performanceView() : `<div class="dempty">${esc(t('dLoading'))}</div>`;
+    return `<div class="toolbar" style="justify-content:space-between"><span class="mini">${esc(t('dEmp'))}</span>
+        <button type="button" class="btn pri" data-act="addEmp">${svg('plus', 2.4)}<span>${esc(t('dAddEmp'))}</span></button></div>
+      <section class="dcard" style="margin-bottom:16px">${emp}</section>
+      <section class="dcard"><h4>${esc(t('dPerf'))}</h4>${perf}</section>`;
+  }
+  function bindTeam() {
+    const D = $('dash');
+    D.querySelectorAll('[data-emp]').forEach(b => b.onclick = () => teamForm(teamData.employees[+b.dataset.emp]));
+    const a = D.querySelector('[data-act="addEmp"]'); if (a) a.onclick = () => teamForm(null);
+  }
+  /** Employee form. Managers always have all rights; the own account cannot be deactivated or re-roled. */
+  function teamForm(p) {
+    if (!teamData) return;
+    const isNew = !p;
+    const self = !!p && p.username.toLowerCase() === String(session.user.username || '').toLowerCase();
+    const roles = teamData.roles || [];
+    const perms = (p && p.perms) || {};
+    const role0 = p ? p.role : roles[0];
+    const chk = (id, lab, on, dis) => `<label class="chkrow"><input type="checkbox" id="${id}" ${on ? 'checked' : ''} ${dis ? 'disabled' : ''}><span>${esc(t(lab))}</span></label>`;
+    showModal(`<h2>${esc(t(isNew ? 'dNewEmp' : 'dEditEmp'))}</h2>
+      <form class="tform" id="empF" autocomplete="off">
+        ${fld('eN', 'dEmpName', p ? p.name : '', { max: 80 })}
+        ${fld('eU', 'dEmpUser', p ? p.username : '', { max: 30, ltr: true })}
+        <label for="eR">${esc(t('dEmpRole'))}</label>
+        <select class="ffield" id="eR" ${self ? 'disabled' : ''}>${roles.map(r => `<option value="${esc(r)}" ${r === role0 ? 'selected' : ''}>${esc(roleName(r))}</option>`).join('')}</select>
+        <div id="eEqRow" class="${role0 === 'Operator' ? '' : 'hidden'}"><label for="eE">${esc(t('dEmpEq'))}</label>
+          <select class="ffield" id="eE">${(teamData.equipment || []).map(x => `<option value="${esc(x)}" ${p && p.equipment === x ? 'selected' : ''}>${esc(modName(x))}</option>`).join('')}</select></div>
+        <label for="eP">${esc(t(isNew ? 'dEmpPin' : 'dEmpPinKeep'))}</label>
+        <input class="ffield" id="eP" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" dir="ltr">
+        ${chk('eA', 'dEmpActive', !p || p.active, self)}
+        <label style="margin-top:8px">${esc(t('dEmpPerms'))}</label>
+        ${chk('pT', 'dPermTasks', perms.tasks, isMgrRole(role0))}
+        ${chk('pE', 'dPermEq', perms.equipment, isMgrRole(role0))}
+        ${chk('pS', 'dPermSp', perms.spares, isMgrRole(role0))}
+        <p class="fnote">${esc(self ? t('dSelfNote') : t('dPermMgr'))}</p>
+        <div class="msg" id="eMsg"></div>
+        <button class="primary" type="submit" id="eGo">${esc(t('dEmpSave'))}</button>
+      </form>`, '');
+    const rs = $('eR');
+    rs.onchange = () => {
+      const m = isMgrRole(rs.value);
+      $('eEqRow').classList.toggle('hidden', rs.value !== 'Operator');
+      [['pT', 'tasks'], ['pE', 'equipment'], ['pS', 'spares']].forEach(([id, k]) => {
+        const c = $(id); c.disabled = m;
+        c.checked = m ? true : !!perms[k];
+      });
+    };
+    $('empF').onsubmit = async ev => {
+      ev.preventDefault();
+      const role = rs.value;
+      const emp = { name: $('eN').value.trim(), username: $('eU').value.trim(), role: role,
+        equipment: role === 'Operator' ? $('eE').value : '', pin: $('eP').value.trim(), active: $('eA').checked,
+        perms: { tasks: $('pT').checked, equipment: $('pE').checked, spares: $('pS').checked } };
+      if (p) emp.id = p.id;
+      $('eGo').disabled = true; $('eMsg').textContent = '';
+      try {
+        const r = await HS.api('employeeSave', { employee: emp }, 45000);
+        if (!r || !r.ok) { $('eMsg').textContent = trErr(r && r.error) || t('needOnline'); $('eGo').disabled = false; return; }
+        hideModal(); toast(t('saved'));
+        loadTeam(true);
+      } catch (err) { $('eMsg').textContent = err.auth ? t('sessionExpired') : t('needOnline'); $('eGo').disabled = false; }
+    };
+  }
+
+  /* ---------- shared form helpers ---------- */
+  function fld(id, lab, val, o) {
+    o = o || {};
+    return `<label for="${id}">${esc(t(lab))}</label><input class="ffield" id="${id}" dir="${o.ltr ? 'ltr' : 'auto'}" maxlength="${o.max || 120}" value="${esc(val == null ? '' : val)}"${o.num ? ' inputmode="decimal"' : ''}${o.list ? ` list="${o.list}"` : ''} autocomplete="off">`;
+  }
+  function photoRow(id, required) {
+    return `<label>${esc(t(required ? 'dEqfPhotoNew' : 'dEqfPhoto'))}</label>
+      <div class="phrow"><button type="button" class="btn" id="${id}">${svg('photo')}<span>${esc(t('dChoosePhoto'))}</span></button>
+      <span class="mini" id="${id}Name">${esc(required ? '' : t('dKeepPhoto'))}</span></div>`;
   }
 
   /* ---------- overview ---------- */
@@ -544,7 +968,7 @@
   }
   function tasksView() {
     const people = data.assignable.map(p => `<option value="${esc(p.username)}" ${p.username === who ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
-    const lines = [...new Set((data.equipment || []).map(e => e.line).concat(data.tasks.map(x => x.line)).filter(Boolean))].sort();
+    const lines = [...new Set(eqActive().map(e => e.line).concat(data.tasks.map(x => x.line)).filter(Boolean))].sort();
     const lineOpts = lines.map(l => `<option value="${esc(l)}" ${l === lineF ? 'selected' : ''}>${esc(l)}</option>`).join('');
     return `<div class="toolbar"><select id="dWho"><option value="">${esc(t('fAll'))}</option>${people}</select>
       ${lines.length ? `<select id="dLine"><option value="">${esc(t('fLineAll'))}</option>${lineOpts}</select>` : ''}
@@ -557,8 +981,8 @@
     b.querySelectorAll('[data-tid]').forEach(x => x.onclick = () => taskDetail(x.dataset.tid));
   }
 
-  /* ---------- team ---------- */
-  function teamView() {
+  /* ---------- performance (monthly figures per person) ---------- */
+  function performanceView() {
     const m0 = (data.months[0] && data.months[0].people) || {};
     const rows = data.workload.map(w => {
       const c = m0[w.username.toLowerCase()] || {};
@@ -567,10 +991,10 @@
         <td class="num ${w.overdue ? 'late' : ''}">${w.overdue}</td><td class="num">${w.doneWeek}</td><td class="num">${w.doneMonth}</td>
         <td class="num">${c.readings || 0}</td><td class="num">${c.checks || 0}</td><td class="num"><b>${total}</b></td></tr>`;
     }).join('');
-    return `<section class="dcard"><div class="tscroll"><table class="dtable"><thead><tr>
+    return `<div class="tscroll"><table class="dtable"><thead><tr>
       <th>${esc(t('tName'))}</th><th>${esc(t('tRole'))}</th><th class="num">${esc(t('tOpen'))}</th><th class="num">${esc(t('tProg'))}</th><th class="num">${esc(t('tOver'))}</th>
       <th class="num">${esc(t('tDoneW'))}</th><th class="num">${esc(t('tDoneM'))}</th><th class="num">${esc(t('tReadM'))}</th><th class="num">${esc(t('tChkM'))}</th><th class="num">${esc(t('tTotM'))}</th>
-      </tr></thead><tbody>${rows || `<tr><td colspan="10" class="dempty">${esc(t('noData'))}</td></tr>`}</tbody></table></div></section>`;
+      </tr></thead><tbody>${rows || `<tr><td colspan="10" class="dempty">${esc(t('noData'))}</td></tr>`}</tbody></table></div>`;
   }
 
   /* ---------- monthly summary ---------- */
@@ -662,15 +1086,31 @@
     } catch (e) { toast(e.auth ? t('sessionExpired') : t('needOnline')); }
   }
   function upsert(task) {
+    if (!data) return;
     const i = data.tasks.findIndex(k => k.id === task.id);
     if (i >= 0) data.tasks[i] = task; else data.tasks.unshift(task);
   }
 
   /* ---------- new / edit task form ---------- */
-  function taskForm(x) {
-    if (!data) { toast(t('needOnline')); return; }
+  let peopleList = null, peopleLoading = false;
+  /** Technicians and operators to assign to. Managers get them with the dashboard; others ask the server. */
+  function assignees() { return isMgr() ? (data ? data.assignable : []) : (peopleList || []); }
+  function ensurePeople() {
+    if (isMgr() || peopleList || peopleLoading) return Promise.resolve();
+    peopleLoading = true;
+    return HS.api('people', {}, 45000).then(r => { if (r && r.ok) peopleList = r.assignable || []; })
+      .catch(err => { if (err.auth) { authLost = true; syncUI(); } })
+      .finally(() => { peopleLoading = false; });
+  }
+  async function taskForm(x) {
+    if (isMgr() && !data) { toast(t('needOnline')); return; }
+    if (!isMgr()) {
+      await ensurePeople();
+      if (!peopleList) { toast(t('needOnline')); return; }
+      if (perm('equipment') && eqAll === null && !eqLoading) await loadEquip(false);
+    }
     const pr = (x && x.priority) || 'Normal';
-    const people = data.assignable.map(p => `<option value="${esc(p.username)}" ${x && p.username.toLowerCase() === x.assignee.toLowerCase() ? 'selected' : ''}>${esc(p.name)} — ${esc(roleName(p.role))}</option>`).join('');
+    const people = assignees().map(p => `<option value="${esc(p.username)}" ${x && p.username.toLowerCase() === x.assignee.toLowerCase() ? 'selected' : ''}>${esc(p.name)} — ${esc(roleName(p.role))}</option>`).join('');
     const links = ['', 'Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Bobcat', 'Forklift'].map(l => `<option value="${esc(l)}" ${x && x.link === l ? 'selected' : ''}>${esc(l ? modName(l) : t('fNone'))}</option>`).join('');
     showModal(`<h2>${esc(t(x ? 'fEditTitle' : 'fNewTitle'))}</h2>
       <form class="tform" id="dForm" autocomplete="off">
@@ -706,14 +1146,15 @@
         hideModal();
         const n = r.task.assigneeName;
         toast(r.notified ? (r.notified.sent ? t('sentOk', { n }) : t('sentNoPhone', { n })) : t('saved'));
-        upsert(r.task); section = section === 'overview' && !x ? 'tasks' : section; render(); load();
+        if (isMgr()) { upsert(r.task); section = section === 'overview' && !x ? 'tasks' : section; }
+        render(); load();
       } catch (e) { $('fMsg').textContent = e.auth ? t('sessionExpired') : t('needOnline'); $('fGo').disabled = false; }
     };
   }
 
   /* ---------- equipment picker (from "Equipments and system in Holoul factory") ---------- */
   function equipPicker(x) {
-    const eq = data.equipment || [];
+    const eq = eqActive();
     const has = !!(x && x.equipment);
     const locs = [...new Set(eq.map(e => e.loc).filter(Boolean))];
     return `<div class="eqsel ${has ? '' : 'hidden'}" id="eqSel"><div class="eqtxt"><b id="eqSelName"></b><small id="eqSelMeta"></small></div>
@@ -721,14 +1162,14 @@
       <div class="${has ? 'hidden' : ''}" id="eqFind">
         ${eq.length ? `<div class="row2"><select class="ffield" id="eqLoc"><option value="">${esc(t('eqAllLoc'))}</option>${locs.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join('')}</select>
           <select class="ffield" id="eqLine"></select></div>` : ''}
-        ${data.equipmentError ? `<div class="dnote">${esc(t('eqListErr', { e: data.equipmentError }))}</div>` : ''}
+        ${eqErr ? `<div class="dnote">${esc(t('eqListErr', { e: eqErr }))}</div>` : ''}
         <input class="ffield" id="fEq" dir="auto" autocomplete="off" placeholder="${esc(t(eq.length ? 'eqSearch' : 'fEquipPh'))}">
         <div class="eqlist" id="eqList" role="listbox"></div>
       </div>`;
   }
   /** Wires the picker; returns a function giving { equipment, equipmentNo, line, location } for the form. */
   function wirePicker(x) {
-    const eq = data.equipment || [];
+    const eq = eqActive();
     let pick = x && x.equipment ? { name: x.equipment, no: x.equipmentNo || '', line: x.line || '', loc: x.location || '' } : null;
     const meta = e => [e.no, e.line, e.loc, e.cat].filter(Boolean).join(' · ');
     const showPick = () => {
@@ -771,5 +1212,15 @@
                       : { equipment: $('fEq').value.trim(), equipmentNo: '', line: '', location: '' };
   }
 
-  window.HoloulDash = { open, refresh: load, render: () => { if (!$('dash').classList.contains('hidden')) render(); }, reset: () => { data = null; clearInterval(timer); section = 'overview'; who = ''; q = ''; eqSel = null; eqHistKey = ''; spData = null; spErr = ''; } };
+  window.HoloulDash = {
+    open,
+    refresh: refreshCurrent,
+    render: () => { if (!$('dash').classList.contains('hidden')) render(); },
+    reset: () => {
+      data = null; clearInterval(timer); section = 'overview'; who = ''; q = ''; pendingNew = false;
+      eqSel = null; eqHistKey = ''; eqAll = null; eqErr = ''; eqShowDel = false; armKey = '';
+      spData = null; spErr = ''; spSel = null; spShowDel = false;
+      teamData = null; teamErr = ''; peopleList = null; phState = { id: '', photos: null, err: '' };
+    }
+  };
 })();
