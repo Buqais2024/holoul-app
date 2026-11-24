@@ -20,6 +20,11 @@
  *  - technicians Start / Done tasks (note + photo), also offline through "sync"
  *  - phone notifications (Web Push) when a task is assigned / done
  *  - run setupV7() once after updating (creates the Tasks sheet, asks for permission to send notifications)
+ *
+ * v8 (Nov 2026) — equipment list:
+ *  - reads "Equipments and system in Holoul factory" (first tab) so supervisors pick the exact
+ *    equipment when assigning a task; edit that sheet and the app follows (within 10 minutes)
+ *  - tasks keep Equipment No, Line and Location
  */
 
 const SHEET_ID     = '1ohP2VDJitA_ZxiY3Sk6V22Z6yGHZjvgsBg58pMwac_4';   // Holoul App - Users
@@ -31,6 +36,8 @@ const SESSION_SECS = 6 * 60 * 60;   // old-style sessions (CacheService) from ea
 const SESSION_DAYS = 7;             // new sign-ins
 const MAX_BACK_DAYS = 7;            // oldest date a late upload may write to
 const USERS_CACHE_SECS = 300;       // a deactivated user is blocked within 5 minutes
+const EQUIPMENT_ID = '1sI07XLIaK3yQ2f199dVGX0IvQuRdzMG7L6WYOnXC9k8';   // Equipments and system in Holoul factory (Script Property EQUIPMENT_SS_ID overrides)
+const EQUIPMENT_CACHE_SECS = 600;
 
 let _book = null, _readings = null;
 const book     = () => _book || (_book = SpreadsheetApp.openById(SHEET_ID));
@@ -81,6 +88,7 @@ function doPost(e) {
       case 'taskEdit':     out = withUser(body, u => locked(() => taskEdit(u, body.task))); break;
       case 'taskUpdate':   out = withUser(body, u => locked(() => taskUpdate(u, body))); break;
       case 'dashboard':    out = withUser(body, u => dashboard(u)); break;
+      case 'equipment':    out = withUser(body, u => { if (!isManager(u)) throw new Error('Dashboard is for supervisors'); return { ok: true, equipment: equipmentList(!!body.fresh) }; }); break;
       case 'pushSubscribe':   out = withUser(body, u => locked(() => pushSubscribe(u, body.sub, body.device))); break;
       case 'pushUnsubscribe': out = withUser(body, u => locked(() => pushUnsubscribe(u, body.endpoint))); break;
       case 'pushInbox':    out = withUser(body, u => pushInbox(u)); break;
@@ -94,7 +102,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 7 }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 8 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -855,7 +863,8 @@ function setupSheet() {
  * Created by setupV7() (or automatically the first time it is needed). */
 
 const TASK_COLS = ['ID', 'Created', 'Created By', 'Creator Name', 'Assigned To', 'Assignee Name', 'Title', 'Details',
-                   'Equipment', 'Priority', 'Due', 'Link', 'Status', 'Started', 'Done', 'Done Note', 'Done Photo', 'Updated', 'Updated By'];
+                   'Equipment', 'Priority', 'Due', 'Link', 'Status', 'Started', 'Done', 'Done Note', 'Done Photo', 'Updated', 'Updated By',
+                   'Equipment No', 'Line', 'Location'];
 const HISTORY_COLS = ['Timestamp', 'Task ID', 'Action', 'By', 'Note'];
 const PUSH_COLS = ['Username', 'Endpoint', 'P256dh', 'Auth', 'Device', 'Added', 'Last OK', 'Last Error'];
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
@@ -888,6 +897,15 @@ function tasksBook() {
       sh.getRange(1, 1, 1, cols.length).setValues([cols]).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff');
       sh.setFrozenRows(1);
       sh.getRange(2, 1, Math.max(sh.getMaxRows() - 1, 1), cols.length).setNumberFormat('@');   // keep dates as typed text
+    } else {
+      // columns added in a later version: write the missing headers at the end
+      const have = sh.getRange(1, 1, 1, cols.length).getValues()[0];
+      cols.forEach((c, i) => {
+        if (String(have[i] || '').trim() === '') {
+          sh.getRange(1, i + 1).setValue(c).setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff');
+          sh.getRange(2, i + 1, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+        }
+      });
     }
     return sh;
   };
@@ -911,7 +929,8 @@ function taskOut(t) {
   return { id: t['ID'], created: t['Created'], createdBy: t['Created By'], creatorName: t['Creator Name'],
            assignee: t['Assigned To'], assigneeName: t['Assignee Name'], title: t['Title'], details: t['Details'],
            equipment: t['Equipment'], priority: t['Priority'] || 'Normal', due: t['Due'], link: t['Link'], status: t['Status'] || 'Open',
-           started: t['Started'], done: t['Done'], doneNote: t['Done Note'], donePhoto: t['Done Photo'], updated: t['Updated'] };
+           started: t['Started'], done: t['Done'], doneNote: t['Done Note'], donePhoto: t['Done Photo'], updated: t['Updated'],
+           equipmentNo: t['Equipment No'] || '', line: t['Line'] || '', location: t['Location'] || '' };
 }
 function writeTask(t) {
   const sh = tasksBook().getSheetByName('Tasks');
@@ -970,11 +989,12 @@ function taskCreate(user, f) {
     'Assigned To': who.username, 'Assignee Name': who.name, 'Title': title, 'Details': String(f.details || '').slice(0, 2000),
     'Equipment': String(f.equipment || '').slice(0, 120), 'Priority': PRIORITIES.indexOf(f.priority) >= 0 ? f.priority : 'Normal',
     'Due': cleanDate(f.due), 'Link': TASK_LINKS.indexOf(f.link || '') >= 0 ? (f.link || '') : '', 'Status': 'Open',
-    'Updated': now, 'Updated By': user.username
+    'Updated': now, 'Updated By': user.username,
+    'Equipment No': String(f.equipmentNo || '').slice(0, 60), 'Line': String(f.line || '').slice(0, 60), 'Location': String(f.location || '').slice(0, 60)
   };
   writeTask(t);
   history(t['ID'], 'Created', user, 'Assigned to ' + who.username);
-  const sent = notifyUser(who.username, { kind: 'assigned', id: t['ID'], title: title, equipment: t['Equipment'], priority: t['Priority'], by: user.name });
+  const sent = notifyUser(who.username, { kind: 'assigned', id: t['ID'], title: title, equipment: equipLabel(t), priority: t['Priority'], by: user.name });
   return { ok: true, task: taskOut(t), notified: sent };
 }
 
@@ -988,6 +1008,9 @@ function taskEdit(user, f) {
   if (f.title != null && String(f.title).trim()) t['Title'] = String(f.title).trim().slice(0, 140);
   if (f.details != null) t['Details'] = String(f.details).slice(0, 2000);
   if (f.equipment != null) t['Equipment'] = String(f.equipment).slice(0, 120);
+  if (f.equipmentNo != null) t['Equipment No'] = String(f.equipmentNo).slice(0, 60);
+  if (f.line != null) t['Line'] = String(f.line).slice(0, 60);
+  if (f.location != null) t['Location'] = String(f.location).slice(0, 60);
   if (f.priority != null && PRIORITIES.indexOf(f.priority) >= 0) t['Priority'] = f.priority;
   if (f.due != null) t['Due'] = cleanDate(f.due);
   if (f.link != null && TASK_LINKS.indexOf(f.link) >= 0) t['Link'] = f.link;
@@ -1007,7 +1030,7 @@ function taskEdit(user, f) {
   writeTask(t);
   history(t['ID'], notes.length ? notes.join('; ') : 'Edited', user, f.note || '');
   let sent = null;
-  if (notifyNew) sent = notifyUser(notifyNew, { kind: 'assigned', id: t['ID'], title: t['Title'], equipment: t['Equipment'], priority: t['Priority'], by: user.name });
+  if (notifyNew) sent = notifyUser(notifyNew, { kind: 'assigned', id: t['ID'], title: t['Title'], equipment: equipLabel(t), priority: t['Priority'], by: user.name });
   return { ok: true, task: taskOut(t), notified: sent };
 }
 
@@ -1035,6 +1058,45 @@ function taskUpdate(user, f) {
   t['Updated'] = nowText(); t['Updated By'] = user.username;
   writeTask(t);
   return { ok: true, task: taskOut(t) };
+}
+
+/* ---------- equipment list ("Equipments and system in Holoul factory") ---------- */
+
+/** "MPR120 (MPR)" — what a technician sees in the task / notification. */
+function equipLabel(t) {
+  const name = String(t['Equipment'] || ''), no = String(t['Equipment No'] || '');
+  return no && no !== name ? name + ' (' + no + ')' : name;
+}
+
+/** Every equipment row: { name, no, line, loc, cat }. Columns are found by their header names.
+ *  Rows without a name (e.g. AC units) are named from their type and numbered: "Split AC #3". */
+function equipmentList(fresh) {
+  const cache = CacheService.getScriptCache();
+  if (!fresh) { const hit = cache.get('equip_v1'); if (hit) return JSON.parse(hit); }
+  const ss = SpreadsheetApp.openById(props().getProperty('EQUIPMENT_SS_ID') || EQUIPMENT_ID);
+  const rows = ss.getSheets()[0].getDataRange().getDisplayValues();
+  let hi = rows.findIndex(r => r.some(c => /equipment\s*name/i.test(String(c))));
+  if (hi < 0) hi = 0;
+  const h = rows[hi].map(c => String(c).trim().toLowerCase());
+  const col = re => h.findIndex(c => re.test(c));
+  const cName = col(/equipment\s*name|^name$/), cNo = col(/number|serial|^no\b|^pos/), cLine = col(/^line|system/),
+        cLoc = col(/^location|^site/), cCat = col(/categor|type/);
+  const seen = {}, list = [];
+  for (let i = hi + 1; i < rows.length; i++) {
+    const r = rows[i], g = c => c >= 0 ? String(r[c] == null ? '' : r[c]).trim() : '';
+    let name = g(cName), no = g(cNo);
+    const line = g(cLine), loc = g(cLoc), cat = g(cCat);
+    if (/^-+$/.test(no)) no = '';
+    if (!name && !no && !line) continue;
+    if (!name) {
+      const base = line || cat || 'Equipment', k = base.toLowerCase();
+      seen[k] = (seen[k] || 0) + 1;
+      name = base + ' #' + seen[k];
+    }
+    list.push({ name: name, no: no, line: line, loc: loc, cat: cat });
+  }
+  try { cache.put('equip_v1', JSON.stringify(list), EQUIPMENT_CACHE_SECS); } catch (err) {}
+  return list;
 }
 
 /* ---------- dashboard (supervisor / operations manager) ---------- */
@@ -1133,7 +1195,9 @@ function dashboard(user) {
              readings: rl.length, checks: ck.length, faults: ck.filter(r => /^action/i.test(r.status)).length, people: per };
   });
 
-  return { ok: true, today: today, generatedAt: nowText(), people: people, assignable: assignees,
+  let equipment = [], equipmentError = '';
+  try { equipment = equipmentList(); } catch (err) { equipmentError = String(err.message || err); }
+  return { ok: true, today: today, generatedAt: nowText(), people: people, assignable: assignees, equipment: equipment, equipmentError: equipmentError,
            tasks: tasks, readings: readingsToday, checks: checks, faults: faults.slice(0, 40), workload: workload, months: summary };
 }
 function parseStamp(s) { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); return m ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4] - 3, +m[5]) : NaN; }
