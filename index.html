@@ -557,7 +557,7 @@
 <input type="file" id="photoPick" accept="image/*" class="hidden">
 <div class="toast" id="toast"></div>
 
-<script src="sync.js?v=15"></script>
+<script src="sync.js?v=16"></script>
 <script>
 const HS = window.HoloulSync;
 
@@ -780,6 +780,16 @@ const SERVER_AR = [
   [/^You do not have permission for this$/, 'ليس لديك صلاحية لهذا الإجراء'],
   [/^Invalid row$/, 'بند غير صحيح'],
   [/^Date (\S+) is more than (\d+) days old$/, m => 'التاريخ ' + m[1] + ' أقدم من ' + m[2] + ' أيام'],
+  [/^Only a supervisor can repeat a task$/, 'المشرف فقط يكرر المهام'],
+  [/^Only a supervisor can stop or resume a repeat$/, 'المشرف فقط يوقف التكرار أو يستأنفه'],
+  [/^Only a supervisor can see repeating tasks$/, 'المشرف فقط يرى المهام المتكررة'],
+  [/^Repeat not found/, 'التكرار غير موجود — أعد تحميل القائمة'],
+  [/^Enter a task title$/, 'اكتب عنوان المهمة'],
+  [/^Choose who does the task$/, 'اختر من ينفذ المهمة'],
+  [/^Choose at least one person$/, 'اختر شخصاً واحداً على الأقل'],
+  [/^Choose how often the task repeats$/, 'اختر كم مرة تتكرر المهمة'],
+  [/^Enter the running hours between 1 and 100000$/, 'أدخل ساعات التشغيل بين 1 و 100000'],
+  [/^Choose the equipment for hour-based repeats$/, 'اختر المعدة للتكرار حسب ساعات التشغيل'],
   [/^No connection$|^Timed out$|^Failed to fetch$|^Load failed$|^NetworkError/i, 'لا يوجد اتصال']
 ];
 function trErr(s){
@@ -1711,7 +1721,7 @@ let dashLoading = null;
 function loadDash(){
   if(window.HoloulDash) return Promise.resolve(window.HoloulDash);
   if(!dashLoading) dashLoading = new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = 'dash.js?v=15';
+    const s = document.createElement('script'); s.src = 'dash.js?v=16';
     s.onload = () => res(window.HoloulDash); s.onerror = () => { dashLoading = null; rej(new Error('dash')); };
     document.head.appendChild(s);
   });

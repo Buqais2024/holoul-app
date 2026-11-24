@@ -97,6 +97,9 @@
   .hb i{display:block;height:100%;background:var(--brand);border-radius:7px} .hb.full i{background:var(--ok)}
   .mini{font-size:12px;color:var(--muted);line-height:1.45}
   .mini a{color:var(--accent)}
+  .rprow{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+  .rprow small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .rprow.off>div>b{color:var(--muted)}
   .st{font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap}
   .st.ok{background:var(--ok-bg);color:var(--ok-text)} .st.bad{background:var(--bad-bg);color:var(--bad-text)} .st.none{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
   .fault{white-space:pre-wrap;font-size:13px;line-height:1.45;margin-top:4px}
@@ -215,7 +218,8 @@
     dEqfName:'Equipment name', dEqfLine:'Line / system', dEqfNo:'Number', dEqfLoc:'Location', dEqfCat:'Category',
     dEqfPhotoNew:'Main photo (required)', dEqfPhoto:'Main photo', dChoosePhoto:'Choose photo', dPhotoSel:'Photo selected', dKeepPhoto:'Keep the current photo',
     dSaveEq:'Save equipment', dSavePart:'Save part',
-    dAutoTitle:'Automatic task', dAutoHint:'Creates this reading task for the technicians you choose, on the schedule you set. Only supervisors can change it.', dAutoReading:'Reading', dAutoNone:'No automatic task', dAutoBasis:'Repeat by', dAutoByPeriod:'Time period', dAutoByHours:'Running hours', dAutoPeriod:'How often', dAutoHours:'Every how many hours', dAutoWho:'Technicians (one or more)', dAutoLoading:'Loading technicians…', dAutoNoTechs:'No technicians found', dAutoNoHours:'Enter the running hours (1 or more)', dAutoNoWho:'Choose at least one technician', dAutoPW:'Weekly', dAutoPM:'Monthly', dAutoPQ:'Quarterly', dAutoPS:'Semi-annual', dAutoPY:'Yearly', dCancel:'Cancel', dNeedVal:'Fill in the required fields', dLoadEq:'Loading equipment…', dLoadSp:'Loading spare parts…',
+    dAutoTitle:'Automatic task', dAutoHint:'Creates this reading task for the technicians you choose, on the schedule you set. Only supervisors can change it.', dAutoReading:'Reading', dAutoNone:'No automatic task', dAutoBasis:'Repeat by', dAutoByPeriod:'Time period', dAutoByHours:'Running hours', dAutoPeriod:'How often', dAutoHours:'Every how many hours', dAutoWho:'Technicians (one or more)', dAutoLoading:'Loading technicians…', dAutoNoTechs:'No technicians found', dAutoNoHours:'Enter the running hours (1 or more)', dAutoNoWho:'Choose at least one technician', dAutoPW:'Weekly', dAutoPM:'Monthly', dAutoPQ:'Quarterly', dAutoPS:'Semi-annual', dAutoPY:'Yearly', dCancel:'Cancel',
+    aTitle:'Repeat this task', aHint:'The first task is made now for each person you choose. Later tasks are made by the daily run, on the schedule you set.', aRepeat:'Repeat', aNone:'Do not repeat', aWho:'Send to (one or more)', aHoursHint:'Hours come from the equipment hour meter in the daily checks (Bobcat only for now).', aNeedWho:'Choose at least one person', aNeedEq:'Choose the equipment for hour-based repeats', aNeedHours:'Enter the running hours (1 or more)', aSaved:'Repeat set. {n} task(s) made now.', aList:'Repeating tasks', aEmpty:'No repeating tasks yet.', aStop:'Stop', aResume:'Resume', aTo:'To', aLast:'Since', aOpen:'Open now', dNeedVal:'Fill in the required fields', dLoadEq:'Loading equipment…', dLoadSp:'Loading spare parts…',
     dPhotos:'Photos', dPhMain:'Main', dPhX1:'Detail 1', dPhX2:'Detail 2', dPhAdd:'Add photo', dPhReplace:'Replace', dPhNone:'No photo', dPhLoading:'Loading photos…',
     dPhErr:'Photos could not be loaded: {e}', dPhBusy:'Saving photo…', dPhDone:'Photo saved', dPhBad:'Choose an image file',
     dAddPart:'Add part', dEditPart:'Edit part', dPartNew:'New part', dSpfNo:'Part / item number', dSpfBrand:'Brand', dSpfDesc:'Description', dSpfQty:'Quantity',
@@ -241,7 +245,8 @@
     dEqfName:'اسم المعدة', dEqfLine:'الخط / النظام', dEqfNo:'الرقم', dEqfLoc:'الموقع', dEqfCat:'التصنيف',
     dEqfPhotoNew:'الصورة الرئيسية (مطلوبة)', dEqfPhoto:'الصورة الرئيسية', dChoosePhoto:'اختر صورة', dPhotoSel:'تم اختيار الصورة', dKeepPhoto:'الإبقاء على الصورة الحالية',
     dSaveEq:'حفظ المعدة', dSavePart:'حفظ القطعة',
-    dAutoTitle:'مهمة تلقائية', dAutoHint:'تُنشئ مهمة القراءة للفنيين الذين تختارهم حسب الجدول الذي تحدده. المشرف فقط يستطيع تغييرها.', dAutoReading:'القراءة', dAutoNone:'بدون مهمة تلقائية', dAutoBasis:'التكرار حسب', dAutoByPeriod:'مدة زمنية', dAutoByHours:'ساعات التشغيل', dAutoPeriod:'كم مرة', dAutoHours:'كل كم ساعة', dAutoWho:'الفنيون (واحد أو أكثر)', dAutoLoading:'جارٍ تحميل الفنيين…', dAutoNoTechs:'لا يوجد فنيون', dAutoNoHours:'أدخل ساعات التشغيل (1 أو أكثر)', dAutoNoWho:'اختر فنياً واحداً على الأقل', dAutoPW:'أسبوعياً', dAutoPM:'شهرياً', dAutoPQ:'ربع سنوياً', dAutoPS:'نصف سنوياً', dAutoPY:'سنوياً', dCancel:'إلغاء', dNeedVal:'املأ الحقول المطلوبة', dLoadEq:'جارٍ تحميل المعدات…', dLoadSp:'جارٍ تحميل قطع الغيار…',
+    dAutoTitle:'مهمة تلقائية', dAutoHint:'تُنشئ مهمة القراءة للفنيين الذين تختارهم حسب الجدول الذي تحدده. المشرف فقط يستطيع تغييرها.', dAutoReading:'القراءة', dAutoNone:'بدون مهمة تلقائية', dAutoBasis:'التكرار حسب', dAutoByPeriod:'مدة زمنية', dAutoByHours:'ساعات التشغيل', dAutoPeriod:'كم مرة', dAutoHours:'كل كم ساعة', dAutoWho:'الفنيون (واحد أو أكثر)', dAutoLoading:'جارٍ تحميل الفنيين…', dAutoNoTechs:'لا يوجد فنيون', dAutoNoHours:'أدخل ساعات التشغيل (1 أو أكثر)', dAutoNoWho:'اختر فنياً واحداً على الأقل', dAutoPW:'أسبوعياً', dAutoPM:'شهرياً', dAutoPQ:'ربع سنوياً', dAutoPS:'نصف سنوياً', dAutoPY:'سنوياً', dCancel:'إلغاء',
+    aTitle:'تكرار هذه المهمة', aHint:'تُنشأ المهمة الأولى الآن لكل شخص تختاره، والمهام التالية تُنشأ تلقائياً حسب الجدول الذي تحدده.', aRepeat:'التكرار', aNone:'بدون تكرار', aWho:'أرسل إلى (واحد أو أكثر)', aHoursHint:'الساعات تأتي من عداد ساعات المعدة في الفحوصات اليومية (بوبكات فقط حالياً).', aNeedWho:'اختر شخصاً واحداً على الأقل', aNeedEq:'اختر المعدة للتكرار حسب ساعات التشغيل', aNeedHours:'أدخل ساعات التشغيل (1 أو أكثر)', aSaved:'تم ضبط التكرار. أُنشئت {n} مهمة الآن.', aList:'المهام المتكررة', aEmpty:'لا توجد مهام متكررة بعد.', aStop:'إيقاف', aResume:'استئناف', aTo:'إلى', aLast:'منذ', aOpen:'مفتوحة الآن', dNeedVal:'املأ الحقول المطلوبة', dLoadEq:'جارٍ تحميل المعدات…', dLoadSp:'جارٍ تحميل قطع الغيار…',
     dPhotos:'الصور', dPhMain:'رئيسية', dPhX1:'تفصيل 1', dPhX2:'تفصيل 2', dPhAdd:'إضافة صورة', dPhReplace:'استبدال', dPhNone:'لا توجد صورة', dPhLoading:'جارٍ تحميل الصور…',
     dPhErr:'تعذّر تحميل الصور: {e}', dPhBusy:'جارٍ حفظ الصورة…', dPhDone:'تم حفظ الصورة', dPhBad:'اختر ملف صورة',
     dAddPart:'إضافة قطعة', dEditPart:'تعديل القطعة', dPartNew:'قطعة جديدة', dSpfNo:'رقم القطعة / الصنف', dSpfBrand:'الماركة', dSpfDesc:'الوصف', dSpfQty:'الكمية',
@@ -367,6 +372,7 @@
     D.querySelectorAll('[data-act="app"]').forEach(b => b.onclick = () => showHome(true));
     D.querySelectorAll('[data-act="new"]').forEach(b => b.onclick = () => taskForm(null).catch(() => {}));
     $('dRefresh').onclick = refreshCurrent;
+    const dRules = $('dRules'); if (dRules) dRules.onclick = openRepeats;
     D.querySelectorAll('[data-tid]').forEach(b => b.onclick = () => taskDetail(b.dataset.tid));
     D.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { section = b.dataset.go; render(); });
     D.querySelectorAll('[data-month]').forEach(b => b.onclick = () => { month = b.dataset.month; render(); });
@@ -1053,7 +1059,8 @@
     const lineOpts = lines.map(l => `<option value="${esc(l)}" ${l === lineF ? 'selected' : ''}>${esc(l)}</option>`).join('');
     return `<div class="toolbar"><select id="dWho"><option value="">${esc(t('fAll'))}</option>${people}</select>
       ${lines.length ? `<select id="dLine"><option value="">${esc(t('fLineAll'))}</option>${lineOpts}</select>` : ''}
-      <input id="dQ" type="search" dir="auto" placeholder="${esc(t('fSearch'))}" value="${esc(q)}"></div>
+      <input id="dQ" type="search" dir="auto" placeholder="${esc(t('fSearch'))}" value="${esc(q)}">
+      <button class="btn" type="button" id="dRules">${esc(t('aList'))}</button></div>
       <div class="board" id="dBoard">${boardHtml()}</div>`;
   }
   function renderBoardOnly() {
@@ -1197,8 +1204,8 @@
       <form class="tform" id="dForm" autocomplete="off">
         <label for="fTitle">${esc(t('fTitle'))} *</label>
         <input class="ffield" id="fTitle" dir="auto" maxlength="140" required placeholder="${esc(t('fTitlePh'))}" value="${esc(x ? x.title : '')}">
-        <label for="fWho">${esc(t('fAssignee'))} *</label>
-        <select class="ffield" id="fWho" required>${x ? '' : `<option value="">${esc(t('fChoose'))}</option>`}${people}</select>
+        <div id="fWhoW"><label for="fWho">${esc(t('fAssignee'))} *</label>
+        <select class="ffield" id="fWho" required>${x ? '' : `<option value="">${esc(t('fChoose'))}</option>`}${people}</select></div>
         <label>${esc(t('fPriority'))}</label>
         <div class="segctl four" id="fPrio">${['Low', 'Normal', 'High', 'Urgent'].map(p => `<button type="button" data-p="${p}" class="${p === pr ? 'on' : ''}">${esc(t('prio.' + p))}</button>`).join('')}</div>
         <label for="fEq">${esc(t('fEquip'))}</label>
@@ -1209,19 +1216,36 @@
         </div>
         <label for="fDet">${esc(t('fDetails'))}</label>
         <textarea class="ffield" id="fDet" dir="auto">${esc(x ? x.details : '')}</textarea>
+        ${!x && isMgr() ? taskRepeatBlock() : ''}
         <div class="msg" id="fMsg"></div>
         <button class="primary" type="submit" id="fGo">${esc(t(x ? 'fSave' : 'fCreate'))}</button>
       </form>`, x ? x.id : '');
     let prio = pr;
     const getEquip = wirePicker(x);
     $('fPrio').querySelectorAll('button').forEach(b => b.onclick = () => { prio = b.dataset.p; $('fPrio').querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); });
+    if (!x && isMgr()) bindTaskRepeat();
     setTimeout(() => $('fTitle').focus(), 60);
     $('dForm').onsubmit = async ev => {
       ev.preventDefault();
       const f = Object.assign({ title: $('fTitle').value.trim(), assignee: $('fWho').value, priority: prio, due: $('fDue').value, link: $('fLink').value, details: $('fDet').value.trim() }, getEquip());
-      if (!f.title || !f.assignee) { $('fMsg').textContent = !f.title ? t('fTitle') + ' *' : t('fAssignee') + ' *'; return; }
+      const rep = !x && isMgr() ? repeatPayload() : null;   // null = a single task, as before
+      if (!f.title) { $('fMsg').textContent = t('fTitle') + ' *'; return; }
+      if (rep && !rep.assignees.length) { $('fMsg').textContent = t('aNeedWho'); return; }
+      if (rep && rep.basis === 'hours' && !f.equipmentNo) { $('fMsg').textContent = t('aNeedEq'); return; }
+      if (rep && rep.basis === 'hours' && !(Number(rep.hours) >= 1)) { $('fMsg').textContent = t('aNeedHours'); return; }
+      if (!rep && !f.assignee) { $('fMsg').textContent = t('fAssignee') + ' *'; return; }
       $('fGo').disabled = true; $('fMsg').textContent = '';
       try {
+        if (rep) {
+          const rr = await HS.api('taskRuleCreate', { task: f, auto: rep }, 30000);
+          if (!rr || !rr.ok) { $('fMsg').textContent = trErr(rr && rr.error) || t('needOnline'); $('fGo').disabled = false; return; }
+          hideModal();
+          toast(t('aSaved', { n: rr.tasks.length }));
+          rr.tasks.forEach(upsert);
+          section = section === 'overview' ? 'tasks' : section;
+          render(); load();
+          return;
+        }
         const r = x ? await HS.api('taskEdit', { task: Object.assign({ id: x.id }, f) }, 30000) : await HS.api('taskCreate', { task: f }, 30000);
         if (!r || !r.ok) { $('fMsg').textContent = trErr(r && r.error) || t('needOnline'); $('fGo').disabled = false; return; }
         hideModal();
@@ -1231,6 +1255,83 @@
         render(); load();
       } catch (e) { $('fMsg').textContent = e.auth ? t('sessionExpired') : t('needOnline'); $('fGo').disabled = false; }
     };
+  }
+
+  /* ---------- repeating tasks: the repeat section of the new-task form (supervisor only) ---------- */
+  function taskRepeatBlock() {
+    const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
+    return `<div class="fgroup" id="tRep"><h4>${esc(t('aTitle'))}</h4>
+      <p class="hint" style="margin:0 0 10px">${esc(t('aHint'))}</p>
+      <label for="tAB">${esc(t('aRepeat'))}</label>
+      <select class="ffield" id="tAB">${opt('', t('aNone'), true)}${opt('period', t('dAutoByPeriod'))}${opt('hours', t('dAutoByHours'))}</select>
+      <div id="tAPw" hidden><label for="tAP">${esc(t('dAutoPeriod'))}</label>
+        <select class="ffield" id="tAP">${AUTO_PERIODS.map(p => opt(p[0], t(p[1]), p[0] === 'Monthly')).join('')}</select></div>
+      <div id="tAHw" hidden><label for="tAH">${esc(t('dAutoHours'))}</label>
+        <input class="ffield" id="tAH" type="number" inputmode="numeric" min="1" max="100000" step="1">
+        <p class="hint">${esc(t('aHoursHint'))}</p></div>
+      <div id="tAWw" hidden><label>${esc(t('aWho'))}</label><div id="tAW"></div></div>
+    </div>`;
+  }
+  /** Shows the people as a check list (one or more), and hides the single "Assign to" field while a repeat is set. */
+  function bindTaskRepeat() {
+    const basis = $('tAB'), single = $('fWhoW'), who = $('fWho');
+    const people = assignees();
+    $('tAW').innerHTML = people.length
+      ? people.map(p => `<label class="chkrow"><input type="checkbox" value="${esc(p.username)}"><span>${esc(p.name)}<small>${esc(roleName(p.role))}</small></span></label>`).join('')
+      : `<span class="mini">${esc(t('dAutoNoTechs'))}</span>`;
+    basis.onchange = () => {
+      const on = basis.value !== '';
+      $('tAPw').hidden = basis.value !== 'period';
+      $('tAHw').hidden = basis.value !== 'hours';
+      $('tAWw').hidden = !on;
+      single.hidden = on;
+      who.required = !on;   // a hidden required field would block the form without a message
+      if (on && who.value && !document.querySelector('#tAW input:checked')) {
+        const cb = [...document.querySelectorAll('#tAW input')].filter(i => i.value === who.value)[0];
+        if (cb) cb.checked = true;
+      }
+    };
+  }
+  function repeatPayload() {
+    const basis = $('tAB') ? $('tAB').value : '';
+    if (!basis) return null;
+    return { basis: basis, period: $('tAP').value, hours: $('tAH').value,
+             assignees: [...document.querySelectorAll('#tAW input:checked')].map(i => i.value) };
+  }
+  /** Text for a repeat, e.g. "شهرياً" or "500 h". */
+  function repeatText(x) {
+    if (x.repeatKind === 'Hours') return x.repeat;
+    const p = AUTO_PERIODS.filter(q => q[0] === x.repeat)[0];
+    return p ? t(p[1]) : x.repeat;
+  }
+  function repeatRow(x) {
+    const eq = x.equipment ? esc(x.equipment + (x.equipmentNo && x.equipmentNo !== x.equipment ? ' (' + x.equipmentNo + ')' : '')) : '';
+    return `<div class="rprow${x.active ? '' : ' off'}">
+      <div><b>${esc(x.title)}</b>${eq ? `<small>${eq}</small>` : ''}
+        <small>${esc(t('aTo'))}: ${esc(x.assignees.join(', ') || '—')}</small>
+        <small>${esc(repeatText(x))} · ${esc(t('aLast'))}: ${esc(x.started || '—')} · ${esc(t('aOpen'))}: ${x.openCount}</small></div>
+      <button class="btn" type="button" data-rule="${esc(x.id)}" data-on="${x.active ? '0' : '1'}">${esc(t(x.active ? 'aStop' : 'aResume'))}</button>
+    </div>`;
+  }
+  function openRepeats() {
+    showModal(`<h2>${esc(t('aList'))}</h2><div id="rpBody"><div class="dempty">${esc(t('dLoading'))}</div></div>`, '');
+    loadRepeats();
+  }
+  function loadRepeats() {
+    HS.api('taskRules', {}, 30000).then(r => {
+      const box = $('rpBody'); if (!box) return;
+      if (!r || !r.ok) { box.innerHTML = `<div class="msg">${esc(trErr(r && r.error) || t('needOnline'))}</div>`; return; }
+      box.innerHTML = r.rules.length ? r.rules.map(repeatRow).join('') : `<div class="dempty">${esc(t('aEmpty'))}</div>`;
+      box.querySelectorAll('[data-rule]').forEach(b => b.onclick = () => setRepeat(b.dataset.rule, b.dataset.on === '1'));
+    }).catch(err => {
+      const box = $('rpBody'); if (box) box.innerHTML = `<div class="msg">${esc(err && err.auth ? t('sessionExpired') : t('needOnline'))}</div>`;
+    });
+  }
+  function setRepeat(id, on) {
+    HS.api('taskRuleStatus', { id: id, active: on }, 30000).then(r => {
+      if (!r || !r.ok) { toast(trErr(r && r.error) || t('needOnline')); return; }
+      loadRepeats();
+    }).catch(() => toast(t('needOnline')));
   }
 
   /* ---------- equipment picker (from "Equipments and system in Holoul factory") ---------- */

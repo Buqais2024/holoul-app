@@ -36,6 +36,10 @@
  *    a period (weekly ... yearly) or running hours, and the technicians who do it
  *  - run installAutomationTrigger() once from the editor: a daily check at 06:00 creates the tasks
  *  - progress is kept in the "Automation Log" tab of the Maintenance Tasks sheet
+ * v12 (Nov 2026) - repeating tasks (any task, supervisor only):
+ *  - the new-task form can repeat the task every period or every N running hours, for one or more people
+ *  - the first task is made when saved; later ones by the same daily run (automationCycle)
+ *  - repeats are kept in the "Task Automation" tab; stop / resume without deleting tasks
  */
 
 const SHEET_ID     = '1ohP2VDJitA_ZxiY3Sk6V22Z6yGHZjvgsBg58pMwac_4';   // Holoul App - Users
@@ -105,6 +109,9 @@ function doPost(e) {
       case 'taskCreate':   out = withUser(body, u => locked(() => taskCreate(u, body.task))); break;
       case 'taskEdit':     out = withUser(body, u => locked(() => taskEdit(u, body.task))); break;
       case 'taskUpdate':   out = withUser(body, u => locked(() => taskUpdate(u, body))); break;
+      case 'taskRuleCreate': out = withUser(body, u => locked(() => taskRuleCreate(u, body.task, body.auto))); break;
+      case 'taskRules':    out = withUser(body, u => taskRulesList(u)); break;
+      case 'taskRuleStatus': out = withUser(body, u => locked(() => taskRuleStatus(u, body.id, !!body.active))); break;
       case 'dashboard':    out = withUser(body, u => dashboard(u)); break;
       case 'equipment':    out = withUser(body, u => { if (!canSeeEquipment(u)) throw new Error('You do not have access to equipment'); const all = !!body.all && canEditEquipment(u); return { ok: true, equipment: equipmentList(!!body.fresh || all, all) }; }); break;
       case 'equipmentHistory': out = withUser(body, u => equipmentHistory(u, body.equipment || {})); break;
@@ -131,7 +138,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 11 }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 12 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -954,6 +961,7 @@ function tasksBook() {
     return sh;
   };
   tab('Tasks', TASK_COLS, true); tab('Task History', HISTORY_COLS); tab('Push Devices', PUSH_COLS); tab(AUTO_LOG, AUTO_LOG_COLS);
+  tab(RULE_TAB, RULE_COLS);
   return (_tasks = ss);
 }
 
@@ -2003,6 +2011,7 @@ function automationCycle() {
       log.Updated = nowText();
       autoLogSave(log);
     } catch (err) { errors.push(eq.name + ': ' + err.message); } });   // one bad rule does not stop the others
+    taskRulesRun(today, created, errors);   // repeating tasks (any task), same run
     return { ok: !errors.length, rules: rules.length, created: created, errors: errors };
   } finally { lock.releaseLock(); }
 }
@@ -2012,6 +2021,193 @@ function installAutomationTrigger() {
   ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'automationCycle') ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('automationCycle').timeBased().everyDays(1).atHour(6).create();
   return { ok: true, note: 'automationCycle runs every day at 06:00 (script time zone)' };
+}
+
+/* ---- repeating tasks: any task can repeat by period or running hours (supervisor only) ----
+ * Sheet "Task Automation" in the Maintenance Tasks book: one row per repeat. The first task(s) are made when
+ * the repeat is saved; later ones by the same daily automationCycle as the reading tasks. While any task of a
+ * repeat is still Open or In progress, no new one is made for it. Stop / resume never deletes tasks. */
+const RULE_TAB = 'Task Automation';
+const RULE_COLS = ['Rule ID', 'Created', 'Created By', 'Title', 'Details', 'Priority', 'Equipment', 'Equipment No', 'Line', 'Location',
+                   'Link', 'Assignees', 'Repeat', 'Period', 'Hours', 'Due Days', 'Active', 'Started', 'Hours At Start', 'Open Tasks', 'Updated'];
+const DEFAULT_DUE_DAYS = 7;
+
+const ruleSheet = () => tasksBook().getSheetByName(RULE_TAB);
+const rulesOf = () => rowsOf(ruleSheet(), RULE_COLS);
+
+function ruleSave(r) {
+  const values = RULE_COLS.map(c => r[c] == null ? '' : String(r[c]));
+  const row = r._row || ruleSheet().getLastRow() + 1;
+  ruleSheet().getRange(row, 1, 1, values.length).setNumberFormat('@').setValues([values]);
+  r._row = row;
+}
+function nextRuleId() {
+  const p = props();
+  const seq = Number(p.getProperty('RULE_SEQ') || 0) + 1;
+  p.setProperty('RULE_SEQ', String(seq));
+  return 'R-' + ('000' + seq).slice(-4);
+}
+/** A due day `days` after `day`; 0 means the same day (addPeriod needs a non-zero step). */
+const dueAfter = (day, days) => days ? addPeriod(day, { days: days }) : day;
+/** Still-open tasks of a repeat, read from the Tasks sheet (taskById from readTasks()). */
+const openRuleTasks = (r, taskById) => String(r['Open Tasks'] || '').split(',').map(s => s.trim())
+  .filter(id => id && taskById[id] && (taskById[id]['Status'] === 'Open' || taskById[id]['Status'] === 'In progress'));
+const repeatLabel = r => r.Repeat === 'Hours' ? r.Hours + ' h' : r.Period;
+
+/** Checks the repeat settings and returns the fields stored on the rule. Throws when anything is unclear. */
+function ruleSpec(f, a, today) {
+  const out = {};
+  if (a.basis === 'hours') {
+    const h = Math.round(Number(a.hours));
+    if (!(h >= 1 && h <= 100000)) throw new Error('Enter the running hours between 1 and 100000');
+    if (!String(f.equipmentNo || '').trim()) throw new Error('Choose the equipment for hour-based repeats');
+    out.Repeat = 'Hours'; out.Hours = String(h); out.Period = '';
+  } else {
+    const p = autoPeriod(a.period);
+    if (!p) throw new Error('Choose how often the task repeats');
+    out.Repeat = 'Period'; out.Period = p.label; out.Hours = '';
+  }
+  const people = [];
+  [].concat(a.assignees || []).forEach(n => {
+    const who = assignable().filter(u => lc(u.username) === lc(n))[0];
+    if (!who) throw new Error('Choose who does the task');
+    if (people.indexOf(who.username) < 0) people.push(who.username);
+  });
+  if (!people.length) throw new Error('Choose at least one person');
+  const due = cleanDate(f.due);
+  out['Due Days'] = String(due ? Math.max(0, Math.round((isoToDate(due) - isoToDate(today)) / 864e5)) : DEFAULT_DUE_DAYS);
+  out.Assignees = people.join(', ');
+  return out;
+}
+
+/** One task of a repeat for one person. by = the creator shown on the task. */
+function ruleTask(r, who, by, due, note) {
+  const p = props();
+  const seq = Number(p.getProperty('TASK_SEQ') || 0) + 1;
+  p.setProperty('TASK_SEQ', String(seq));
+  const now = nowText();
+  const t = {
+    'ID': 'T-' + ('000' + seq).slice(-4), 'Created': now, 'Created By': by.username, 'Creator Name': by.name,
+    'Assigned To': who.username, 'Assignee Name': who.name, 'Title': r.Title, 'Details': r.Details || '',
+    'Equipment': r.Equipment || '', 'Priority': PRIORITIES.indexOf(r.Priority) >= 0 ? r.Priority : 'Normal',
+    'Due': due, 'Link': TASK_LINKS.indexOf(r.Link || '') >= 0 ? (r.Link || '') : '', 'Status': 'Open',
+    'Updated': now, 'Updated By': by.username,
+    'Equipment No': r['Equipment No'] || '', 'Line': r.Line || '', 'Location': r.Location || ''
+  };
+  writeTask(t);
+  history(t['ID'], 'Created', { username: by.username }, note + ' (' + r['Rule ID'] + ')');
+  notifyUser(who.username, { kind: 'assigned', id: t['ID'], title: t['Title'], equipment: equipLabel(t), priority: t['Priority'], by: by.name });
+  return t;
+}
+
+function ruleOut(r, users, openIds) {
+  const names = String(r.Assignees || '').split(',').map(s => s.trim()).filter(Boolean).map(un => {
+    const u = users.filter(x => lc(x.username) === lc(un))[0];
+    return u ? u.name : un;
+  });
+  return { id: r['Rule ID'], title: r.Title, details: r.Details, priority: r.Priority, link: r.Link,
+           equipment: r.Equipment, equipmentNo: r['Equipment No'], line: r.Line, location: r.Location,
+           repeat: repeatLabel(r), repeatKind: r.Repeat, active: r.Active === 'Yes', started: r.Started,
+           assignees: names, openCount: openIds ? openIds.length : 0, created: r.Created, createdBy: r['Created By'] };
+}
+
+/** Save a new repeat: validates, makes the first task for each person now, then stores the rule. */
+function taskRuleCreate(user, f, a) {
+  if (!isManager(user)) throw new Error('Only a supervisor can repeat a task');
+  f = f || {}; a = a || {};
+  const title = String(f.title || '').trim().slice(0, 140);
+  if (!title) throw new Error('Enter a task title');
+  const today = todayIso();
+  const spec = ruleSpec(f, a, today);
+  const r = {
+    'Rule ID': nextRuleId(), 'Created': nowText(), 'Created By': user.username,
+    'Title': title, 'Details': String(f.details || '').slice(0, 2000),
+    'Priority': PRIORITIES.indexOf(f.priority) >= 0 ? f.priority : 'Normal',
+    'Equipment': String(f.equipment || '').slice(0, 120), 'Equipment No': String(f.equipmentNo || '').slice(0, 60),
+    'Line': String(f.line || '').slice(0, 60), 'Location': String(f.location || '').slice(0, 60),
+    'Link': TASK_LINKS.indexOf(f.link || '') >= 0 ? (f.link || '') : '',
+    'Repeat': spec.Repeat, 'Period': spec.Period, 'Hours': spec.Hours, 'Due Days': spec['Due Days'],
+    'Assignees': spec.Assignees, 'Active': 'Yes', 'Started': today, 'Open Tasks': '', 'Updated': nowText()
+  };
+  const hNow = r.Repeat === 'Hours' ? latestHourMeter(r['Equipment No']) : null;
+  r['Hours At Start'] = hNow === null ? '' : String(hNow);
+  const due = cleanDate(f.due) || dueAfter(today, Number(r['Due Days']));
+  const made = [];
+  const users = assignable();
+  spec.Assignees.split(', ').forEach(name => {
+    const who = users.filter(u => lc(u.username) === lc(name))[0];
+    if (who) made.push(ruleTask(r, who, { username: user.username, name: user.name }, due, 'Repeat set: ' + repeatLabel(r)));
+  });
+  r['Open Tasks'] = made.map(t => t['ID']).join(',');
+  ruleSave(r);
+  return { ok: true, rule: ruleOut(r, users, made.map(t => t['ID'])), tasks: made.map(taskOut) };
+}
+
+/** Supervisor list of repeats with open-task counts. */
+function taskRulesList(user) {
+  if (!isManager(user)) throw new Error('Only a supervisor can see repeating tasks');
+  const users = usersTable(true);
+  const byId = {};
+  readTasks().forEach(t => { byId[t['ID']] = t; });
+  return { ok: true, rules: rulesOf().map(r => ruleOut(r, users, openRuleTasks(r, byId))).reverse() };
+}
+
+/** Stop (active = false) or resume a repeat. Tasks already made are kept. Resuming counts from today. */
+function taskRuleStatus(user, id, active) {
+  if (!isManager(user)) throw new Error('Only a supervisor can stop or resume a repeat');
+  const r = rulesOf().filter(x => x['Rule ID'] === String(id || ''))[0];
+  if (!r) throw new Error('Repeat not found');
+  if (active) {
+    r.Active = 'Yes';
+    r.Started = todayIso();
+    const h = r.Repeat === 'Hours' ? latestHourMeter(r['Equipment No']) : null;
+    r['Hours At Start'] = h === null ? '' : String(h);
+  } else r.Active = 'No';
+  r.Updated = nowText();
+  ruleSave(r);
+  const byId = {};
+  readTasks().forEach(t => { byId[t['ID']] = t; });
+  return { ok: true, rule: ruleOut(r, usersTable(true), openRuleTasks(r, byId)) };
+}
+
+/** Called by automationCycle: makes the due tasks of every active repeat. Errors are collected, not thrown. */
+function taskRulesRun(today, created, errors) {
+  const users = usersTable(true);
+  const byId = {};
+  readTasks().forEach(t => { byId[t['ID']] = t; });
+  rulesOf().forEach(r => {
+    if (r.Active !== 'Yes') return;
+    try {
+      const open = openRuleTasks(r, byId);
+      r['Open Tasks'] = open.join(',');
+      let due = false, hours = null;
+      if (r.Repeat === 'Period') {
+        due = !r.Started || today >= addPeriod(r.Started, autoPeriod(r.Period));
+      } else {
+        hours = latestHourMeter(r['Equipment No']);
+        if (hours !== null) {
+          if (r['Hours At Start'] === '' || hours < Number(r['Hours At Start'])) { r['Hours At Start'] = String(hours); r.Started = today; }
+          else due = hours - Number(r['Hours At Start']) >= Number(r.Hours);
+        }
+      }
+      if (due && !open.length) {
+        const ids = [];
+        String(r.Assignees || '').split(',').map(s => s.trim()).filter(Boolean).forEach(name => {
+          const who = users.filter(u => u.active && lc(u.username) === lc(name))[0];
+          if (who) ids.push(ruleTask(r, who, { username: 'automation', name: 'Automation' },
+                                     dueAfter(today, Number(r['Due Days'])), 'Repeat: ' + repeatLabel(r))['ID']);
+        });
+        if (ids.length) {
+          r['Open Tasks'] = ids.join(',');
+          r.Started = today;
+          if (r.Repeat === 'Hours') r['Hours At Start'] = String(hours);
+          created.push.apply(created, ids);
+        }
+      }
+    } catch (err) { errors.push(r.Title + ': ' + err.message); }
+    r.Updated = nowText();
+    ruleSave(r);
+  });
 }
 
 /* ---- spare parts (Maintainance Inventory: electrical and mechanical tabs) ---- */
