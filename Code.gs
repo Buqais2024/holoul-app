@@ -36,6 +36,12 @@
  *    a period (weekly ... yearly) or running hours, and the technicians who do it
  *  - run installAutomationTrigger() once from the editor: a daily check at 06:00 creates the tasks
  *  - progress is kept in the "Automation Log" tab of the Maintenance Tasks sheet
+ *
+ * v12 (Nov 2026) - automatic tasks section (dashboard, under Tasks):
+ *  - any task (title, details, equipment, priority, page link) sent to one or more people on a schedule
+ *    (Weekly ... Yearly, or every N running hours), from a start date, with N days to finish
+ *  - one row per rule in the "Task Rules" tab of the Maintenance Tasks sheet; the same daily trigger runs them
+ *  - saving a rule whose start date is today sends the first task straight away
  */
 
 const SHEET_ID     = '1ohP2VDJitA_ZxiY3Sk6V22Z6yGHZjvgsBg58pMwac_4';   // Holoul App - Users
@@ -121,6 +127,9 @@ function doPost(e) {
       case 'pushSubscribe':   out = withUser(body, u => locked(() => pushSubscribe(u, body.sub, body.device))); break;
       case 'pushUnsubscribe': out = withUser(body, u => locked(() => pushUnsubscribe(u, body.endpoint))); break;
       case 'pushInbox':    out = withUser(body, u => pushInbox(u)); break;
+      case 'taskRules':    out = withUser(body, u => taskRules(u)); break;
+      case 'taskRuleSave': out = withUser(body, u => locked(() => taskRuleSave(u, body.rule))); break;
+      case 'taskRuleStatus': out = withUser(body, u => locked(() => taskRuleStatus(u, body.id, body.status))); break;
       case 'pushTest':     out = withUser(body, u => locked(() => Object.assign({ ok: true }, notifyUser(u.username, { kind: 'test' })))); break;
       default:             out = { ok: false, error: 'Unknown action' };
     }
@@ -131,7 +140,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 11 }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 12 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -953,7 +962,7 @@ function tasksBook() {
     }
     return sh;
   };
-  tab('Tasks', TASK_COLS, true); tab('Task History', HISTORY_COLS); tab('Push Devices', PUSH_COLS); tab(AUTO_LOG, AUTO_LOG_COLS);
+  tab('Tasks', TASK_COLS, true); tab('Task History', HISTORY_COLS); tab('Push Devices', PUSH_COLS); tab(AUTO_LOG, AUTO_LOG_COLS); tab(RULE_SHEET, RULE_COLS);
   return (_tasks = ss);
 }
 
@@ -2003,7 +2012,12 @@ function automationCycle() {
       log.Updated = nowText();
       autoLogSave(log);
     } catch (err) { errors.push(eq.name + ': ' + err.message); } });   // one bad rule does not stop the others
-    return { ok: !errors.length, rules: rules.length, created: created, errors: errors };
+    // v12: automatic tasks from the dashboard ("Task Rules" tab)
+    let more = { rules: 0, created: [], errors: [] };
+    try { more = taskRulesCycle(today, users, taskById); } catch (err) { errors.push('Task Rules: ' + err.message); }
+    created.push.apply(created, more.created);
+    errors.push.apply(errors, more.errors);
+    return { ok: !errors.length, rules: rules.length + more.rules, created: created, errors: errors };
   } finally { lock.releaseLock(); }
 }
 
@@ -2012,6 +2026,208 @@ function installAutomationTrigger() {
   ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'automationCycle') ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('automationCycle').timeBased().everyDays(1).atHour(6).create();
   return { ok: true, note: 'automationCycle runs every day at 06:00 (script time zone)' };
+}
+
+/* ---- v12: automatic tasks (dashboard section "Automatic tasks", under Tasks) ----
+ * One row per rule in the "Task Rules" tab of the Maintenance Tasks book. A rule is any task (title, details,
+ * equipment, priority, page link) for one or more people, repeated every period or every N running hours.
+ * automationCycle() (daily, 06:00) creates one task per person when a rule is due and none of its tasks is still open. */
+
+const RULE_SHEET = 'Task Rules';
+const RULE_COLS = ['ID', 'Status', 'Title', 'Details', 'Equipment', 'Equipment No', 'Line', 'Location', 'Priority', 'Link',
+                   'Basis', 'Every', 'Assignees', 'Start', 'Due Days', 'Last Run', 'Hours At Start', 'Open Tasks',
+                   'Created', 'Created By', 'Updated', 'Updated By'];
+const RULE_STATUSES = ['Active', 'Paused', 'Deleted'];
+const ruleSheet = () => tasksBook().getSheetByName(RULE_SHEET);
+const readRules = () => rowsOf(ruleSheet(), RULE_COLS).filter(r => String(r['ID']).trim());
+const splitList = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
+const isOpenTask = t => !!t && (t['Status'] === 'Open' || t['Status'] === 'In progress');
+function taskMap() { const m = {}; readTasks().forEach(t => { m[t['ID']] = t; }); return m; }
+
+function ruleWrite(r) {
+  const sh = ruleSheet();
+  const values = RULE_COLS.map(c => r[c] == null ? '' : String(r[c]));
+  const row = r._row || sh.getLastRow() + 1;
+  sh.getRange(row, 1, 1, values.length).setNumberFormat('@').setValues([values]);
+  r._row = row;
+}
+
+/** { basis, period | hours, label } or null when the row is not understood (such rules never run). */
+function ruleSchedule(r) {
+  if (r['Basis'] === 'hours') {
+    const h = Math.round(Number(r['Every']));
+    return h >= 1 ? { basis: 'hours', hours: h, label: h + ' h' } : null;
+  }
+  const p = autoPeriod(r['Every']);
+  return p ? { basis: 'period', period: p, label: p.label } : null;
+}
+
+function ruleOut(r, names, hoursOf, taskById) {
+  const s = ruleSchedule(r);
+  const people = splitList(r['Assignees']);
+  const open = splitList(r['Open Tasks']).filter(id => isOpenTask(taskById[id]));
+  let next = '', hoursNow = null;
+  if (s && s.basis === 'period') next = r['Last Run'] ? addPeriod(r['Last Run'], s.period) : (r['Start'] || '');
+  if (s && s.basis === 'hours' && r['Equipment No']) hoursNow = hoursOf(r['Equipment No']);
+  return { id: r['ID'], status: r['Status'] || 'Active', title: r['Title'], details: r['Details'],
+           equipment: r['Equipment'], equipmentNo: r['Equipment No'], line: r['Line'], location: r['Location'],
+           priority: r['Priority'] || 'Normal', link: r['Link'], basis: s ? s.basis : '', every: r['Every'], label: s ? s.label : '',
+           assignees: people, assigneeNames: people.map(u => names[lc(u)] || u), start: r['Start'], dueDays: Number(r['Due Days']) || 7,
+           lastRun: r['Last Run'], hoursAtStart: r['Hours At Start'], hoursNow: hoursNow, next: next, openTasks: open,
+           created: r['Created'], createdBy: r['Created By'], updated: r['Updated'] };
+}
+
+/** Rules for the dashboard, plus the reading rules set on equipment (v11), so the supervisor sees all in one place. */
+function taskRules(user) {
+  if (!isManager(user)) throw new Error('Only a supervisor can set automatic tasks');
+  const names = {}; usersTable().forEach(u => { names[lc(u.username)] = u.name; });
+  const hc = {}; const hoursOf = no => (no in hc) ? hc[no] : (hc[no] = latestHourMeter(no));
+  const taskById = taskMap();
+  const rules = readRules().filter(r => r['Status'] !== 'Deleted').map(r => ruleOut(r, names, hoursOf, taskById));
+  let equipmentRules = [];
+  try {
+    equipmentRules = equipmentList().filter(e => !e.deleted && parseAuto(e.auto))
+      .map(e => ({ name: e.name, no: e.no, line: e.line, loc: e.loc, row: e.row, auto: e.auto }));
+  } catch (err) {}
+  return { ok: true, today: todayIso(), rules: rules, equipmentRules: equipmentRules };
+}
+
+/** New rule (no id) or a change to one. Sends the first task now when the rule is already due. */
+function taskRuleSave(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can set automatic tasks');
+  f = f || {};
+  const title = clean(f.title, 140);
+  if (!title) throw new Error('Enter a task title');
+  const pool = assignable();
+  const people = [];
+  [].concat(f.assignees || []).forEach(n => {
+    const u = pool.filter(x => lc(x.username) === lc(n))[0];
+    if (!u) throw new Error('Choose who does the task');
+    if (people.indexOf(u.username) < 0) people.push(u.username);
+  });
+  if (!people.length) throw new Error('Choose who does the task');
+  const equipmentNo = clean(f.equipmentNo, 60);
+  let basis, every;
+  if (f.basis === 'hours') {
+    const h = Math.round(Number(f.hours));
+    if (!(h >= 1 && h <= 100000)) throw new Error('Enter the running hours between 1 and 100000');
+    if (!equipmentNo) throw new Error('Running hours need an equipment with a number (e.g. BC1)');
+    basis = 'hours'; every = String(h);
+  } else {
+    const p = autoPeriod(f.period);
+    if (!p) throw new Error('Choose how often the task repeats');
+    basis = 'period'; every = p.label;
+  }
+  const dueDays = Math.round(Number(f.dueDays));
+  if (!(dueDays >= 1 && dueDays <= 365)) throw new Error('Enter the days to finish between 1 and 365');
+  const today = todayIso();
+  const start = cleanDate(f.start) || today;
+  const all = readRules();
+  let r;
+  if (f.id) {
+    r = all.filter(x => x['ID'] === String(f.id))[0];
+    if (!r || r['Status'] === 'Deleted') throw new Error('Automatic task not found');
+  } else {
+    const n = all.reduce((m, x) => Math.max(m, Number(String(x['ID']).replace(/\D/g, '')) || 0), 0) + 1;
+    r = { 'ID': 'R-' + ('00' + n).slice(-3), 'Status': 'Active', 'Created': nowText(), 'Created By': user.username,
+          'Last Run': '', 'Hours At Start': '', 'Open Tasks': '' };
+  }
+  // a new schedule starts again from its start date (tasks already open stay tracked)
+  const changed = r['Basis'] !== basis || r['Every'] !== every || r['Start'] !== start || (r['Equipment No'] || '') !== equipmentNo;
+  Object.assign(r, {
+    'Title': title, 'Details': String(f.details || '').slice(0, 2000), 'Equipment': clean(f.equipment, 120), 'Equipment No': equipmentNo,
+    'Line': clean(f.line, 60), 'Location': clean(f.location, 60),
+    'Priority': PRIORITIES.indexOf(f.priority) >= 0 ? f.priority : 'Normal',
+    'Link': TASK_LINKS.indexOf(f.link || '') >= 0 ? (f.link || '') : '',
+    'Basis': basis, 'Every': every, 'Assignees': people.join(', '), 'Start': start, 'Due Days': String(dueDays),
+    'Updated': nowText(), 'Updated By': user.username
+  });
+  if (changed) { r['Last Run'] = ''; r['Hours At Start'] = ''; }
+  const taskById = taskMap();
+  const sent = runRule(r, today, usersTable(true), taskById);
+  ruleWrite(r);
+  const names = {}; usersTable().forEach(u => { names[lc(u.username)] = u.name; });
+  const fresh = sent.length ? taskMap() : taskById;
+  return { ok: true, rule: ruleOut(r, names, latestHourMeter, fresh), sent: sent };
+}
+
+/** Pause, resume or delete a rule. Tasks it already created are not touched. */
+function taskRuleStatus(user, id, status) {
+  if (!isManager(user)) throw new Error('Only a supervisor can set automatic tasks');
+  if (RULE_STATUSES.indexOf(status) < 0) throw new Error('Unknown status');
+  const r = readRules().filter(x => x['ID'] === String(id || ''))[0];
+  if (!r || r['Status'] === 'Deleted') throw new Error('Automatic task not found');
+  r['Status'] = status; r['Updated'] = nowText(); r['Updated By'] = user.username;
+  ruleWrite(r);
+  return { ok: true };
+}
+
+/** Creates the tasks of one rule when it is due. Changes r (Last Run, Hours At Start, Open Tasks); the caller saves it. */
+function runRule(r, today, users, taskById) {
+  const s = ruleSchedule(r);
+  if (!s || r['Status'] !== 'Active') return [];
+  const open = splitList(r['Open Tasks']).filter(id => isOpenTask(taskById[id]));
+  r['Open Tasks'] = open.join(',');
+  if (r['Start'] && today < r['Start']) return [];
+  let due = false, hours = null;
+  if (s.basis === 'period') {
+    due = !r['Last Run'] || today >= addPeriod(r['Last Run'], s.period);
+  } else {
+    hours = latestHourMeter(r['Equipment No']);
+    if (hours !== null) {
+      // first reading seen, or the meter went back (replaced): the count starts from this reading
+      if (r['Hours At Start'] === '' || hours < Number(r['Hours At Start'])) r['Hours At Start'] = String(hours);
+      else due = hours - Number(r['Hours At Start']) >= s.hours;
+    }
+  }
+  if (!due || open.length) return [];
+  const ids = [];
+  splitList(r['Assignees']).forEach(name => {
+    const who = users.filter(u => u.active && lc(u.username) === lc(name))[0];
+    if (who) ids.push(createRuleTask(r, s, who, today));
+  });
+  if (ids.length) {
+    r['Open Tasks'] = ids.join(',');
+    r['Last Run'] = today;
+    if (s.basis === 'hours') r['Hours At Start'] = String(hours);
+  }
+  return ids;
+}
+
+function createRuleTask(r, s, who, today) {
+  const p = props();
+  const seq = Number(p.getProperty('TASK_SEQ') || 0) + 1;
+  p.setProperty('TASK_SEQ', String(seq));
+  const now = nowText();
+  const note = 'Automatic task ' + r['ID'] + ' (' + s.label + ').';
+  const t = {
+    'ID': 'T-' + ('000' + seq).slice(-4), 'Created': now, 'Created By': 'automation', 'Creator Name': 'Automation',
+    'Assigned To': who.username, 'Assignee Name': who.name, 'Title': r['Title'],
+    'Details': (r['Details'] ? r['Details'] + '\n\n' : '') + note,
+    'Equipment': r['Equipment'], 'Priority': r['Priority'] || 'Normal', 'Due': addPeriod(today, { days: Number(r['Due Days']) || 7 }),
+    'Link': r['Link'] || '', 'Status': 'Open', 'Updated': now, 'Updated By': 'automation',
+    'Equipment No': r['Equipment No'] || '', 'Line': r['Line'] || '', 'Location': r['Location'] || ''
+  };
+  writeTask(t);
+  history(t['ID'], 'Created', { username: 'automation' }, 'Scheduled: ' + r['ID'] + ' ' + s.label);
+  notifyUser(who.username, { kind: 'assigned', id: t['ID'], title: t['Title'], equipment: equipLabel(t), priority: t['Priority'], by: 'Automation' });
+  return t['ID'];
+}
+
+/** Daily part of automationCycle for the "Task Rules" tab. */
+function taskRulesCycle(today, users, taskById) {
+  const out = { rules: 0, created: [], errors: [] };
+  readRules().forEach(r => {
+    if (r['Status'] !== 'Active') return;
+    out.rules++;
+    try {
+      const before = JSON.stringify(r);
+      const ids = runRule(r, today, users, taskById);
+      out.created.push.apply(out.created, ids);
+      if (JSON.stringify(r) !== before) ruleWrite(r);
+    } catch (err) { out.errors.push(r['ID'] + ': ' + err.message); }
+  });
+  return out;
 }
 
 /* ---- spare parts (Maintainance Inventory: electrical and mechanical tabs) ---- */

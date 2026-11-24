@@ -1,4 +1,4 @@
-/* Holoul Maintenance — dashboard (app v13).
+/* Holoul Maintenance — dashboard (app v16).
  * Supervisor / Operations Manager: every section.
  * Technician / operator: only the sections their rights open (Equipment, Spare parts) and New task.
  * Uses helpers from index.html (t, esc, HS, session, showView, toast, loadImage, scaled, roleName, modName, ...). */
@@ -253,8 +253,32 @@
     dActive:'نشط', dInactive:'موقوف', dNoRights:'—', dLoadTeam:'جارٍ تحميل الفريق…', dPerf:'الأداء'
   });
 
+  Object.assign(I18N.en, {
+    dRules:'Automatic tasks', rNew:'New automatic task', rEdit:'Edit automatic task', rIntro:'These tasks are sent by themselves on the schedule you set. Every morning at 06:00 the app checks each one; a new task is sent only when the earlier one is finished.',
+    rTask:'Task', rRepeats:'Repeats', rWho:'Sent to', rNext:'Next', rState:'Status', rNone:'No automatic tasks yet — add the first one.',
+    rLoading:'Loading automatic tasks…', rErr:'Automatic tasks could not be loaded: {e}', rActive:'Active', rPaused:'Paused',
+    rEveryH:'Every {n} running hours', rNextMorning:'Tomorrow 06:00', rToday:'Today', rWaiting:'Waiting — {n} task(s) still open', rStarts:'Starts {d}',
+    rHoursAt:'{n} of {e} h', rNoHours:'No hour-meter reading yet', rPeople:'Send to (one or more) *', rStart:'Start date', rDays:'Days to finish',
+    rSave:'Save automatic task', rPause:'Pause', rResume:'Resume', rDel:'Delete', rDelSure:'Tap again to delete',
+    rSent:'Saved — {n} task(s) sent now', rHoursNeedEq:'Running hours need an equipment with a number (e.g. BC1)', rNeedWho:'Choose at least one person',
+    rHoursHint:'Counts the hour meter from the daily check of this equipment (only Bobcat units have it today).',
+    rEqTitle:'Reading tasks set on equipment', rEqHint:'Set and changed from the equipment page.', rLast:'Last sent {d}'
+  });
+  Object.assign(I18N.ar, {
+    dRules:'المهام التلقائية', rNew:'مهمة تلقائية جديدة', rEdit:'تعديل المهمة التلقائية', rIntro:'تُرسل هذه المهام تلقائياً حسب الجدول الذي تحدده. يفحصها التطبيق كل صباح الساعة 06:00، ولا تُرسل مهمة جديدة إلا بعد إنجاز السابقة.',
+    rTask:'المهمة', rRepeats:'التكرار', rWho:'تُرسل إلى', rNext:'القادمة', rState:'الحالة', rNone:'لا توجد مهام تلقائية بعد — أضف أول مهمة.',
+    rLoading:'جارٍ تحميل المهام التلقائية…', rErr:'تعذّر تحميل المهام التلقائية: {e}', rActive:'فعّالة', rPaused:'موقوفة',
+    rEveryH:'كل {n} ساعة تشغيل', rNextMorning:'غداً 06:00', rToday:'اليوم', rWaiting:'بانتظار إنجاز {n} مهمة مفتوحة', rStarts:'تبدأ {d}',
+    rHoursAt:'{n} من {e} ساعة', rNoHours:'لا توجد قراءة عدّاد ساعات بعد', rPeople:'تُرسل إلى (واحد أو أكثر) *', rStart:'تاريخ البدء', rDays:'أيام الإنجاز',
+    rSave:'حفظ المهمة التلقائية', rPause:'إيقاف مؤقت', rResume:'استئناف', rDel:'حذف', rDelSure:'اضغط مرة أخرى للحذف',
+    rSent:'تم الحفظ — أُرسلت {n} مهمة الآن', rHoursNeedEq:'ساعات التشغيل تحتاج معدة لها رقم (مثال BC1)', rNeedWho:'اختر شخصاً واحداً على الأقل',
+    rHoursHint:'يُحسب من عدّاد الساعات في الفحص اليومي لهذه المعدة (متوفر حالياً للبوبكات فقط).',
+    rEqTitle:'مهام قراءات مضبوطة على المعدات', rEqHint:'تُضبط وتُعدّل من صفحة المعدة.', rLast:'آخر إرسال {d}'
+  });
+
   const ICON = {
     overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+    auto: '<path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
     tasks: '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/>',
     team: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
     monthly: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
@@ -269,8 +293,8 @@
     link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'
   };
   const svg = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke-width="${w || 2}" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>`;
-  const SECTIONS = ['overview', 'tasks', 'equipment', 'spares', 'team', 'monthly'];
-  const TITLE = { overview: 'dOverview', tasks: 'dTasks', equipment: 'dEquip', spares: 'dSpares', team: 'dTeam', monthly: 'dMonthly' };
+  const SECTIONS = ['overview', 'tasks', 'auto', 'equipment', 'spares', 'team', 'monthly'];
+  const TITLE = { overview: 'dOverview', tasks: 'dTasks', auto: 'dRules', equipment: 'dEquip', spares: 'dSpares', team: 'dTeam', monthly: 'dMonthly' };
 
   let data = null, section = 'overview', loading = false, loadErr = false, timer = null, month = null, who = '', q = '', lineF = '';
   let pendingNew = false;
@@ -288,7 +312,7 @@
   const isMgrRole = r => /^(Supervisor|Operations Manager)$/.test(r);
   /** Sections this user may open, in menu order. */
   const visible = () => SECTIONS.filter(s => (s === 'equipment' && canEq()) || (s === 'spares' && canSp()) ||
-    (isMgr() && (s === 'overview' || s === 'tasks' || s === 'team' || s === 'monthly')));
+    (isMgr() && (s === 'overview' || s === 'tasks' || s === 'auto' || s === 'team' || s === 'monthly')));
 
   async function open(sec) {
     if (sec === 'newtask') pendingNew = true;
@@ -319,6 +343,7 @@
     if (section === 'equipment') { loadEquip(true); if (eqSel) { eqHistKey = ''; ensureHist(eqSel); } }
     if (section === 'spares') loadSpares(true);
     if (section === 'team') loadTeam(true);
+    if (section === 'auto') loadRules(true);
   }
 
   function render() {
@@ -331,7 +356,7 @@
     const pages = ['Amp Rec', 'Vibration Rec', 'Thermo Rec'].filter(p => (u.access || []).indexOf(p) >= 0)
       .map(p => `<button type="button" data-page="${esc(p)}">${svg('page')}<span>${esc(modName(p))}</span></button>`).join('');
     const updated = data ? t('dUpdated', { t: fmtStamp(data.generatedAt) }) : '';
-    const needData = !data && isMgr() && section !== 'equipment' && section !== 'spares' && section !== 'team';
+    const needData = !data && isMgr() && section !== 'equipment' && section !== 'spares' && section !== 'team' && section !== 'auto';
     $('dash').innerHTML = `
       <div class="dsh">
         <aside class="dside">
@@ -376,12 +401,14 @@
     bindEquipment();
     bindSpares();
     bindTeam();
+    bindRules();
     D.querySelectorAll('[data-ph]').forEach(b => b.onclick = () => addPhoto(b.dataset.ph));
     D.querySelectorAll('[data-img]').forEach(b => b.onclick = () => window.open(b.dataset.img, '_blank', 'noopener'));
   }
   function body() {
     if (visible().indexOf(section) < 0) return `<div class="dempty">${esc(t('noData'))}</div>`;
     if (section === 'tasks') return tasksView();
+    if (section === 'auto') return rulesView();
     if (section === 'team') return teamView();
     if (section === 'monthly') return monthlyView();
     if (section === 'equipment') return equipmentView();
@@ -713,6 +740,153 @@
   function autoPayload() {
     return { reading: $('eqAR').value, basis: $('eqAB').value, period: $('eqAP').value, hours: $('eqAH').value,
       assignees: [...document.querySelectorAll('#eqAW input:checked')].map(i => i.value) };
+  }
+
+  /* ---------- automatic tasks (any task, sent on a schedule; "Task Rules" tab) ---------- */
+  let rules = null, rulesErr = '', rulesLoading = false, rulesToday = '', eqRules = [], ruleArm = '';
+  function loadRules() {
+    if (rulesLoading) return;
+    rulesLoading = true; rulesErr = '';
+    HS.api('taskRules', {}, 45000).then(r => {
+      if (r && r.ok) { rules = r.rules || []; eqRules = r.equipmentRules || []; rulesToday = r.today || todayISO(); }
+      else rulesErr = r && r.error ? trErr(r.error) : '';
+    }).catch(err => {
+      rulesErr = err.message || String(err);
+      if (err.auth) { authLost = true; syncUI(); }
+    }).finally(() => { rulesLoading = false; if (!$('dash').classList.contains('hidden')) render(); });
+  }
+  function ruleRepeats(r) {
+    if (r.basis === 'hours') return t('rEveryH', { n: r.every });
+    const per = AUTO_PERIODS.filter(p => p[0] === r.every)[0];
+    return per ? t(per[1]) : r.every;
+  }
+  function ruleNext(r) {
+    if (r.status === 'Paused') return '—';
+    if (r.openTasks && r.openTasks.length) return t('rWaiting', { n: r.openTasks.length });
+    const today = rulesToday || todayISO();
+    if (r.basis === 'hours') {
+      if (r.start && r.start > today) return t('rStarts', { d: shortDate(r.start) });
+      if (r.hoursNow === null || r.hoursNow === undefined || r.hoursAtStart === '') return t('rNoHours');
+      return t('rHoursAt', { n: Math.max(0, Math.round((r.hoursNow - Number(r.hoursAtStart)) * 10) / 10), e: r.every });
+    }
+    if (!r.next) return '—';
+    return r.next <= today ? t('rNextMorning') : shortDate(r.next);
+  }
+  function rulesView() {
+    if (rules === null) {
+      if (!rulesLoading && !rulesErr) loadRules();
+      return rulesErr ? `<div class="dnote">${esc(t('rErr', { e: rulesErr }))}</div>` : `<div class="dempty">${esc(t('rLoading'))}</div>`;
+    }
+    const rows = rules.map(r => {
+      const eq = [r.equipment, r.equipmentNo && r.equipmentNo !== r.equipment ? r.equipmentNo : ''].filter(Boolean).join(' · ');
+      return `<tr class="clickrow ${r.status === 'Paused' ? 'off' : ''}" data-rule="${esc(r.id)}">
+        <td><b>${esc(r.title)}</b><small>${esc(r.id)}${eq ? ' · ' + esc(eq) : ''}</small></td>
+        <td>${esc(ruleRepeats(r))}</td>
+        <td>${esc((r.assigneeNames || []).join(LANG === 'ar' ? '، ' : ', '))}</td>
+        <td>${esc(ruleNext(r))}${r.lastRun ? `<small>${esc(t('rLast', { d: shortDate(r.lastRun) }))}</small>` : ''}</td>
+        <td><span class="st ${r.status === 'Paused' ? 'none' : 'ok'}">${esc(t(r.status === 'Paused' ? 'rPaused' : 'rActive'))}</span></td></tr>`;
+    }).join('');
+    const eqList = eqRules.map(e => `<tr class="clickrow" data-eqrule="${e.row}"><td><b>${esc(e.name)}</b>${e.no ? `<small>${esc(e.no)}</small>` : ''}</td><td>${esc(autoLabel(e))}</td></tr>`).join('');
+    return `<div class="toolbar"><p class="mini" style="flex:1;min-width:220px;margin:0">${esc(t('rIntro'))}</p>
+        <button type="button" class="btn pri" data-act="newRule">${svg('plus', 2.4)}<span>${esc(t('rNew'))}</span></button></div>
+      <section class="dcard"><div class="tscroll"><table class="dtable"><thead><tr>
+        <th>${esc(t('rTask'))}</th><th>${esc(t('rRepeats'))}</th><th>${esc(t('rWho'))}</th><th>${esc(t('rNext'))}</th><th>${esc(t('rState'))}</th>
+      </tr></thead><tbody>${rows || `<tr><td colspan="5" class="dempty">${esc(t('rNone'))}</td></tr>`}</tbody></table></div></section>
+      ${eqList ? `<section class="dcard" style="margin-top:16px"><h4>${esc(t('rEqTitle'))}<span>${esc(t('rEqHint'))}</span></h4>
+        <div class="tscroll"><table class="dtable"><tbody>${eqList}</tbody></table></div></section>` : ''}`;
+  }
+  function bindRules() {
+    const D = $('dash');
+    const nb = D.querySelector('[data-act="newRule"]'); if (nb) nb.onclick = () => ruleForm(null);
+    D.querySelectorAll('[data-rule]').forEach(b => b.onclick = () => { const r = (rules || []).find(x => x.id === b.dataset.rule); if (r) ruleForm(r); });
+    D.querySelectorAll('[data-eqrule]').forEach(b => b.onclick = () => {
+      const row = +b.dataset.eqrule;
+      const go = () => { eqSel = (eqAll || []).find(x => x.row === row) || null; eqHistKey = ''; eqOpen = {}; phState = { id: '', photos: null, err: '' }; section = 'equipment'; render(); window.scrollTo(0, 0); };
+      if (eqAll) go(); else loadEquip(false).then(go);
+    });
+  }
+  function ruleForm(r) {
+    if (!data) { toast(t('needOnline')); return; }
+    ruleArm = '';
+    const x = r ? { equipment: r.equipment, equipmentNo: r.equipmentNo, line: r.line, location: r.location } : null;
+    const cur = r || { priority: 'Normal', basis: 'period', every: 'Monthly', assignees: [], start: todayISO(), dueDays: 7, link: '', details: '', title: '' };
+    const opt = (v, label, sel) => `<option value="${esc(v)}"${v === sel ? ' selected' : ''}>${esc(label)}</option>`;
+    const picked = u => (cur.assignees || []).some(a => a.toLowerCase() === String(u).toLowerCase());
+    const people = assignees().map(p => `<label class="chkrow"><input type="checkbox" value="${esc(p.username)}"${picked(p.username) ? ' checked' : ''}><span>${esc(p.name)}<small>${esc(roleName(p.role))}</small></span></label>`).join('');
+    const links = ['', 'Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Bobcat', 'Forklift'].map(l => opt(l, l ? modName(l) : t('fNone'), cur.link || '')).join('');
+    const hours = cur.basis === 'hours';
+    const actions = r ? `<div class="dact"><button type="button" class="ghostbtn" id="rPause">${esc(t(r.status === 'Paused' ? 'rResume' : 'rPause'))}</button>
+        <button type="button" class="dangerbtn" id="rDel">${esc(t('rDel'))}</button></div>` : '';
+    showModal(`<h2>${esc(t(r ? 'rEdit' : 'rNew'))}</h2>
+      <form class="tform" id="rForm" autocomplete="off">
+        <label for="fTitle">${esc(t('fTitle'))} *</label>
+        <input class="ffield" id="fTitle" dir="auto" maxlength="140" required placeholder="${esc(t('fTitlePh'))}" value="${esc(cur.title)}">
+        <label for="rDet">${esc(t('fDetails'))}</label>
+        <textarea class="ffield" id="rDet" dir="auto">${esc(cur.details || '')}</textarea>
+        <label for="fEq">${esc(t('fEquip'))}</label>
+        ${equipPicker(x)}
+        <label>${esc(t('rPeople'))}</label>
+        <div id="rWho" style="margin-bottom:12px">${people || `<span class="mini">${esc(t('noData'))}</span>`}</div>
+        <label>${esc(t('fPriority'))}</label>
+        <div class="segctl four" id="rPrio">${['Low', 'Normal', 'High', 'Urgent'].map(p => `<button type="button" data-p="${p}" class="${p === cur.priority ? 'on' : ''}">${esc(t('prio.' + p))}</button>`).join('')}</div>
+        <label for="rBasis">${esc(t('dAutoBasis'))}</label>
+        <select class="ffield" id="rBasis">${opt('period', t('dAutoByPeriod'), cur.basis)}${opt('hours', t('dAutoByHours'), cur.basis)}</select>
+        <div id="rPw"${hours ? ' hidden' : ''}><label for="rPer">${esc(t('dAutoPeriod'))}</label>
+          <select class="ffield" id="rPer">${AUTO_PERIODS.map(p => opt(p[0], t(p[1]), hours ? 'Monthly' : cur.every)).join('')}</select></div>
+        <div id="rHw"${hours ? '' : ' hidden'}><label for="rHrs">${esc(t('dAutoHours'))}</label>
+          <input class="ffield" id="rHrs" type="number" inputmode="numeric" min="1" max="100000" step="1" value="${esc(hours ? cur.every : '')}">
+          <p class="fnote">${esc(t('rHoursHint'))}</p></div>
+        <div class="row2">
+          <div><label for="rStart">${esc(t('rStart'))}</label><input class="ffield" id="rStart" type="date" value="${esc(cur.start || todayISO())}"></div>
+          <div><label for="rDays">${esc(t('rDays'))}</label><input class="ffield" id="rDays" type="number" inputmode="numeric" min="1" max="365" step="1" value="${esc(cur.dueDays || 7)}"></div>
+        </div>
+        <label for="rLink">${esc(t('fLink'))}</label>
+        <select class="ffield" id="rLink">${links}</select>
+        <div class="msg" id="rMsg"></div>
+        <button class="primary" type="submit" id="rGo">${esc(t('rSave'))}</button>
+      </form>${actions}`, r ? r.id : '');
+    let prio = cur.priority || 'Normal';
+    const getEquip = wirePicker(x);
+    $('rPrio').querySelectorAll('button').forEach(b => b.onclick = () => { prio = b.dataset.p; $('rPrio').querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b)); });
+    $('rBasis').onchange = () => { const h = $('rBasis').value === 'hours'; $('rPw').hidden = h; $('rHw').hidden = !h; };
+    if (!r) setTimeout(() => $('fTitle').focus(), 60);
+    const after = async (res, msg) => {
+      if (!res || !res.ok) { toast(trErr(res && res.error) || t('needOnline')); return false; }
+      hideModal(); toast(msg); rules = null; loadRules(); load(); return true;
+    };
+    if (r) {
+      $('rPause').onclick = async () => {
+        try { await after(await HS.api('taskRuleStatus', { id: r.id, status: r.status === 'Paused' ? 'Active' : 'Paused' }, 30000), t('saved')); }
+        catch (e) { toast(e.auth ? t('sessionExpired') : t('needOnline')); }
+      };
+      $('rDel').onclick = async () => {
+        if (ruleArm !== r.id) { ruleArm = r.id; $('rDel').textContent = t('rDelSure'); return; }
+        try { await after(await HS.api('taskRuleStatus', { id: r.id, status: 'Deleted' }, 30000), t('saved')); }
+        catch (e) { toast(e.auth ? t('sessionExpired') : t('needOnline')); }
+      };
+    }
+    $('rForm').onsubmit = async ev => {
+      ev.preventDefault();
+      const basis = $('rBasis').value;
+      const f = Object.assign({
+        title: $('fTitle').value.trim(), details: $('rDet').value.trim(), priority: prio, basis: basis,
+        period: $('rPer').value, hours: $('rHrs').value, start: $('rStart').value, dueDays: $('rDays').value, link: $('rLink').value,
+        assignees: [...document.querySelectorAll('#rWho input:checked')].map(i => i.value)
+      }, getEquip());
+      if (r) f.id = r.id;
+      const msg = $('rMsg');
+      if (!f.title) { msg.textContent = t('fTitle') + ' *'; return; }
+      if (!f.assignees.length) { msg.textContent = t('rNeedWho'); return; }
+      if (basis === 'hours' && !(Number(f.hours) >= 1)) { msg.textContent = t('dAutoNoHours'); return; }
+      if (basis === 'hours' && !f.equipmentNo) { msg.textContent = t('rHoursNeedEq'); return; }
+      if (!(Number(f.dueDays) >= 1 && Number(f.dueDays) <= 365)) { msg.textContent = t('rDays') + ' (1–365)'; return; }
+      $('rGo').disabled = true; msg.textContent = '';
+      try {
+        const res = await HS.api('taskRuleSave', { rule: f }, 60000);
+        if (!res || !res.ok) { msg.textContent = trErr(res && res.error) || t('needOnline'); $('rGo').disabled = false; return; }
+        await after(res, res.sent && res.sent.length ? t('rSent', { n: res.sent.length }) : t('saved'));
+      } catch (e) { msg.textContent = e.auth ? t('sessionExpired') : t('needOnline'); $('rGo').disabled = false; }
+    };
   }
 
   /* ---------- spare parts (Maintainance Inventory: electrical and mechanical tabs) ---------- */
@@ -1301,7 +1475,7 @@
       data = null; clearInterval(timer); section = 'overview'; who = ''; q = ''; pendingNew = false;
       eqSel = null; eqHistKey = ''; eqAll = null; eqErr = ''; eqShowDel = false; armKey = '';
       spData = null; spErr = ''; spSel = null; spShowDel = false;
-      teamData = null; teamErr = ''; peopleList = null; phState = { id: '', photos: null, err: '' };
+      teamData = null; teamErr = ''; peopleList = null; rules = null; rulesErr = ''; eqRules = []; phState = { id: '', photos: null, err: '' };
     }
   };
 })();
