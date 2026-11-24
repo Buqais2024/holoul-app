@@ -211,10 +211,11 @@
     spLoading:'Loading spare parts…', spErr:'Spare parts could not be loaded: {e}', spOK:'OK', spLow:'Low stock',
     spPartNo:'Part no.', spItemNo:'Part / item no.', spName:'Part', spBrand:'Brand', spDesc:'Description', spQty:'Qty', spReq:'Required',
     spAvail:'Available', spUsed:'Used', spRem:'Remaining', spStatus:'Status', spMachine:'Machine',
-    dAddEq:'Add equipment', dEditEq:'Edit equipment', dEqDel:'Delete', dEqRestore:'Restore', dEqDelSure:'Tap again to delete', dShowDel:'Show deleted', dDeleted:'Deleted',
+    dSecAccount:'Account', dSecRights:'Extra rights', dRoleEq:'Equipment: {eq}', dAddEq:'Add equipment', dEditEq:'Edit equipment', dEqDel:'Delete', dEqRestore:'Restore', dEqDelSure:'Tap again to delete', dShowDel:'Show deleted', dDeleted:'Deleted',
     dEqfName:'Equipment name', dEqfLine:'Line / system', dEqfNo:'Number', dEqfLoc:'Location', dEqfCat:'Category',
     dEqfPhotoNew:'Main photo (required)', dEqfPhoto:'Main photo', dChoosePhoto:'Choose photo', dPhotoSel:'Photo selected', dKeepPhoto:'Keep the current photo',
-    dSaveEq:'Save equipment', dSavePart:'Save part', dCancel:'Cancel', dNeedVal:'Fill in the required fields', dLoadEq:'Loading equipment…', dLoadSp:'Loading spare parts…',
+    dSaveEq:'Save equipment', dSavePart:'Save part',
+    dAutoTitle:'Automatic task', dAutoHint:'Creates this reading task for the technicians you choose, on the schedule you set. Only supervisors can change it.', dAutoReading:'Reading', dAutoNone:'No automatic task', dAutoBasis:'Repeat by', dAutoByPeriod:'Time period', dAutoByHours:'Running hours', dAutoPeriod:'How often', dAutoHours:'Every how many hours', dAutoWho:'Technicians (one or more)', dAutoLoading:'Loading technicians…', dAutoNoTechs:'No technicians found', dAutoNoHours:'Enter the running hours (1 or more)', dAutoNoWho:'Choose at least one technician', dAutoPW:'Weekly', dAutoPM:'Monthly', dAutoPQ:'Quarterly', dAutoPS:'Semi-annual', dAutoPY:'Yearly', dCancel:'Cancel', dNeedVal:'Fill in the required fields', dLoadEq:'Loading equipment…', dLoadSp:'Loading spare parts…',
     dPhotos:'Photos', dPhMain:'Main', dPhX1:'Detail 1', dPhX2:'Detail 2', dPhAdd:'Add photo', dPhReplace:'Replace', dPhNone:'No photo', dPhLoading:'Loading photos…',
     dPhErr:'Photos could not be loaded: {e}', dPhBusy:'Saving photo…', dPhDone:'Photo saved', dPhBad:'Choose an image file',
     dAddPart:'Add part', dEditPart:'Edit part', dPartNew:'New part', dSpfNo:'Part / item number', dSpfBrand:'Brand', dSpfDesc:'Description', dSpfQty:'Quantity',
@@ -236,10 +237,11 @@
     spLoading:'جارٍ تحميل قطع الغيار…', spErr:'تعذّر تحميل قطع الغيار: {e}', spOK:'متوفرة', spLow:'منخفضة',
     spPartNo:'رقم القطعة', spItemNo:'رقم القطعة / الصنف', spName:'القطعة', spBrand:'الماركة', spDesc:'الوصف', spQty:'الكمية', spReq:'المطلوب',
     spAvail:'المتوفر', spUsed:'المستخدم', spRem:'المتبقي', spStatus:'الحالة', spMachine:'الماكينة',
-    dAddEq:'إضافة معدة', dEditEq:'تعديل المعدة', dEqDel:'حذف', dEqRestore:'استرجاع', dEqDelSure:'اضغط مرة أخرى للحذف', dShowDel:'عرض المحذوف', dDeleted:'محذوف',
+    dSecAccount:'الحساب', dSecRights:'صلاحيات إضافية', dRoleEq:'المعدة: {eq}', dAddEq:'إضافة معدة', dEditEq:'تعديل المعدة', dEqDel:'حذف', dEqRestore:'استرجاع', dEqDelSure:'اضغط مرة أخرى للحذف', dShowDel:'عرض المحذوف', dDeleted:'محذوف',
     dEqfName:'اسم المعدة', dEqfLine:'الخط / النظام', dEqfNo:'الرقم', dEqfLoc:'الموقع', dEqfCat:'التصنيف',
     dEqfPhotoNew:'الصورة الرئيسية (مطلوبة)', dEqfPhoto:'الصورة الرئيسية', dChoosePhoto:'اختر صورة', dPhotoSel:'تم اختيار الصورة', dKeepPhoto:'الإبقاء على الصورة الحالية',
-    dSaveEq:'حفظ المعدة', dSavePart:'حفظ القطعة', dCancel:'إلغاء', dNeedVal:'املأ الحقول المطلوبة', dLoadEq:'جارٍ تحميل المعدات…', dLoadSp:'جارٍ تحميل قطع الغيار…',
+    dSaveEq:'حفظ المعدة', dSavePart:'حفظ القطعة',
+    dAutoTitle:'مهمة تلقائية', dAutoHint:'تُنشئ مهمة القراءة للفنيين الذين تختارهم حسب الجدول الذي تحدده. المشرف فقط يستطيع تغييرها.', dAutoReading:'القراءة', dAutoNone:'بدون مهمة تلقائية', dAutoBasis:'التكرار حسب', dAutoByPeriod:'مدة زمنية', dAutoByHours:'ساعات التشغيل', dAutoPeriod:'كم مرة', dAutoHours:'كل كم ساعة', dAutoWho:'الفنيون (واحد أو أكثر)', dAutoLoading:'جارٍ تحميل الفنيين…', dAutoNoTechs:'لا يوجد فنيون', dAutoNoHours:'أدخل ساعات التشغيل (1 أو أكثر)', dAutoNoWho:'اختر فنياً واحداً على الأقل', dAutoPW:'أسبوعياً', dAutoPM:'شهرياً', dAutoPQ:'ربع سنوياً', dAutoPS:'نصف سنوياً', dAutoPY:'سنوياً', dCancel:'إلغاء', dNeedVal:'املأ الحقول المطلوبة', dLoadEq:'جارٍ تحميل المعدات…', dLoadSp:'جارٍ تحميل قطع الغيار…',
     dPhotos:'الصور', dPhMain:'رئيسية', dPhX1:'تفصيل 1', dPhX2:'تفصيل 2', dPhAdd:'إضافة صورة', dPhReplace:'استبدال', dPhNone:'لا توجد صورة', dPhLoading:'جارٍ تحميل الصور…',
     dPhErr:'تعذّر تحميل الصور: {e}', dPhBusy:'جارٍ حفظ الصورة…', dPhDone:'تم حفظ الصورة', dPhBad:'اختر ملف صورة',
     dAddPart:'إضافة قطعة', dEditPart:'تعديل القطعة', dPartNew:'قطعة جديدة', dSpfNo:'رقم القطعة / الصنف', dSpfBrand:'الماركة', dSpfDesc:'الوصف', dSpfQty:'الكمية',
@@ -540,6 +542,7 @@
   }
   function equipDetail() {
     const e = eqSel;
+    if (e && e.auto && !autoPeople) ensureAutoPeople(() => { if (eqSel) render(); });   // names for the rule label
     ensureHist(e);
     ensurePhotos('equipment', eqPhotoKey(e));
     const tasks = eqHist || [];
@@ -569,7 +572,7 @@
         : `<button type="button" class="dangerbtn" data-eqact="del">${esc(armed ? t('dEqDelSure') : t('dEqDel'))}</button>`}</div>` : '';
     return `<div class="eqback"><button class="btn" type="button" data-eqback>${svg('back', 2.2)}<span>${esc(t('eqAll'))}</span></button></div>
       <section class="dcard eqhead"><div><h3>${esc(e.name)}</h3>${e.deleted ? `<span class="deltag">${esc(t('dDeleted'))}</span>` : ''}${e.cat ? `<small>${esc(e.cat)}</small>` : ''}</div>
-        <div class="eqmeta"><span class="chip">${esc(e.line || '—')}</span><span>${esc(e.loc || '')}</span>${e.no ? `<span class="eqno">${esc(e.no)}</span>` : ''}</div>${actions}</section>
+        <div class="eqmeta"><span class="chip">${esc(e.line || '—')}</span><span>${esc(e.loc || '')}</span>${e.no ? `<span class="eqno">${esc(e.no)}</span>` : ''}${autoLabel(e) ? `<span class="chip">${esc(autoLabel(e))}</span>` : ''}</div>${actions}</section>
       <section class="dcard"><h4>${esc(t('dPhotos'))}</h4>${gallery(canEq())}</section>
       <div class="kpis">
         <div class="kpi"><small>${esc(t('eqJobs'))}</small><b>${eqHist ? tasks.length : '…'}</b></div>
@@ -601,6 +604,7 @@
   /** Form for a new equipment (main photo required) or an existing one (photo optional). */
   function eqForm(e) {
     const isNew = !e;
+    const mgr = isMgr();   // only supervisors and operations managers see the automatic task section
     let photo = null;
     const all = eqAll || [];
     const uniq = f => [...new Set(all.map(f).filter(Boolean))].sort();
@@ -613,9 +617,11 @@
           <div>${fld('eqLo', 'dEqfLoc', e ? e.loc : '', { max: 40, list: 'eqLocsL' })}<datalist id="eqLocsL">${opts(uniq(x => x.loc))}</datalist></div></div>
         ${fld('eqC', 'dEqfCat', e ? e.cat : '', { max: 80, list: 'eqCatsL' })}<datalist id="eqCatsL">${opts(uniq(x => x.cat))}</datalist>
         ${photoRow('eqPh', isNew)}
+        ${mgr ? autoBlock(e) : ''}
         <div class="msg" id="eqMsg"></div>
         <button class="primary" type="submit" id="eqGo">${esc(t('dSaveEq'))}</button>
       </form>`, '');
+    if (mgr) bindAuto(e);
     $('eqPh').onclick = async () => {
       const f = await pickFile(); if (!f) return;
       try { photo = await photoFrom(f); $('eqPhName').textContent = t('dPhotoSel'); } catch (err) { $('eqMsg').textContent = t('dPhBad'); }
@@ -624,6 +630,11 @@
       ev.preventDefault();
       const item = { name: $('eqN').value.trim(), line: $('eqL').value.trim(), no: $('eqNo').value.trim(), location: $('eqLo').value.trim(), category: $('eqC').value.trim() };
       if (!item.name || !item.line) { $('eqMsg').textContent = t('dNeedVal'); return; }
+      if (mgr) {
+        item.auto = autoPayload();   // reading '' clears the automatic task
+        if (item.auto.reading && item.auto.basis === 'hours' && !(Number(item.auto.hours) >= 1)) { $('eqMsg').textContent = t('dAutoNoHours'); return; }
+        if (item.auto.reading && !item.auto.assignees.length) { $('eqMsg').textContent = t('dAutoNoWho'); return; }
+      }
       if (!isNew) item.row = e.row;
       if (photo) item.photo = photo;
       $('eqGo').disabled = true; $('eqMsg').textContent = '';
@@ -637,6 +648,71 @@
         await loadEquip(true);
       } catch (err) { $('eqMsg').textContent = err.auth ? t('sessionExpired') : t('needOnline'); $('eqGo').disabled = false; }
     };
+  }
+
+  /* ---------- automatic reading tasks (the supervisor sets them on an equipment) ---------- */
+  const AUTO_READINGS = ['Amp Rec', 'Vibration Rec', 'Thermo Rec'];
+  const AUTO_PERIODS = [['Weekly', 'dAutoPW'], ['Monthly', 'dAutoPM'], ['Quarterly', 'dAutoPQ'], ['Semi-annual', 'dAutoPS'], ['Yearly', 'dAutoPY']];
+  /** Reads the rule text from the equipment sheet, e.g. "Amp Rec | Monthly | tech1" or "Amp Rec | 500 h | tech1". */
+  function autoRule(s) {
+    const out = { reading: '', basis: 'period', period: 'Monthly', hours: '', assignees: [] };
+    const p = String(s || '').split('|').map(x => x.trim());
+    if (p.length < 3 || AUTO_READINGS.indexOf(p[0]) < 0) return out;
+    out.reading = p[0];
+    const h = p[1].match(/^(\d+) h$/);
+    if (h) { out.basis = 'hours'; out.hours = h[1]; } else out.period = p[1];
+    out.assignees = p.slice(2).join('|').split(',').map(x => x.trim()).filter(Boolean);
+    return out;
+  }
+  let autoPeople = null, autoPeopleBusy = false;   // everyone who can be assigned (from the "people" call)
+  function ensureAutoPeople(then) {
+    if (autoPeople || autoPeopleBusy) return;
+    autoPeopleBusy = true;
+    HS.api('people', {}, 45000).then(r => { if (r && r.ok) autoPeople = r.assignable || []; }).catch(() => {})
+      .finally(() => { autoPeopleBusy = false; if (autoPeople && then) then(); });
+  }
+  const autoName = u => { const p = (autoPeople || []).filter(x => String(x.username).toLowerCase() === String(u).toLowerCase())[0]; return p ? p.name : u; };
+  /** Short text for the equipment page, e.g. "Amp Rec · Monthly · Tech One". Empty when no rule. */
+  function autoLabel(e) {
+    const r = autoRule(e && e.auto);
+    if (!r.reading) return '';
+    const per = AUTO_PERIODS.filter(p => p[0] === r.period)[0];
+    const when = r.basis === 'hours' ? r.hours + ' h' : (per ? t(per[1]) : r.period);
+    return [modName(r.reading), when, r.assignees.map(autoName).join(', ')].filter(Boolean).join(' · ');
+  }
+  function autoBlock(e) {
+    const cur = autoRule(e && e.auto);
+    const opt = (v, label, sel) => `<option value="${esc(v)}"${v === sel ? ' selected' : ''}>${esc(label)}</option>`;
+    return `<div class="fgroup" id="eqAuto"><h4>${esc(t('dAutoTitle'))}</h4>
+      <p class="hint" style="margin:0 0 10px">${esc(t('dAutoHint'))}</p>
+      <label for="eqAR">${esc(t('dAutoReading'))}</label>
+      <select class="ffield" id="eqAR">${opt('', t('dAutoNone'), cur.reading)}${AUTO_READINGS.map(r => opt(r, modName(r), cur.reading)).join('')}</select>
+      <label for="eqAB">${esc(t('dAutoBasis'))}</label>
+      <select class="ffield" id="eqAB">${opt('period', t('dAutoByPeriod'), cur.basis)}${opt('hours', t('dAutoByHours'), cur.basis)}</select>
+      <div id="eqAPw"${cur.basis === 'hours' ? ' hidden' : ''}><label for="eqAP">${esc(t('dAutoPeriod'))}</label>
+        <select class="ffield" id="eqAP">${AUTO_PERIODS.map(p => opt(p[0], t(p[1]), cur.period)).join('')}</select></div>
+      <div id="eqAHw"${cur.basis === 'hours' ? '' : ' hidden'}><label for="eqAH">${esc(t('dAutoHours'))}</label>
+        <input class="ffield" id="eqAH" type="number" inputmode="numeric" min="1" max="100000" step="1" value="${esc(cur.hours)}"></div>
+      <label>${esc(t('dAutoWho'))}</label>
+      <div id="eqAW"><span class="mini">${esc(t('dAutoLoading'))}</span></div>
+    </div>`;
+  }
+  function bindAuto(e) {
+    const cur = autoRule(e && e.auto);
+    const basis = $('eqAB');
+    basis.onchange = () => { $('eqAPw').hidden = basis.value === 'hours'; $('eqAHw').hidden = basis.value !== 'hours'; };
+    HS.api('people', {}, 45000).then(r => {
+      if (r && r.ok) autoPeople = r.assignable || [];
+      const box = $('eqAW'); if (!box) return;
+      const techs = (r && r.ok ? r.assignable || [] : []).filter(p => /^(Mech|Elec)-Technician$/.test(p.role));
+      box.innerHTML = techs.length
+        ? techs.map(p => `<label class="chkrow"><input type="checkbox" value="${esc(p.username)}"${cur.assignees.some(a => a.toLowerCase() === String(p.username).toLowerCase()) ? ' checked' : ''}><span>${esc(p.name)}<small>${esc(roleName(p.role))}</small></span></label>`).join('')
+        : `<span class="mini">${esc(t('dAutoNoTechs'))}</span>`;
+    }).catch(() => { const box = $('eqAW'); if (box) box.innerHTML = `<span class="mini">${esc(t('needOnline'))}</span>`; });
+  }
+  function autoPayload() {
+    return { reading: $('eqAR').value, basis: $('eqAB').value, period: $('eqAP').value, hours: $('eqAH').value,
+      assignees: [...document.querySelectorAll('#eqAW input:checked')].map(i => i.value) };
   }
 
   /* ---------- spare parts (Maintainance Inventory: electrical and mechanical tabs) ---------- */
@@ -832,6 +908,9 @@
     const a = D.querySelector('[data-act="addEmp"]'); if (a) a.onclick = () => teamForm(null);
   }
   /** Employee form. Managers always have all rights; the own account cannot be deactivated or re-roled. */
+  // operators get the equipment that goes with their role (same mapping as the backend)
+  const OPERATOR_EQUIP = { 'Forklift Operator': 'Forklift', 'Skid loader Operator': 'Bobcat' };
+  const eqOf = r => (Object.prototype.hasOwnProperty.call(OPERATOR_EQUIP, r) ? OPERATOR_EQUIP[r] : '');
   function teamForm(p) {
     if (!teamData) return;
     const isNew = !p;
@@ -840,29 +919,34 @@
     const perms = (p && p.perms) || {};
     const role0 = p ? p.role : roles[0];
     const chk = (id, lab, on, dis) => `<label class="chkrow"><input type="checkbox" id="${id}" ${on ? 'checked' : ''} ${dis ? 'disabled' : ''}><span>${esc(t(lab))}</span></label>`;
+    const eqHint = r => (eqOf(r) ? t('dRoleEq', { eq: modName(eqOf(r)) }) : '');
     showModal(`<h2>${esc(t(isNew ? 'dNewEmp' : 'dEditEmp'))}</h2>
       <form class="tform" id="empF" autocomplete="off">
-        ${fld('eN', 'dEmpName', p ? p.name : '', { max: 80 })}
-        ${fld('eU', 'dEmpUser', p ? p.username : '', { max: 30, ltr: true })}
-        <label for="eR">${esc(t('dEmpRole'))}</label>
-        <select class="ffield" id="eR" ${self ? 'disabled' : ''}>${roles.map(r => `<option value="${esc(r)}" ${r === role0 ? 'selected' : ''}>${esc(roleName(r))}</option>`).join('')}</select>
-        <div id="eEqRow" class="${role0 === 'Operator' ? '' : 'hidden'}"><label for="eE">${esc(t('dEmpEq'))}</label>
-          <select class="ffield" id="eE">${(teamData.equipment || []).map(x => `<option value="${esc(x)}" ${p && p.equipment === x ? 'selected' : ''}>${esc(modName(x))}</option>`).join('')}</select></div>
-        <label for="eP">${esc(t(isNew ? 'dEmpPin' : 'dEmpPinKeep'))}</label>
-        <input class="ffield" id="eP" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" dir="ltr">
-        ${chk('eA', 'dEmpActive', !p || p.active, self)}
-        <label style="margin-top:8px">${esc(t('dEmpPerms'))}</label>
-        ${chk('pT', 'dPermTasks', perms.tasks, isMgrRole(role0))}
-        ${chk('pE', 'dPermEq', perms.equipment, isMgrRole(role0))}
-        ${chk('pS', 'dPermSp', perms.spares, isMgrRole(role0))}
-        <p class="fnote">${esc(self ? t('dSelfNote') : t('dPermMgr'))}</p>
-        <div class="msg" id="eMsg"></div>
-        <button class="primary" type="submit" id="eGo">${esc(t('dEmpSave'))}</button>
+        <div class="fgroup"><h4>${esc(t('dSecAccount'))}</h4>
+          ${fld('eN', 'dEmpName', p ? p.name : '', { max: 80 })}
+          ${fld('eU', 'dEmpUser', p ? p.username : '', { max: 30, ltr: true })}
+          <label for="eR">${esc(t('dEmpRole'))}</label>
+          <select class="ffield" id="eR" ${self ? 'disabled' : ''}>${roles.map(r => `<option value="${esc(r)}" ${r === role0 ? 'selected' : ''}>${esc(roleName(r))}</option>`).join('')}</select>
+          <p class="fnote" id="eEqHint">${esc(eqHint(role0))}</p>
+          <label for="eP">${esc(t(isNew ? 'dEmpPin' : 'dEmpPinKeep'))}</label>
+          <input class="ffield" id="eP" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" dir="ltr">
+          ${chk('eA', 'dEmpActive', !p || p.active, self)}
+        </div>
+        <div class="fgroup"><h4>${esc(t('dSecRights'))}</h4>
+          ${chk('pT', 'dPermTasks', perms.tasks, isMgrRole(role0))}
+          ${chk('pE', 'dPermEq', perms.equipment, isMgrRole(role0))}
+          ${chk('pS', 'dPermSp', perms.spares, isMgrRole(role0))}
+          <p class="fnote">${esc(self ? t('dSelfNote') : t('dPermMgr'))}</p>
+        </div>
+        <div class="mfoot">
+          <div class="msg alert" id="eMsg"></div>
+          <button class="primary" type="submit" id="eGo">${esc(t('dEmpSave'))}</button>
+        </div>
       </form>`, '');
     const rs = $('eR');
     rs.onchange = () => {
       const m = isMgrRole(rs.value);
-      $('eEqRow').classList.toggle('hidden', rs.value !== 'Operator');
+      $('eEqHint').textContent = eqHint(rs.value);
       [['pT', 'tasks'], ['pE', 'equipment'], ['pS', 'spares']].forEach(([id, k]) => {
         const c = $(id); c.disabled = m;
         c.checked = m ? true : !!perms[k];
@@ -870,9 +954,8 @@
     };
     $('empF').onsubmit = async ev => {
       ev.preventDefault();
-      const role = rs.value;
-      const emp = { name: $('eN').value.trim(), username: $('eU').value.trim(), role: role,
-        equipment: role === 'Operator' ? $('eE').value : '', pin: $('eP').value.trim(), active: $('eA').checked,
+      const emp = { name: $('eN').value.trim(), username: $('eU').value.trim(), role: rs.value,
+        pin: $('eP').value.trim(), active: $('eA').checked,
         perms: { tasks: $('pT').checked, equipment: $('pE').checked, spares: $('pS').checked } };
       if (p) emp.id = p.id;
       $('eGo').disabled = true; $('eMsg').textContent = '';
@@ -884,8 +967,6 @@
       } catch (err) { $('eMsg').textContent = err.auth ? t('sessionExpired') : t('needOnline'); $('eGo').disabled = false; }
     };
   }
-
-  /* ---------- shared form helpers ---------- */
   function fld(id, lab, val, o) {
     o = o || {};
     return `<label for="${id}">${esc(t(lab))}</label><input class="ffield" id="${id}" dir="${o.ltr ? 'ltr' : 'auto'}" maxlength="${o.max || 120}" value="${esc(val == null ? '' : val)}"${o.num ? ' inputmode="decimal"' : ''}${o.list ? ` list="${o.list}"` : ''} autocomplete="off">`;

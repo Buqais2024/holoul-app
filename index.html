@@ -105,6 +105,14 @@
   .check input:checked + .box::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
   .check input:focus-visible + .box{outline:2px solid var(--brand);outline-offset:2px}
   .msg{min-height:20px;font-size:14px;color:var(--err);margin-top:12px;text-align:center}
+  .msg:empty{display:none}
+  .msg.alert{margin:0 0 12px;padding:10px 12px;border-radius:12px;text-align:start;line-height:1.5;
+    background:color-mix(in srgb,var(--err) 10%,transparent);border:1px solid color-mix(in srgb,var(--err) 40%,transparent)}
+  .modal .shead{position:sticky;top:0;z-index:2;background:var(--panel)}
+  .fgroup{margin:0 0 14px;padding:14px 14px 6px;border:1px solid var(--line);border-radius:16px;background:var(--panel2)}
+  .fgroup h4{margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+  .mfoot{position:sticky;bottom:0;z-index:2;margin:6px -20px 0;padding:12px 20px calc(14px + env(safe-area-inset-bottom));background:var(--panel);border-top:1px solid var(--line)}
+  .mfoot .primary{margin:0}
   .foot-brand{text-align:center;color:var(--muted);font-size:12px;margin-top:22px}
 
   /* ---------- Home ---------- */
@@ -549,7 +557,7 @@
 <input type="file" id="photoPick" accept="image/*" class="hidden">
 <div class="toast" id="toast"></div>
 
-<script src="sync.js?v=13"></script>
+<script src="sync.js?v=15"></script>
 <script>
 const HS = window.HoloulSync;
 
@@ -632,7 +640,8 @@ const I18N = {
     pushBanner:'Turn on notifications to know when a new task arrives', pushNeedOnline:'Needs internet to turn on', pushOnToast:'Notifications are on',
     'mod.Dashboard':'Dashboard', 'sub.Dashboard':'Today, team, monthly summary', 'mod.Tasks':'Tasks', 'sub.Tasks':'Assign and follow up',
     'role.Supervisor':'Supervisor', 'role.Operations Manager':'Operations Manager',
-    'role.Maintenance Technician':'Maintenance Technician', 'role.Operator':'Operator'
+    'role.Mech-Technician':'Mechanical technician', 'role.Elec-Technician':'Electrical technician',
+    'role.Forklift Operator':'Forklift operator', 'role.Skid loader Operator':'Skid loader operator'
   },
   ar: {
     brandSub:'الصيانة', company:'حلول لمعالجة النفايات الإلكترونية',
@@ -698,7 +707,8 @@ const I18N = {
     pushBanner:'فعّل الإشعارات لتعرف عند وصول مهمة جديدة', pushNeedOnline:'يحتاج إنترنت للتفعيل', pushOnToast:'تم تفعيل الإشعارات',
     'mod.Dashboard':'لوحة التحكم', 'sub.Dashboard':'اليوم والفريق والملخص الشهري', 'mod.Tasks':'المهام', 'sub.Tasks':'إسناد ومتابعة',
     'role.Supervisor':'مشرف', 'role.Operations Manager':'مدير التشغيل',
-    'role.Maintenance Technician':'فني صيانة', 'role.Operator':'مشغّل'
+    'role.Mech-Technician':'فني ميكانيك', 'role.Elec-Technician':'فني كهرباء',
+    'role.Forklift Operator':'مشغّل رافعة شوكية', 'role.Skid loader Operator':'مشغّل لودر انزلاقي'
   }
 };
 let LANG = document.documentElement.lang === 'ar' ? 'ar' : 'en';
@@ -1693,7 +1703,7 @@ function fillRemembered(){
 /* ---------- device + role ---------- */
 const DESKTOP = window.matchMedia ? matchMedia('(min-width: 1024px)') : { matches: false };
 const isManagerUser = () => !!(session && session.user && (session.user.manager || /^(Supervisor|Operations Manager)$/.test(session.user.role)));
-const isAssignee = () => !!(session && session.user && /^(Maintenance Technician|Operator)$/.test(session.user.role));
+const isAssignee = () => !!(session && session.user && /^(Mech-Technician|Elec-Technician|Forklift Operator|Skid loader Operator)$/.test(session.user.role));
 try{ DESKTOP.addEventListener('change', () => { if(session && isManagerUser() && (!$('home').classList.contains('hidden') || !$('dash').classList.contains('hidden'))) showHome(); }); }catch(e){}
 
 /* dashboard (supervisor / operations manager): dash.js is only downloaded for them */
@@ -1701,7 +1711,7 @@ let dashLoading = null;
 function loadDash(){
   if(window.HoloulDash) return Promise.resolve(window.HoloulDash);
   if(!dashLoading) dashLoading = new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = 'dash.js?v=13';
+    const s = document.createElement('script'); s.src = 'dash.js?v=15';
     s.onload = () => res(window.HoloulDash); s.onerror = () => { dashLoading = null; rej(new Error('dash')); };
     document.head.appendChild(s);
   });

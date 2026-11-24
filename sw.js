@@ -3,11 +3,11 @@
 // - Fonts are kept on the phone after the first visit.
 // - Android: uploads waiting changes in the background, even after the app is closed (Background Sync).
 // - Phone notifications: new task assigned / task done (Web Push).
-importScripts('sync.js?v=13');
+importScripts('sync.js?v=15');
 
-const CACHE = 'holoul-v13';
+const CACHE = 'holoul-v15';
 const FONTS = 'holoul-fonts';
-const SHELL = ['./', 'index.html', 'sync.js?v=13', 'dash.js?v=13', 'manifest.json', 'icon.svg', 'icon-512.png', 'apple-touch-icon.png', 'badge-96.png'];
+const SHELL = ['./', 'index.html', 'sync.js?v=15', 'dash.js?v=15', 'manifest.json', 'icon.svg', 'icon-512.png', 'apple-touch-icon.png', 'badge-96.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE)

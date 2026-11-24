@@ -30,6 +30,12 @@
  *
  * v10 (Nov 2026) - employees and permissions from the app; add / edit / delete equipment and spare parts
  *   with photos; Users sheet columns M-O (Create tasks, Edit equipment, Edit spare parts)
+ *
+ * v11 (Nov 2026) - automatic reading tasks:
+ *  - equipment sheet column "Automation task": the supervisor sets a reading (Amp / Vibration / Thermo),
+ *    a period (weekly ... yearly) or running hours, and the technicians who do it
+ *  - run installAutomationTrigger() once from the editor: a daily check at 06:00 creates the tasks
+ *  - progress is kept in the "Automation Log" tab of the Maintenance Tasks sheet
  */
 
 const SHEET_ID     = '1ohP2VDJitA_ZxiY3Sk6V22Z6yGHZjvgsBg58pMwac_4';   // Holoul App - Users
@@ -64,10 +70,17 @@ const RECORD_SHEETS = {
 const MODULES = ['Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Forklift', 'Bobcat'];
 const CHECK_TYPES = ['Forklift', 'Bobcat'];
 
-function accessFor(role, equipment) {
-  if (role === 'Supervisor' || role === 'Operations Manager') return ['Dashboard', 'Tasks', 'Amp Rec', 'Vibration Rec', 'Thermo Rec'];
-  if (role === 'Maintenance Technician') return ['Amp Rec', 'Vibration Rec', 'Thermo Rec'];
-  if (role === 'Operator' && (equipment === 'Forklift' || equipment === 'Bobcat')) return [equipment];
+/* Role names exactly as the Users sheet Role dropdown holds them. An operator's equipment
+   comes from the role itself; the Assigned Equipment column is written to match. */
+const TECH_ROLES = ['Mech-Technician', 'Elec-Technician'];
+const ROLE_EQUIPMENT = { 'Forklift Operator': 'Forklift', 'Skid loader Operator': 'Bobcat' };
+const MANAGER_ROLE_NAMES = ['Supervisor', 'Operations Manager'];
+const roleEquipment = role => (Object.prototype.hasOwnProperty.call(ROLE_EQUIPMENT, role) ? ROLE_EQUIPMENT[role] : '');
+
+function accessFor(role) {
+  if (MANAGER_ROLE_NAMES.indexOf(role) >= 0) return ['Dashboard', 'Tasks', 'Amp Rec', 'Vibration Rec', 'Thermo Rec'];
+  if (TECH_ROLES.indexOf(role) >= 0) return ['Amp Rec', 'Vibration Rec', 'Thermo Rec'];
+  if (roleEquipment(role)) return [roleEquipment(role)];
   return [];
 }
 
@@ -118,7 +131,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 10 }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 11 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -839,19 +852,19 @@ function setupSheet() {
   sh.getRange('F2:F' + last).setNumberFormat('@');
 
   const list = v => SpreadsheetApp.newDataValidation().requireValueInList(v, true).setAllowInvalid(false).build();
-  sh.getRange('C2:C' + last).setDataValidation(list(['Maintenance Technician', 'Operator', 'Supervisor', 'Operations Manager']));
+  sh.getRange('C2:C' + last).setDataValidation(list(EMPLOYEE_ROLES));
   sh.getRange('D2:D' + last).setDataValidation(list(['Forklift', 'Bobcat']));
   sh.getRange('G2:G' + last).setDataValidation(list(['Yes', 'No']));
 
   sh.getRange('H2:L' + last).clearContent();
-  const tech = '(G2:G="Yes")*((C2:C="Maintenance Technician")+(C2:C="Supervisor")+(C2:C="Operations Manager"))';
-  const op = eq => '(G2:G="Yes")*(C2:C="Operator")*(D2:D="' + eq + '")';
+  const tech = '(G2:G="Yes")*((C2:C="Mech-Technician")+(C2:C="Elec-Technician")+(C2:C="Supervisor")+(C2:C="Operations Manager"))';
+  const op = role => '(G2:G="Yes")*(C2:C="' + role + '")';
   const f = cond => '=ARRAYFORMULA(IF(B2:B="","",IF(' + cond + ',"Yes","No")))';
   sh.getRange('H2').setFormula(f(tech));
   sh.getRange('I2').setFormula(f(tech));
   sh.getRange('J2').setFormula(f(tech));
-  sh.getRange('K2').setFormula(f(op('Forklift')));
-  sh.getRange('L2').setFormula(f(op('Bobcat')));
+  sh.getRange('K2').setFormula(f(op('Forklift Operator')));
+  sh.getRange('L2').setFormula(f(op('Skid loader Operator')));
 
   const acc = sh.getRange('H2:L' + last);
   sh.setConditionalFormatRules([
@@ -867,11 +880,12 @@ function setupSheet() {
 
   let am = ss.getSheetByName('Access Matrix') || ss.insertSheet('Access Matrix');
   am.clear();
-  am.getRange(1, 1, 6, 8).setValues([
+  am.getRange(1, 1, 7, 8).setValues([
     ['Role', 'Assigned Equipment', 'Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Forklift', 'Bobcat', 'Dashboard + assign tasks'],
-    ['Maintenance Technician', '(leave blank)', 'Yes', 'Yes', 'Yes', 'No', 'No', 'No'],
-    ['Operator', 'Forklift', 'No', 'No', 'No', 'Yes', 'No', 'No'],
-    ['Operator', 'Bobcat', 'No', 'No', 'No', 'No', 'Yes', 'No'],
+    ['Mech-Technician', '(leave blank)', 'Yes', 'Yes', 'Yes', 'No', 'No', 'No'],
+    ['Elec-Technician', '(leave blank)', 'Yes', 'Yes', 'Yes', 'No', 'No', 'No'],
+    ['Forklift Operator', 'Forklift', 'No', 'No', 'No', 'Yes', 'No', 'No'],
+    ['Skid loader Operator', 'Bobcat', 'No', 'No', 'No', 'No', 'Yes', 'No'],
     ['Supervisor', '(leave blank)', 'Yes', 'Yes', 'Yes', 'No', 'No', 'Yes'],
     ['Operations Manager', '(leave blank)', 'Yes', 'Yes', 'Yes', 'No', 'No', 'Yes']
   ]);
@@ -900,7 +914,7 @@ const PUSH_COLS = ['Username', 'Endpoint', 'P256dh', 'Auth', 'Device', 'Added', 
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
 const TASK_LINKS = ['', 'Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Bobcat', 'Forklift'];
 const MANAGER_ROLES = ['Supervisor', 'Operations Manager'];
-const ASSIGNABLE_ROLES = ['Maintenance Technician', 'Operator'];
+const ASSIGNABLE_ROLES = TECH_ROLES.concat(Object.keys(ROLE_EQUIPMENT));
 
 const isManager = u => !!u && MANAGER_ROLES.indexOf(u.role) >= 0;
 const nowText = () => Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
@@ -939,7 +953,7 @@ function tasksBook() {
     }
     return sh;
   };
-  tab('Tasks', TASK_COLS, true); tab('Task History', HISTORY_COLS); tab('Push Devices', PUSH_COLS);
+  tab('Tasks', TASK_COLS, true); tab('Task History', HISTORY_COLS); tab('Push Devices', PUSH_COLS); tab(AUTO_LOG, AUTO_LOG_COLS);
   return (_tasks = ss);
 }
 
@@ -1111,7 +1125,7 @@ function equipmentList(fresh, withDeleted) {
   const col = re => h.findIndex(c => re.test(c));
   const cName = col(/equipment\s*name|^name$/), cNo = col(/number|serial|^no\b|^pos/), cLine = col(/^line|system/),
         cLoc = col(/^location|^site/), cCat = col(/categor|type/);
-  const cStatus = col(/^record\s*status$/);
+  const cStatus = col(/^record\s*status$/), cAuto = col(/^automation\s*task$/);
   const seen = {}, list = [];
   for (let i = hi + 1; i < rows.length; i++) {
     const r = rows[i], g = c => c >= 0 ? String(r[c] == null ? '' : r[c]).trim() : '';
@@ -1127,7 +1141,7 @@ function equipmentList(fresh, withDeleted) {
     // deleted rows keep their number (so names of unnamed rows do not shift); listed only for editors (withDeleted)
     const deleted = lc(g(cStatus)) === 'deleted';
     if (deleted && !withDeleted) continue;
-    list.push({ name: name, no: no, line: line, loc: loc, cat: cat, row: i + 1, deleted: deleted });
+    list.push({ name: name, no: no, line: line, loc: loc, cat: cat, row: i + 1, deleted: deleted, auto: g(cAuto) });
   }
   if (!withDeleted) { try { cache.put('equip_v1', JSON.stringify(list), EQUIPMENT_CACHE_SECS); } catch (err) {} }
   return list;
@@ -1537,7 +1551,7 @@ function setupV7() {
  * Photos are kept in Drive: Photos/Equipment/<key> and Photos/Spares/<key> with
  * main.jpg (required for a new item), extra-1.jpg and extra-2.jpg (optional). */
 
-const EMPLOYEE_ROLES = ['Maintenance Technician', 'Operator', 'Supervisor', 'Operations Manager'];
+const EMPLOYEE_ROLES = TECH_ROLES.concat(Object.keys(ROLE_EQUIPMENT), MANAGER_ROLE_NAMES);
 const EMPLOYEE_EQUIPMENT = ['Forklift', 'Bobcat'];
 const ITEM_FILES = { main: 'main.jpg', extra1: 'extra-1.jpg', extra2: 'extra-2.jpg' };
 const USER_HEAD = { id: 'User ID', name: 'Full Name', role: 'Role', equipment: 'Assigned Equipment', user: 'Username', pin: 'PIN', active: 'Active' };
@@ -1719,8 +1733,7 @@ function employeeSave(user, f) {
   if (!/^[A-Za-z0-9._-]{3,30}$/.test(username)) throw new Error('Username: 3 to 30 letters, digits, dot, dash or underscore');
   const role = clean(f.role, 60);
   if (EMPLOYEE_ROLES.indexOf(role) < 0) throw new Error('Choose a valid role');
-  const equipment = role === 'Operator' ? clean(f.equipment, 20) : '';
-  if (role === 'Operator' && EMPLOYEE_EQUIPMENT.indexOf(equipment) < 0) throw new Error('Choose the equipment for this operator (Forklift or Bobcat)');
+  const equipment = roleEquipment(role);
   const pin = clean(f.pin, 8);
   const isNew = !f.id;
   if ((isNew || pin !== '') && !/^\d{4,8}$/.test(pin)) throw new Error('PIN must be 4 to 8 digits');
@@ -1741,7 +1754,13 @@ function employeeSave(user, f) {
   if (!isNew && lc(username) === lc(user.username) && (!active || role !== user.role)) throw new Error('You cannot deactivate yourself or change your own role');
   if (isNew) row = freeRow > 0 ? freeRow : data.length + 1;
 
-  const put = (c, v) => sh.getRange(row, c).setValue(v);
+  const put = (c, v) => {
+    try { sh.getRange(row, c).setValue(v); }
+    catch (err) {
+      if (/data validation/i.test(String(err && err.message))) throw new Error('The Users sheet does not accept this value. Check the Role list in the sheet.');
+      throw err;
+    }
+  };
   if (isNew) put(cols.id, 'U' + String(prevNum + 1).padStart(3, '0'));
   put(cols.name, name); put(cols.role, role); put(cols.equipment, equipment); put(cols.user, username);
   if (pin) { sh.getRange(row, cols.pin).setNumberFormat('@'); put(cols.pin, pin); }
@@ -1770,6 +1789,9 @@ function equipmentSave(user, f) {
   if (!line) throw new Error('Choose the line / system');
   const photo = f.photo ? photoBlob(f.photo) : null;
   if (isNew && !photo) throw new Error('Add a main photo for the new equipment');
+  // automation rule: only a supervisor sets it; undefined = leave as it is, null/empty = no automation
+  if (f.auto !== undefined && !isManager(user)) throw new Error('Only a supervisor can set the automation task');
+  const auto = f.auto === undefined ? undefined : autoFromForm(f.auto);
   const row = isNew ? sh.getLastRow() + 1 : checkRow(sh, f.row);
   let oldKey = '';
   if (!isNew) {
@@ -1780,10 +1802,11 @@ function equipmentSave(user, f) {
   const put = (c, v) => sh.getRange(row, c).setValue(v);
   put(cols.loc, loc); put(cols.line, line); put(cols.name, name); put(cols.no, no); put(cols.cat, cat);
   if (isNew) put(cols.rec, 'Active');
+  if (auto !== undefined) put(autoColumn(sh), auto);
   if (oldKey && oldKey !== newKey) renameItemFolder('equipment', oldKey, newKey);
   if (photo) saveItemPhoto('equipment', newKey, 'main', photo);
   CacheService.getScriptCache().remove('equip_v1');
-  return { ok: true, row: row, key: newKey };
+  return { ok: true, row: row, key: newKey, auto: auto };
 }
 
 /** Soft delete (status Deleted) or restore (status Active). */
@@ -1795,6 +1818,200 @@ function equipmentStatus(user, row, status) {
   sh.getRange(checkRow(sh, row), cols.rec).setValue(status);
   CacheService.getScriptCache().remove('equip_v1');
   return { ok: true };
+}
+
+/* ---- automation: reading tasks created on a schedule ----
+ * Equipment sheet column "Automation task" holds one rule, written as:
+ *   "Amp Rec | Monthly | AbuBakar, Zahid"      (every period: Weekly, Monthly, Quarterly, Semi-annual, Yearly)
+ *   "Vibration Rec | 500 h | Hassan Zaga"       (every 500 running hours from the daily-check hour meter)
+ * automationCycle() runs once a day (installAutomationTrigger) and creates one task per assignee when a rule is due.
+ * Progress is kept in the "Automation Log" tab of the Maintenance Tasks book. Readings are still saved in the reading sheets. */
+
+const AUTO_COL = 'Automation task';
+const AUTO_LOG = 'Automation Log';
+const AUTO_LOG_COLS = ['Key', 'Equipment', 'Equipment No', 'Reading', 'Rule', 'Started', 'Hours At Start', 'Open Tasks', 'Updated'];
+const AUTO_READINGS = ['Amp Rec', 'Vibration Rec', 'Thermo Rec'];
+const AUTO_PERIODS = [
+  { label: 'Weekly', key: 'weekly', days: 7 }, { label: 'Monthly', key: 'monthly', months: 1 },
+  { label: 'Quarterly', key: 'quarterly', months: 3 }, { label: 'Semi-annual', key: 'semiannual', months: 6 },
+  { label: 'Yearly', key: 'yearly', months: 12 }
+];
+const autoPeriod = v => AUTO_PERIODS.filter(p => p.key === v || p.label === v)[0] || null;
+
+/** Column number of "Automation task" on the equipment sheet. Adds the header at the end when missing. */
+function autoColumn(sh) {
+  const last = Math.max(sh.getLastColumn(), 1);
+  const head = sh.getRange(1, 1, 1, last).getDisplayValues()[0].map(h => lc(h));
+  const i = head.indexOf(lc(AUTO_COL));
+  if (i >= 0) return i + 1;
+  sh.getRange(1, last + 1).setValue(AUTO_COL).setFontWeight('bold');
+  return last + 1;
+}
+
+/** Validates the form values and returns the rule text ('' = no automation). Throws on anything unclear. */
+function autoFromForm(a) {
+  if (!a || !a.reading) return '';
+  const reading = clean(a.reading, 20);
+  if (AUTO_READINGS.indexOf(reading) < 0) throw new Error('Choose a valid reading for the automation task');
+  const eligible = usersTable().filter(u => u.active && TECH_ROLES.indexOf(u.role) >= 0 && accessFor(u.role).indexOf(reading) >= 0);
+  const people = [];
+  [].concat(a.assignees || []).forEach(n => {
+    const u = eligible.filter(x => lc(x.username) === lc(n))[0];
+    if (!u) throw new Error('Choose technicians who record ' + reading);
+    if (people.indexOf(u.username) < 0) people.push(u.username);
+  });
+  if (!people.length) throw new Error('Choose who does the task');
+  let label;
+  if (a.basis === 'hours') {
+    const h = Math.round(Number(a.hours));
+    if (!(h >= 1 && h <= 100000)) throw new Error('Enter the running hours between 1 and 100000');
+    label = h + ' h';
+  } else {
+    const p = autoPeriod(a.period);
+    if (!p) throw new Error('Choose how often the task repeats');
+    label = p.label;
+  }
+  return reading + ' | ' + label + ' | ' + people.join(', ');
+}
+
+/** Reads a rule from the sheet. Null when empty or not understood (such rows are skipped, never guessed). */
+function parseAuto(s) {
+  const parts = String(s || '').split('|').map(x => x.trim());
+  if (parts.length < 3 || AUTO_READINGS.indexOf(parts[0]) < 0) return null;
+  const people = parts.slice(2).join('|').split(',').map(x => x.trim()).filter(Boolean);
+  const h = parts[1].match(/^(\d+) h$/);
+  if (h && Number(h[1]) >= 1) return { reading: parts[0], basis: 'hours', hours: Number(h[1]), label: parts[1], people: people };
+  const p = autoPeriod(parts[1]);
+  if (!p) return null;
+  return { reading: parts[0], basis: 'period', period: p, label: p.label, people: people };
+}
+
+/** The day (yyyy-MM-dd) a period rule falls due again, counted from the day it last ran. */
+function addPeriod(day, p) {
+  const [y, m, d] = day.split('-').map(Number);
+  if (p.days) return new Date(Date.UTC(y, m - 1, d + p.days)).toISOString().slice(0, 10);
+  const mm = m - 1 + p.months;
+  const last = new Date(Date.UTC(y, mm + 1, 0)).getUTCDate();   // 31 Jan + 1 month = 28/29 Feb, not 3 Mar
+  return new Date(Date.UTC(y, mm, Math.min(d, last))).toISOString().slice(0, 10);
+}
+
+/** Latest hour-meter reading for a unit, from the daily check logs (e.g. "Bobcat Log"). Null when none. */
+function latestHourMeter(unit) {
+  const u = String(unit || '').trim();
+  if (!u) return null;
+  let best = null, sheets;
+  try { sheets = checksBook().getSheets(); } catch (err) { return null; }   // daily checks not set up yet: no hours, no hour-based tasks
+  sheets.forEach(sh => {
+    if (!/ Log$/.test(sh.getName())) return;
+    const data = sh.getDataRange().getDisplayValues();
+    if (data.length < 2) return;
+    const h = data[0].map(String);
+    const cU = h.indexOf('Unit'), cH = h.indexOf('Hour Meter Reading');
+    if (cU < 0 || cH < 0) return;
+    // log rows are appended in time order, so the last matching row is the latest reading
+    for (let i = 1; i < data.length; i++) {
+      const r = data[i];
+      if (String(r[cU]).trim() !== u || String(r[cH]).trim() === '') continue;
+      const v = Number(String(r[cH]).replace(',', '.'));
+      if (isFinite(v)) best = v;
+    }
+  });
+  return best;
+}
+
+const autoLogSheet = () => tasksBook().getSheetByName(AUTO_LOG);
+
+function autoLogSave(row) {
+  const sh = autoLogSheet();
+  const values = AUTO_LOG_COLS.map(c => row[c] == null ? '' : String(row[c]));
+  const r = row._row || sh.getLastRow() + 1;
+  sh.getRange(r, 1, 1, values.length).setNumberFormat('@').setValues([values]);
+  row._row = r;
+}
+
+/** One reading task for one assignee. Returns the task ID. */
+function createAutoTask(eq, rule, who, today) {
+  const p = props();
+  const seq = Number(p.getProperty('TASK_SEQ') || 0) + 1;
+  p.setProperty('TASK_SEQ', String(seq));
+  const now = nowText();
+  const t = {
+    'ID': 'T-' + ('000' + seq).slice(-4), 'Created': now, 'Created By': 'automation', 'Creator Name': 'Automation',
+    'Assigned To': who.username, 'Assignee Name': who.name,
+    'Title': rule.reading + ' reading: ' + eq.name,
+    'Details': 'Scheduled automatically (' + rule.label + '). Record the reading in the ' + rule.reading + ' sheet.',
+    'Equipment': eq.name, 'Priority': 'Normal', 'Due': addPeriod(today, { days: 7 }), 'Link': rule.reading, 'Status': 'Open',
+    'Updated': now, 'Updated By': 'automation',
+    'Equipment No': eq.no || '', 'Line': eq.line || '', 'Location': eq.loc || ''
+  };
+  writeTask(t);
+  history(t['ID'], 'Created', { username: 'automation' }, 'Scheduled: ' + rule.label);
+  notifyUser(who.username, { kind: 'assigned', id: t['ID'], title: t['Title'], equipment: equipLabel(t), priority: 'Normal', by: 'Automation' });
+  return t['ID'];
+}
+
+/** Creates every reading task that is due. Runs once a day from the trigger; safe to run by hand from the editor. */
+function automationCycle() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(60000)) return { ok: false, busy: true };
+  try {
+    const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+    const rules = equipmentList(true).filter(e => !e.deleted && parseAuto(e.auto));
+    const users = usersTable(true);   // fresh: a deactivated technician gets no new task on the next run
+    const byKey = {};
+    rowsOf(autoLogSheet(), AUTO_LOG_COLS).forEach(l => { byKey[l.Key] = l; });
+    const taskById = {};
+    readTasks().forEach(t => { taskById[t['ID']] = t; });
+    const created = [];
+    const errors = [];
+    rules.forEach(eq => { try {
+      const rule = parseAuto(eq.auto);
+      const key = equipmentKey(eq.no, eq.name) + '|' + rule.reading;
+      const log = byKey[key] || { Key: key, Equipment: eq.name, 'Equipment No': eq.no, Reading: rule.reading, Rule: '', Started: '', 'Hours At Start': '', 'Open Tasks': '', Updated: '' };
+      byKey[key] = log;
+      // a changed rule starts again from now (tasks already open stay tracked)
+      if (log.Rule !== eq.auto) { log.Rule = eq.auto; log.Started = ''; log['Hours At Start'] = ''; }
+      log['Equipment No'] = eq.no; log.Equipment = eq.name;
+      // open tasks of this rule: while any is still open, no new one is made
+      const open = String(log['Open Tasks'] || '').split(',').map(s => s.trim())
+        .filter(id => id && taskById[id] && (taskById[id]['Status'] === 'Open' || taskById[id]['Status'] === 'In progress'));
+      log['Open Tasks'] = open.join(',');
+      let due = false, hours = null;
+      if (rule.basis === 'period') {
+        due = !log.Started || today >= addPeriod(log.Started, rule.period);
+      } else {
+        hours = latestHourMeter(eq.no);
+        if (hours !== null) {
+          // first reading seen, or the meter went back (replaced): the count starts from this reading
+          if (log['Hours At Start'] === '' || hours < Number(log['Hours At Start'])) { log['Hours At Start'] = hours; log.Started = today; }
+          else due = hours - Number(log['Hours At Start']) >= rule.hours;
+        }
+      }
+      if (due && !open.length) {
+        const ids = [];
+        rule.people.forEach(name => {
+          const who = users.filter(u => u.active && lc(u.username) === lc(name))[0];
+          if (who) ids.push(createAutoTask(eq, rule, who, today));
+        });
+        if (ids.length) {
+          log['Open Tasks'] = ids.join(',');
+          log.Started = today;
+          if (rule.basis === 'hours') log['Hours At Start'] = hours;
+          created.push.apply(created, ids);
+        }
+      }
+      log.Updated = nowText();
+      autoLogSave(log);
+    } catch (err) { errors.push(eq.name + ': ' + err.message); } });   // one bad rule does not stop the others
+    return { ok: !errors.length, rules: rules.length, created: created, errors: errors };
+  } finally { lock.releaseLock(); }
+}
+
+/** Installs the daily trigger (06:00, the script time zone) and removes older copies. Run once from the editor. */
+function installAutomationTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'automationCycle') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('automationCycle').timeBased().everyDays(1).atHour(6).create();
+  return { ok: true, note: 'automationCycle runs every day at 06:00 (script time zone)' };
 }
 
 /* ---- spare parts (Maintainance Inventory: electrical and mechanical tabs) ---- */
