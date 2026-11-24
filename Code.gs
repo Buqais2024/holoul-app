@@ -89,6 +89,8 @@ function doPost(e) {
       case 'taskUpdate':   out = withUser(body, u => locked(() => taskUpdate(u, body))); break;
       case 'dashboard':    out = withUser(body, u => dashboard(u)); break;
       case 'equipment':    out = withUser(body, u => { if (!isManager(u)) throw new Error('Dashboard is for supervisors'); return { ok: true, equipment: equipmentList(!!body.fresh) }; }); break;
+      case 'equipmentHistory': out = withUser(body, u => equipmentHistory(u, body.equipment || {})); break;
+      case 'spares':       out = withUser(body, u => { if (!isManager(u)) throw new Error('Dashboard is for supervisors'); return { ok: true, spares: sparesList(!!body.fresh) }; }); break;
       case 'pushSubscribe':   out = withUser(body, u => locked(() => pushSubscribe(u, body.sub, body.device))); break;
       case 'pushUnsubscribe': out = withUser(body, u => locked(() => pushUnsubscribe(u, body.endpoint))); break;
       case 'pushInbox':    out = withUser(body, u => pushInbox(u)); break;
@@ -102,7 +104,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 8 }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 9 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -1099,6 +1101,74 @@ function equipmentList(fresh) {
   return list;
 }
 
+/* ---------- spare parts (Maintainance Inventory sheet) ---------- */
+
+const SPARES_ID = '1XtqChR5bn9b0MwW4N3Q85oF8WAxLhIJYJkPhdn5vNzw';   // Maintainance Inventory (Script Property SPARES_SS_ID overrides)
+const SPARES_ELECT_GID = 816261843;    // "Inventory Elct-Spare parts": # | Part/Item No. | Brand | Description | # Quantity
+const SPARES_MECH_GID = 1717920569;    // mechanical tab: Part No. | Part Name | Required Qty | Available Qty | Used Qty | Remaining Qty | Status | Machine
+const SPARES_CACHE_SECS = 600;
+
+/** Both spare-part tabs (read by tab id, so renaming a tab does not break it). Cached 10 minutes. */
+function sparesList(fresh) {
+  const cache = CacheService.getScriptCache();
+  if (!fresh) { const hit = cache.get('spares_v1'); if (hit) return JSON.parse(hit); }
+  const ss = SpreadsheetApp.openById(props().getProperty('SPARES_SS_ID') || SPARES_ID);
+  const el = ss.getSheetById(SPARES_ELECT_GID), me = ss.getSheetById(SPARES_MECH_GID);
+  if (!el || !me) throw new Error('Spare parts tabs not found in the inventory sheet');
+  const electrical = [], mechanical = [];
+  el.getDataRange().getDisplayValues().slice(1).forEach(r => {
+    const no = String(r[1] || '').trim(), desc = String(r[3] || '').trim();
+    if (!no && !desc) return;
+    electrical.push({ no: no, brand: String(r[2] || '').trim(), desc: desc, qty: String(r[4] || '').trim() });
+  });
+  me.getDataRange().getDisplayValues().slice(1).forEach(r => {
+    const no = String(r[0] || '').trim(), name = String(r[1] || '').trim();
+    if (!no && !name) return;
+    mechanical.push({ no: no, name: name, required: String(r[2] || '').trim(), available: String(r[3] || '').trim(),
+      used: String(r[4] || '').trim(), remaining: String(r[5] || '').trim(), status: String(r[6] || '').trim(), machine: String(r[7] || '').trim() });
+  });
+  const out = { electrical: electrical, mechanical: mechanical };
+  try { cache.put('spares_v1', JSON.stringify(out), SPARES_CACHE_SECS); } catch (err) {}
+  return out;
+}
+
+/* ---------- equipment maintenance history ---------- */
+
+/** Does a task belong to this equipment row? Same number when both have one, otherwise same name;
+ *  when both know the system (line), it must be the same system. */
+function sameEquipment(t, e) {
+  if (e.line && t.line && lc(t.line) !== lc(e.line)) return false;
+  if (e.no && t.equipmentNo) return lc(t.equipmentNo) === lc(e.no);
+  return lc(t.equipment) === lc(e.name);
+}
+
+/** Every task ever recorded on this equipment (all statuses, all dates), with its event timeline. */
+function equipmentHistory(user, e) {
+  if (!isManager(user)) throw new Error('Dashboard is for supervisors');
+  const eq = { name: String(e.name || ''), no: String(e.no || ''), line: String(e.line || ''), loc: String(e.loc || '') };
+  const tasks = readTasks().map(taskOut).filter(t => sameEquipment(t, eq));
+  const ids = {}; tasks.forEach(t => { ids[t.id] = true; t.events = []; });
+  const byId = {}; tasks.forEach(t => { byId[t.id] = t; });
+  rowsOf(tasksBook().getSheetByName('Task History'), HISTORY_COLS).forEach(h => {
+    if (ids[h['Task ID']]) byId[h['Task ID']].events.push({ at: h['Timestamp'], action: h['Action'], by: h['By'], note: h['Note'] });
+  });
+  tasks.sort((a, b) => String(b.created).localeCompare(String(a.created)));
+  return { ok: true, equipment: eq, tasks: tasks };
+}
+
+/** Adds job counts and the last finished date to each equipment row (for the Equipment list). */
+function equipmentWithStats(list, allTasks) {
+  return list.map(e => {
+    const mine = allTasks.filter(t => sameEquipment(t, e));
+    const done = mine.filter(t => t.status === 'Done').map(t => String(t.done).slice(0, 10)).sort();
+    return Object.assign({}, e, {
+      jobs: mine.length,
+      open: mine.filter(t => t.status === 'Open' || t.status === 'In progress').length,
+      lastDone: done.length ? done[done.length - 1] : ''
+    });
+  });
+}
+
 /* ---------- dashboard (supervisor / operations manager) ---------- */
 
 function dashboard(user) {
@@ -1196,7 +1266,7 @@ function dashboard(user) {
   });
 
   let equipment = [], equipmentError = '';
-  try { equipment = equipmentList(); } catch (err) { equipmentError = String(err.message || err); }
+  try { equipment = equipmentWithStats(equipmentList(), all.map(taskOut)); } catch (err) { equipmentError = String(err.message || err); }
   return { ok: true, today: today, generatedAt: nowText(), people: people, assignable: assignees, equipment: equipment, equipmentError: equipmentError,
            tasks: tasks, readings: readingsToday, checks: checks, faults: faults.slice(0, 40), workload: workload, months: summary };
 }
