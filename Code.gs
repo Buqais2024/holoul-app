@@ -82,7 +82,7 @@ const MANAGER_ROLE_NAMES = ['Supervisor', 'Operations Manager'];
 const roleEquipment = role => (Object.prototype.hasOwnProperty.call(ROLE_EQUIPMENT, role) ? ROLE_EQUIPMENT[role] : '');
 
 function accessFor(role) {
-  if (MANAGER_ROLE_NAMES.indexOf(role) >= 0) return ['Dashboard', 'Tasks', 'Amp Rec', 'Vibration Rec', 'Thermo Rec'];
+  if (MANAGER_ROLE_NAMES.indexOf(role) >= 0) return ['Dashboard', 'Tasks', 'PM', 'Amp Rec', 'Vibration Rec', 'Thermo Rec'];
   if (TECH_ROLES.indexOf(role) >= 0) return ['Amp Rec', 'Vibration Rec', 'Thermo Rec'];
   if (roleEquipment(role)) return [roleEquipment(role)];
   return [];
@@ -109,13 +109,71 @@ function doPost(e) {
       case 'taskCreate':   out = withUser(body, u => locked(() => taskCreate(u, body.task))); break;
       case 'taskEdit':     out = withUser(body, u => locked(() => taskEdit(u, body.task))); break;
       case 'taskUpdate':   out = withUser(body, u => locked(() => taskUpdate(u, body))); break;
+      case 'meterAdd':     out = withUser(body, u => locked(() => meterAdd(u, body.meter))); break;
+      case 'meterList':    out = withUser(body, u => meterList(u, body.no)); break;
+      case 'downtimeStart': out = withUser(body, u => locked(() => downtimeStart(u, body.downtime))); break;
+      case 'downtimeEnd':  out = withUser(body, u => locked(() => downtimeEnd(u, body.downtime))); break;
+      case 'downtimeList': out = withUser(body, u => downtimeList(u, body.no)); break;
+      case 'assetCard':    out = withUser(body, u => assetCard(u, body.no)); break;
+      case 'causes':       out = withUser(body, u => causesList(u)); break;
+      case 'causesSave':   out = withUser(body, u => locked(() => causesSave(u, body.causes))); break;
+      case 'assetsLookup': out = withUser(body, u => assetsLookup(u, body.q)); break;
+      case 'requestCreate': out = withUser(body, u => locked(() => requestCreate(u, body.request))); break;
+      case 'requestList':  out = withUser(body, u => requestList(u)); break;
+      case 'requestDecide': out = withUser(body, u => locked(() => requestDecide(u, body))); break;
+      case 'comments':     out = withUser(body, u => commentsList(u, body.id)); break;
+      case 'commentAdd':   out = withUser(body, u => locked(() => commentAdd(u, body))); break;
+      case 'taskSignature': out = withUser(body, u => taskSignature(u, body.id)); break;
+      case 'procedures':   out = withUser(body, u => procedureList(u)); break;
+      case 'procedureSave': out = withUser(body, u => locked(() => procedureSave(u, body.procedure))); break;
+      case 'procedureRun': out = withUser(body, u => locked(() => procedureRun(u, body))); break;
+      case 'procedureRuns': out = withUser(body, u => procedureRuns(u, body)); break;
+      case 'procedureAudit': out = withUser(body, u => procedureAudit(u, body)); break;
+      case 'poList':       out = withUser(body, u => poList(u)); break;
+      case 'poCreate':     out = withUser(body, u => locked(() => poCreate(u, body.po))); break;
+      case 'poDecide':     out = withUser(body, u => locked(() => poDecide(u, body))); break;
+      case 'poOrder':      out = withUser(body, u => locked(() => poOrder(u, body))); break;
+      case 'poReceive':    out = withUser(body, u => locked(() => poReceive(u, body))); break;
+      case 'poCancel':     out = withUser(body, u => locked(() => poCancel(u, body))); break;
+      case 'schedule':     out = withUser(body, u => schedule(u, body)); break;
+      case 'scheduleMove': out = withUser(body, u => locked(() => scheduleMove(u, body))); break;
+      case 'estimate':     out = withUser(body, u => estimate(u, body)); break;
+      case 'availability': out = withUser(body, u => availabilityList(u)); break;
+      case 'availabilitySave': out = withUser(body, u => locked(() => availabilitySave(u, body.availability))); break;
+      case 'timeOffAdd':   out = withUser(body, u => locked(() => timeOffAdd(u, body.timeOff))); break;
+      case 'timeOffDelete': out = withUser(body, u => locked(() => timeOffDelete(u, body))); break;
+      case 'publicAsset':  out = publicAsset(body); break;              // no sign-in: only works while the supervisor has switched the form on
+      case 'publicReport': out = locked(() => publicReport(body)); break;
+      case 'settings':     out = withUser(body, u => settingsGet(u)); break;
+      case 'settingsSave': out = withUser(body, u => locked(() => settingsSave(u, body.settings))); break;
+      case 'costReport':   out = withUser(body, u => costReport(u, body)); break;
+      case 'report':       out = withUser(body, u => report(u, body)); break;
+      case 'reportEmail':  out = withUser(body, u => reportEmail(u, body)); break;
+      case 'reportRecipients': out = withUser(body, u => reportRecipients(u)); break;
+      case 'reportRecipientSave': out = withUser(body, u => locked(() => reportRecipientSave(u, body.email, body.active !== false))); break;
+      case 'partInfo':     out = withUser(body, u => partInfo(u, body.kind, body.no)); break;
+      case 'partUse':      out = withUser(body, u => locked(() => partUse(u, body.part))); break;
+      case 'partReceive':  out = withUser(body, u => locked(() => partReceive(u, body.part))); break;
+      case 'partCount':    out = withUser(body, u => locked(() => partCount(u, body.part))); break;
+      case 'partDetails':  out = withUser(body, u => locked(() => partDetails(u, body.part))); break;
+      case 'partsLookup':  out = withUser(body, u => partsLookup(u, body.q)); break;
+      case 'taskParts':    out = withUser(body, u => taskParts(u, body.id)); break;
+      case 'vendors':      out = withUser(body, u => vendorsList(u)); break;
+      case 'vendorSave':   out = withUser(body, u => locked(() => vendorSave(u, body.vendor))); break;
+      case 'limits':       out = withUser(body, u => limitsList(u)); break;
+      case 'limitSave':    out = withUser(body, u => locked(() => limitSave(u, body.limit))); break;
+      case 'pmCalendar':   out = withUser(body, u => pmCalendar(u, body.month)); break;
+      case 'pmCompliance': out = withUser(body, u => pmCompliance(u, body.months)); break;
+      case 'taskApprove':  out = withUser(body, u => locked(() => taskApprove(u, body))); break;
+      case 'taskTemplates': out = withUser(body, u => taskTemplates(u)); break;
+      case 'taskTemplateSave': out = withUser(body, u => locked(() => taskTemplateSave(u, body.template))); break;
       case 'taskRuleCreate': out = withUser(body, u => locked(() => taskRuleCreate(u, body.task, body.auto))); break;
       case 'taskRules':    out = withUser(body, u => taskRulesList(u)); break;
       case 'taskRuleStatus': out = withUser(body, u => locked(() => taskRuleStatus(u, body.id, !!body.active))); break;
       case 'dashboard':    out = withUser(body, u => dashboard(u)); break;
-      case 'equipment':    out = withUser(body, u => { if (!canSeeEquipment(u)) throw new Error('You do not have access to equipment'); const all = !!body.all && canEditEquipment(u); return { ok: true, equipment: equipmentList(!!body.fresh || all, all) }; }); break;
+      case 'equipment':    out = withUser(body, u => { if (!canSeeEquipment(u)) throw new Error('You do not have access to equipment'); const all = !!body.all && canEditEquipment(u); return { ok: true, equipment: equipmentList(!!body.fresh || all, all), offline: offlineMap() }; }); break;
       case 'equipmentHistory': out = withUser(body, u => equipmentHistory(u, body.equipment || {})); break;
-      case 'spares':       out = withUser(body, u => { if (!canSeeSpares(u)) throw new Error('You do not have access to spare parts'); const all = !!body.all && canEditSpares(u); return { ok: true, spares: sparesList(!!body.fresh || all, all) }; }); break;
+      case 'spares':       out = withUser(body, u => { if (!canSeeSpares(u)) throw new Error('You do not have access to spare parts'); const all = !!body.all && canEditSpares(u); return Object.assign({ ok: true, spares: sparesList(!!body.fresh || all, all) }, stockBundle()); }); break;
       case 'people':       out = withUser(body, u => { if (!canCreateTasks(u)) throw new Error('You do not have permission to create tasks'); return { ok: true, assignable: assignable() }; }); break;
       case 'employees':    out = withUser(body, u => employeesList(u)); break;
       case 'employeeSave': out = withUser(body, u => locked(() => employeeSave(u, body.employee))); break;
@@ -138,7 +196,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 12 }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'Holoul Maintenance API', version: 20 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -378,7 +436,36 @@ function getSheet(user, sheetName, date) {
   base.rows = cfg.layout === 'vibration' ? vibrationRows(sh, cfg, n, valueAt)
             : cfg.layout === 'grouped'   ? groupedRows(sh, cfg, n, valueAt)
             : listRows(sh, cfg, n, valueAt);
+  attachUsual(sh, cfg, d, n, sheetName, base.rows);
   return base;
+}
+
+/** Release 8: for every reading row, what the last readings looked like and the supervisor's limit, so the phone can warn about an odd value while it is typed (also offline). */
+function attachUsual(sh, cfg, d, n, sheetName, rows) {
+  try {
+    const limits = {};
+    limitRows().filter(r => r['Page'] === sheetName && r['Active'] === 'Yes').forEach(r => { limits[Number(r['Row'])] = { min: r['Min'] === '' ? null : Number(r['Min']), max: r['Max'] === '' ? null : Number(r['Max']) }; });
+    const lastCol = sh.getLastColumn();
+    let use = [];
+    if (lastCol >= cfg.firstDayCol) {
+      const top = sh.getRange(1, cfg.firstDayCol, 1, lastCol - cfg.firstDayCol + 1).getValues()[0];
+      const cols = [];
+      top.forEach((v, i) => { const hd = headerDate(v); if (hd && hd < d.date) cols.push({ c: cfg.firstDayCol + i, hd: hd }); });
+      cols.sort((a, b) => a.hd - b.hd);
+      use = cols.slice(-10);
+    }
+    let block = null, c0 = 0;
+    if (use.length >= 3) { c0 = use[0].c; block = sh.getRange(cfg.dataRow, c0, n, use[use.length - 1].c - c0 + 1).getValues(); }
+    rows.forEach(r => {
+      if (!r.row) return;
+      if (limits[r.row]) r.limit = limits[r.row];
+      if (!block) return;
+      const line = block[r.row - cfg.dataRow];
+      if (!line) return;
+      const nums = use.map(u => line[u.c - c0]).filter(v => v !== '' && v !== null && !isNaN(Number(v))).map(Number).sort((a, b) => a - b);
+      if (nums.length >= 3) r.usual = { lo: nums[0], hi: nums[nums.length - 1], med: nums[Math.floor(nums.length / 2)], n: nums.length };
+    });
+  } catch (err) { console.error('attachUsual: ' + err); }
 }
 
 /** Amp Rec style: one reading per row, section header rows in between. */
@@ -455,7 +542,9 @@ function saveReading(user, sheetName, row, value, date, memo) {
   const v = String(value == null ? '' : value).trim();
   const num = Number(v.replace(',', '.'));
   sh.getRange(row, col).setValue(v === '' ? '' : (isNaN(num) ? v : num));
-  return { ok: true, row: row, value: v, column: columnLetter(col), date: d.iso };
+  let limitTask = '';
+  if (v !== '' && !isNaN(num)) { try { limitTask = limitCheck(user, sheetName, row, num, d.iso); } catch (err) { console.error('limitCheck: ' + err); } }
+  return { ok: true, row: row, value: v, column: columnLetter(col), date: d.iso, limitTask: limitTask };
 }
 
 function taskLog() {
@@ -684,6 +773,30 @@ function uploadPhoto(user, type, unit, kind, dataUrl, opId, date) {
 }
 
 /** Daily check for one unit on one day. Sending the same day again updates that row. */
+/** A failed check makes one task for the supervisor (re-sending the same check the same day updates it, never doubles it). */
+function faultTaskFor(user, type, unit, iso, faults) {
+  const title = ('Fault: ' + type + ' ' + unit + ' · ' + iso).slice(0, 140);
+  const details = faults.join('\n').slice(0, 2000) + '\n(Found by ' + user.name + ')';
+  const found = readTasks().filter(t => t['Title'] === title && t['Status'] !== 'Cancelled')[0];
+  if (found) {
+    if (found['Status'] === 'Open' || found['Status'] === 'In progress') { found['Details'] = details; found['Updated'] = nowText(); writeTask(found); }
+    return found['ID'];
+  }
+  const boss = usersTable().filter(u => u.active && u.role === 'Supervisor')[0] || usersTable().filter(u => u.active && u.role === 'Operations Manager')[0];
+  if (!boss) return '';
+  const p = props(), seq = Number(p.getProperty('TASK_SEQ') || 0) + 1;
+  p.setProperty('TASK_SEQ', String(seq));
+  const now = nowText();
+  const t = { 'ID': 'T-' + ('000' + seq).slice(-4), 'Created': now, 'Created By': user.username, 'Creator Name': user.name,
+    'Assigned To': boss.username, 'Assignee Name': boss.name, 'Title': title, 'Details': details, 'Equipment': unit, 'Priority': 'High',
+    'Due': Utilities.formatDate(new Date(Date.now() + 864e5), TZ, 'yyyy-MM-dd'), 'Link': TASK_LINKS.indexOf(type) >= 0 ? type : '', 'Status': 'Open',
+    'Updated': now, 'Updated By': user.username, 'Category': 'Other' };
+  writeTask(t);
+  history(t['ID'], 'Created', user, 'Failed check ' + type + ' ' + unit);
+  notifyUser(boss.username, { kind: 'assigned', id: t['ID'], title: title, equipment: unit, priority: 'High', by: user.name });
+  return t['ID'];
+}
+
 function submitCheck(user, type, unit, data, date) {
   checkAccess(user, type);
   const d = workDate(date);
@@ -742,7 +855,9 @@ function submitCheck(user, type, unit, data, date) {
   const rng = log.getRange(target, 1, 1, header.length);
   rng.setNumberFormat('@').setValues([row.map(String)]);
   log.getRange(target, 1, 1, header.length).setBackground(faults.length ? '#fdecea' : null);
-  return { ok: true, status: faults.length ? 'Action required (' + faults.length + ')' : 'OK', faults: faults.length,
+  let faultTask = '';
+  if (faults.length) { try { faultTask = faultTaskFor(user, type, unit, d.iso, faults); } catch (err) { console.error('faultTask: ' + err); } }
+  return { ok: true, faultTask: faultTask, status: faults.length ? 'Action required (' + faults.length + ')' : 'OK', faults: faults.length,
            at: Utilities.formatDate(now, TZ, 'HH:mm'), by: user.name, date: d.iso };
 }
 
@@ -915,10 +1030,43 @@ function setupSheet() {
 
 const TASK_COLS = ['ID', 'Created', 'Created By', 'Creator Name', 'Assigned To', 'Assignee Name', 'Title', 'Details',
                    'Equipment', 'Priority', 'Due', 'Link', 'Status', 'Started', 'Done', 'Done Note', 'Done Photo', 'Updated', 'Updated By',
-                   'Equipment No', 'Line', 'Location'];
+                   'Equipment No', 'Line', 'Location',
+                   'Category', 'Need Note', 'Need Photo', 'Approval', 'Approval By', 'Hours', 'Reminded', 'Source',
+                   'Assets', 'Need Signature', 'Signature', 'Signed Name', 'Procedure'];
+const METER_TAB = 'Meter Readings';
+const METER_COLS = ['Timestamp', 'Equipment No', 'Equipment', 'Reading', 'By', 'Note', 'Meter', 'Unit'];
+const HOURS_METER = 'Running hours';   // the meter that drives hour-based repeats; blank Meter on old rows means this one
+const PART_STOCK_TAB = 'Part Stock';
+const PART_STOCK_COLS = ['Key', 'Kind', 'Part No', 'Unit Cost', 'Vendor ID', 'Min Qty', 'Bin', 'Alerted', 'Updated'];
+const PART_LOG_TAB = 'Part Usage';
+const PART_LOG_COLS = ['Timestamp', 'Key', 'Kind', 'Part No', 'Part Name', 'Type', 'Qty', 'Balance', 'Work Order', 'Unit Cost', 'By', 'Note'];
+const PART_TYPES = ['Used', 'Returned', 'Received', 'Count'];
+const VENDOR_TAB = 'Vendors';
+const VENDOR_COLS = ['Vendor ID', 'Name', 'Phone', 'Email', 'Notes', 'Active'];
+const REQ_TAB = 'Work Requests';
+const REQ_COLS = ['Request ID', 'Created', 'By', 'Name', 'Title', 'Details', 'Asset No', 'Asset', 'Urgency', 'Photo', 'Status', 'Decided By', 'Decided', 'Decision Note', 'Work Order'];
+const COMMENT_TAB = 'Task Comments';
+const COMMENT_COLS = ['Comment ID', 'Timestamp', 'Task ID', 'By', 'Name', 'Text', 'Mentions', 'Audio'];
+const REPORT_TAB = 'Report Emails';
+const REPORT_COLS = ['Email', 'Active', 'Added By', 'Added', 'Last Sent'];
+const DOWNTIME_TAB = 'Downtime';
+const DOWNTIME_COLS = ['Downtime ID', 'Equipment No', 'Equipment', 'Type', 'Cause', 'Started', 'Ended', 'Minutes', 'Note', 'Work Order',
+                       'Started By', 'Ended By', 'Status'];
+const DOWNTIME_TYPES = ['Unplanned', 'Planned'];
+const CAUSE_TAB = 'Failure Causes';
+const CAUSE_COLS = ['Cause', 'Active'];
+const DEFAULT_CAUSES = ['Mechanical wear', 'Electrical fault', 'Operator error', 'Lack of lubrication', 'Material jam', 'Power loss',
+                        'Sensor fault', 'Planned maintenance', 'Other'];
+const LIMIT_TAB = 'Reading Limits';
+const LIMIT_COLS = ['Limit ID', 'Page', 'Row', 'Label', 'Min', 'Max', 'Assign To', 'Priority', 'Active', 'Created By', 'Updated', 'Open Task'];
+const PM_SOURCES = ['Repeat', 'Meter', 'Limit'];
+const TEMPLATE_TAB = 'Task Templates';
+const TEMPLATE_COLS = ['Template ID', 'Name', 'Title', 'Details', 'Equipment', 'Equipment No', 'Line', 'Location', 'Priority', 'Category',
+                       'Need Note', 'Need Photo', 'Approval', 'Created By', 'Updated', 'Active'];
 const HISTORY_COLS = ['Timestamp', 'Task ID', 'Action', 'By', 'Note'];
 const PUSH_COLS = ['Username', 'Endpoint', 'P256dh', 'Auth', 'Device', 'Added', 'Last OK', 'Last Error'];
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
+const CATEGORIES = ['', 'Mechanical', 'Electrical', 'Cleaning', 'Safety', 'Other'];
 const TASK_LINKS = ['', 'Amp Rec', 'Vibration Rec', 'Thermo Rec', 'Bobcat', 'Forklift'];
 const MANAGER_ROLES = ['Supervisor', 'Operations Manager'];
 const ASSIGNABLE_ROLES = TECH_ROLES.concat(Object.keys(ROLE_EQUIPMENT));
@@ -961,7 +1109,12 @@ function tasksBook() {
     return sh;
   };
   tab('Tasks', TASK_COLS, true); tab('Task History', HISTORY_COLS); tab('Push Devices', PUSH_COLS); tab(AUTO_LOG, AUTO_LOG_COLS);
-  tab(RULE_TAB, RULE_COLS);
+  tab(RULE_TAB, RULE_COLS); tab(TEMPLATE_TAB, TEMPLATE_COLS); tab(METER_TAB, METER_COLS); tab(LIMIT_TAB, LIMIT_COLS);
+  tab(DOWNTIME_TAB, DOWNTIME_COLS); tab(CAUSE_TAB, CAUSE_COLS);
+  tab(REQ_TAB, REQ_COLS); tab(COMMENT_TAB, COMMENT_COLS);
+  tab(REPORT_TAB, REPORT_COLS);
+  tab(PROC_TAB, PROC_COLS); tab(RUN_TAB, RUN_COLS); tab(PO_TAB, PO_COLS); tab(AVAIL_TAB, AVAIL_COLS); tab(OFF_TAB, OFF_COLS);
+  tab(PART_STOCK_TAB, PART_STOCK_COLS); tab(PART_LOG_TAB, PART_LOG_COLS); tab(VENDOR_TAB, VENDOR_COLS);
   return (_tasks = ss);
 }
 
@@ -982,7 +1135,10 @@ function taskOut(t) {
            assignee: t['Assigned To'], assigneeName: t['Assignee Name'], title: t['Title'], details: t['Details'],
            equipment: t['Equipment'], priority: t['Priority'] || 'Normal', due: t['Due'], link: t['Link'], status: t['Status'] || 'Open',
            started: t['Started'], done: t['Done'], doneNote: t['Done Note'], donePhoto: t['Done Photo'], updated: t['Updated'],
-           equipmentNo: t['Equipment No'] || '', line: t['Line'] || '', location: t['Location'] || '' };
+           equipmentNo: t['Equipment No'] || '', line: t['Line'] || '', location: t['Location'] || '',
+           category: t['Category'] || '', needNote: t['Need Note'] === 'Yes', needPhoto: t['Need Photo'] === 'Yes',
+           approval: t['Approval'] || '', approvalBy: t['Approval By'] || '', hours: t['Hours'] || '', source: t['Source'] || '',
+           assets: parseAssets(t['Assets']), needSignature: t['Need Signature'] === 'Yes', signed: !!t['Signature'], procedure: t['Procedure'] || '' };
 }
 function writeTask(t) {
   const sh = tasksBook().getSheetByName('Tasks');
@@ -1025,8 +1181,34 @@ function actionTime(at) {
   return Utilities.formatDate(t, TZ, 'yyyy-MM-dd HH:mm');
 }
 
+const yes = v => (v === true || v === 'Yes' || v === 'true') ? 'Yes' : '';
+/** Optional fields shared by create / edit / template (only the ones sent are touched). */
+function applyTaskExtras(t, f, isNew) {
+  if (f.category != null) t['Category'] = CATEGORIES.indexOf(f.category) >= 0 ? f.category : '';
+  if (f.needNote != null) t['Need Note'] = yes(f.needNote);
+  if (f.needPhoto != null) t['Need Photo'] = yes(f.needPhoto);
+  if (f.needSignature != null && t['Status'] !== 'Done') t['Need Signature'] = yes(f.needSignature);
+  if (f.assets != null && t['Status'] !== 'Done') t['Assets'] = cleanAssets(f.assets, t);
+  if (f.procedure != null && t['Status'] !== 'Done') {
+    const pid = clean(f.procedure, 20);
+    if (pid && !procRows().some(r => r['Procedure ID'] === pid && r['Active'] !== 'No')) throw new Error('Procedure not found');
+    t['Procedure'] = pid;
+  }
+  if (f.needApproval != null && (isNew || (t['Status'] !== 'Done' && t['Approval'] !== 'Pending'))) t['Approval'] = f.needApproval ? 'Required' : '';
+}
+/** Labor hours: 0–999, quarter-hour steps; '' when not given. */
+function cleanHours(v) {
+  if (v == null || String(v).trim() === '') return '';
+  const n = Number(String(v).replace(',', '.'));
+  if (!isFinite(n) || n < 0 || n > 999) throw new Error('Hours must be between 0 and 999');
+  return String(Math.round(n * 4) / 4);
+}
+
 function taskCreate(user, f) {
   if (!canCreateTasks(user)) throw new Error('You do not have permission to create tasks');
+  return taskCreateCore(user, f);
+}
+function taskCreateCore(user, f) {
   f = f || {};
   const title = String(f.title || '').trim().slice(0, 140);
   if (!title) throw new Error('Enter a task title');
@@ -1042,12 +1224,14 @@ function taskCreate(user, f) {
     'Equipment': String(f.equipment || '').slice(0, 120), 'Priority': PRIORITIES.indexOf(f.priority) >= 0 ? f.priority : 'Normal',
     'Due': cleanDate(f.due), 'Link': TASK_LINKS.indexOf(f.link || '') >= 0 ? (f.link || '') : '', 'Status': 'Open',
     'Updated': now, 'Updated By': user.username,
-    'Equipment No': String(f.equipmentNo || '').slice(0, 60), 'Line': String(f.line || '').slice(0, 60), 'Location': String(f.location || '').slice(0, 60)
+    'Equipment No': String(f.equipmentNo || '').slice(0, 60), 'Line': String(f.line || '').slice(0, 60), 'Location': String(f.location || '').slice(0, 60),
+    'Source': clean(f.source, 30)
   };
+  applyTaskExtras(t, f, true);
   writeTask(t);
   history(t['ID'], 'Created', user, 'Assigned to ' + who.username);
   const sent = notifyUser(who.username, { kind: 'assigned', id: t['ID'], title: title, equipment: equipLabel(t), priority: t['Priority'], by: user.name });
-  return { ok: true, task: taskOut(t), notified: sent };
+  return { ok: true, task: taskOut(t), notified: sent, warning: offWarning(who.username, t['Due']) };
 }
 
 /** Supervisor changes: edit fields, reassign, cancel, reopen. */
@@ -1066,6 +1250,7 @@ function taskEdit(user, f) {
   if (f.priority != null && PRIORITIES.indexOf(f.priority) >= 0) t['Priority'] = f.priority;
   if (f.due != null) t['Due'] = cleanDate(f.due);
   if (f.link != null && TASK_LINKS.indexOf(f.link) >= 0) t['Link'] = f.link;
+  applyTaskExtras(t, f, false);
   if (f.assignee && lc(f.assignee) !== lc(t['Assigned To'])) {
     const who = assignable().filter(u => lc(u.username) === lc(f.assignee))[0];
     if (!who) throw new Error('Choose who does the task');
@@ -1083,7 +1268,7 @@ function taskEdit(user, f) {
   history(t['ID'], notes.length ? notes.join('; ') : 'Edited', user, f.note || '');
   let sent = null;
   if (notifyNew) sent = notifyUser(notifyNew, { kind: 'assigned', id: t['ID'], title: t['Title'], equipment: equipLabel(t), priority: t['Priority'], by: user.name });
-  return { ok: true, task: taskOut(t), notified: sent };
+  return { ok: true, task: taskOut(t), notified: sent, warning: t['Status'] === 'Open' || t['Status'] === 'In progress' ? offWarning(t['Assigned To'], t['Due']) : '' };
 }
 
 /** Technician: Start / Done (with note + photo). Safe to send again. */
@@ -1097,19 +1282,417 @@ function taskUpdate(user, f) {
     if (t['Status'] === 'Open') { t['Status'] = 'In progress'; t['Started'] = at; history(t['ID'], 'Started', user, ''); }
   } else if (f.status === 'Done') {
     if (t['Status'] !== 'Done') {
+      const note = String(f.note || '').trim();
+      if (t['Need Note'] === 'Yes' && !note) throw new Error('Write what was done before finishing this task');
+      if (t['Need Photo'] === 'Yes' && !f.photo) throw new Error('Add a photo before finishing this task');
+      if (t['Procedure'] && !runRows().some(r => r['Task ID'] === t['ID'])) throw new Error('Complete the procedure before finishing this task');
+      if (t['Need Signature'] === 'Yes' && !f.signature) throw new Error('Get a signature before finishing this task');
+      const sig = cleanSignature(f.signature);
+      const hrs = cleanHours(f.hours);
       t['Status'] = 'Done'; if (!t['Started']) t['Started'] = at; t['Done'] = at;
       t['Done Note'] = String(f.note || '').slice(0, 2000); t['Done Photo'] = String(f.photo || '');
-      history(t['ID'], 'Done', user, t['Done Note']);
+      if (hrs !== '') t['Hours'] = hrs;
+      if (sig) { t['Signature'] = sig; t['Signed Name'] = clean(f.signedName, 60); }
+      if (t['Approval'] === 'Required') t['Approval'] = 'Pending';
+      history(t['ID'], 'Done', user, t['Done Note'] + (hrs !== '' ? ' [' + hrs + ' h]' : ''));
       if (t['Created By'] && lc(t['Created By']) !== lc(user.username))
         notifyUser(t['Created By'], { kind: 'done', id: t['ID'], title: t['Title'], by: user.name });
     } else {
       if (f.note != null && String(f.note) !== t['Done Note']) t['Done Note'] = String(f.note).slice(0, 2000);
       if (f.photo) t['Done Photo'] = String(f.photo);
+      if (f.hours != null && String(f.hours).trim() !== '') t['Hours'] = cleanHours(f.hours);
     }
   } else throw new Error('Unknown task status');
   t['Updated'] = nowText(); t['Updated By'] = user.username;
   writeTask(t);
   return { ok: true, task: taskOut(t) };
+}
+
+/** Supervisor signs off a finished task, or sends it back (reopens it with a reason). */
+function taskApprove(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can approve tasks');
+  f = f || {};
+  const t = findTask(f.id);
+  if (t['Status'] !== 'Done' || t['Approval'] !== 'Pending') throw new Error('This task is not waiting for approval');
+  const note = String(f.note || '').trim().slice(0, 500);
+  if (f.approve === false || f.approve === 'false') {
+    if (!note) throw new Error('Write why the task is sent back');
+    t['Status'] = 'Open'; t['Started'] = ''; t['Done'] = ''; t['Approval'] = 'Required'; t['Approval By'] = '';
+    history(t['ID'], 'Sent back', user, note);
+    notifyUser(t['Assigned To'], { kind: 'assigned', id: t['ID'], title: t['Title'], equipment: equipLabel(t), priority: t['Priority'], by: user.name });
+  } else {
+    t['Approval'] = 'Approved'; t['Approval By'] = user.username;
+    history(t['ID'], 'Approved', user, note);
+  }
+  t['Updated'] = nowText(); t['Updated By'] = user.username;
+  writeTask(t);
+  return { ok: true, task: taskOut(t) };
+}
+
+/* ---------- task templates: a saved task a supervisor can reuse ---------- */
+function templateOut(r) {
+  return { id: r['Template ID'], name: r['Name'], title: r['Title'], details: r['Details'], equipment: r['Equipment'], equipmentNo: r['Equipment No'],
+           line: r['Line'], location: r['Location'], priority: r['Priority'] || 'Normal', category: r['Category'],
+           needNote: r['Need Note'] === 'Yes', needPhoto: r['Need Photo'] === 'Yes', needApproval: r['Approval'] === 'Required' };
+}
+function taskTemplates(user) {
+  if (!canCreateTasks(user)) throw new Error('You do not have permission to create tasks');
+  const list = rowsOf(tasksBook().getSheetByName(TEMPLATE_TAB), TEMPLATE_COLS).filter(r => r['Active'] !== 'No');
+  return { ok: true, templates: list.map(templateOut).sort((a, b) => String(a.name).localeCompare(String(b.name))) };
+}
+function taskTemplateSave(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can save templates');
+  f = f || {};
+  const sh = tasksBook().getSheetByName(TEMPLATE_TAB);
+  const rows = rowsOf(sh, TEMPLATE_COLS);
+  if (f.remove) {
+    const r = rows.filter(x => x['Template ID'] === String(f.id))[0];
+    if (!r) throw new Error('Template not found');
+    r['Active'] = 'No'; r['Updated'] = nowText();
+    sh.getRange(r._row, 1, 1, TEMPLATE_COLS.length).setNumberFormat('@').setValues([TEMPLATE_COLS.map(c => String(r[c] == null ? '' : r[c]))]);
+    return { ok: true };
+  }
+  const name = String(f.name || '').trim().slice(0, 60), title = String(f.title || '').trim().slice(0, 140);
+  if (!name) throw new Error('Enter a template name');
+  if (!title) throw new Error('Enter a task title');
+  let r = f.id ? rows.filter(x => x['Template ID'] === String(f.id))[0] : null;
+  if (f.id && !r) throw new Error('Template not found');
+  if (!r) {
+    const p = props(), seq = Number(p.getProperty('TPL_SEQ') || 0) + 1;
+    p.setProperty('TPL_SEQ', String(seq));
+    r = { 'Template ID': 'TP-' + ('00' + seq).slice(-3), 'Created By': user.username, 'Active': 'Yes' };
+  }
+  r['Name'] = name; r['Title'] = title; r['Details'] = String(f.details || '').slice(0, 2000);
+  r['Equipment'] = String(f.equipment || '').slice(0, 120); r['Equipment No'] = String(f.equipmentNo || '').slice(0, 60);
+  r['Line'] = String(f.line || '').slice(0, 60); r['Location'] = String(f.location || '').slice(0, 60);
+  r['Priority'] = PRIORITIES.indexOf(f.priority) >= 0 ? f.priority : 'Normal';
+  r['Category'] = CATEGORIES.indexOf(f.category) >= 0 ? f.category : '';
+  r['Need Note'] = yes(f.needNote); r['Need Photo'] = yes(f.needPhoto); r['Approval'] = f.needApproval ? 'Required' : '';
+  r['Updated'] = nowText();
+  const row = TEMPLATE_COLS.map(c => String(r[c] == null ? '' : r[c]));
+  const at = r._row || sh.getLastRow() + 1;
+  sh.getRange(at, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+  return { ok: true, template: templateOut(r) };
+}
+
+/* ---------- meter readings: running hours for any equipment (feeds hour-based repeats) ---------- */
+const isHoursName = n => { const x = lc(n); return x === '' || x === lc(HOURS_METER); };
+function meterOut(r) {
+  return { at: r['Timestamp'], no: r['Equipment No'], equipment: r['Equipment'], reading: Number(r['Reading']), by: r['By'], note: r['Note'],
+           meter: isHoursName(r['Meter']) ? HOURS_METER : r['Meter'], unit: isHoursName(r['Meter']) ? 'h' : (r['Unit'] || '') };
+}
+/** Latest reading of one named meter on an asset (null when none). */
+function latestMeter(no, name) {
+  let best = null, bestTs = '';
+  rowsOf(tasksBook().getSheetByName(METER_TAB), METER_COLS).forEach(r => {
+    if (String(r['Equipment No']).trim() !== no) return;
+    if (lc(isHoursName(r['Meter']) ? HOURS_METER : r['Meter']) !== lc(name)) return;
+    const v = Number(String(r['Reading']).replace(',', '.'));
+    if (!isFinite(v) || String(r['Reading']).trim() === '') return;
+    if (best === null || String(r['Timestamp']) >= bestTs) { best = v; bestTs = String(r['Timestamp']); }
+  });
+  return best;
+}
+function meterAdd(user, f) {
+  if (!canSeeEquipment(user)) throw new Error('You do not have access to equipment');
+  f = f || {};
+  const no = String(f.no || '').trim();
+  const eq = equipmentList(false).filter(e => e.no && e.no === no)[0];
+  if (!eq) throw new Error('Choose equipment that has a number');
+  const name = clean(f.name, 40) || HOURS_METER;
+  const hours = isHoursName(name);
+  const unit = hours ? 'h' : clean(f.unit, 12);
+  const raw = String(f.reading == null ? '' : f.reading).trim().replace(',', '.');
+  const n = Number(raw);
+  if (raw === '' || !isFinite(n) || n < 0 || n > 10000000) throw new Error(hours ? 'Enter the meter reading in hours' : 'Enter the meter reading');
+  const seen = {};
+  rowsOf(tasksBook().getSheetByName(METER_TAB), METER_COLS).forEach(r => { if (String(r['Equipment No']).trim() === no) seen[lc(isHoursName(r['Meter']) ? HOURS_METER : r['Meter'])] = 1; });
+  if (!seen[lc(hours ? HOURS_METER : name)] && Object.keys(seen).length >= 10) throw new Error('An asset can have at most 10 meters');
+  const last = hours ? latestHourMeter(no) : latestMeter(no, name);
+  // counters only go up; a lower value needs the "meter replaced" tick (hours meter only — pressure or temperature go down)
+  if (hours && last !== null && n < last && !f.replaced) throw new Error('Lower than the last reading (' + last + '). Tick "meter replaced" if the meter was changed');
+  const sh = tasksBook().getSheetByName(METER_TAB);
+  const note = String(f.note || '').trim().slice(0, 200) || (hours && last !== null && n < last ? 'Meter replaced' : '');
+  sh.getRange(sh.getLastRow() + 1, 1, 1, METER_COLS.length).setNumberFormat('@')
+    .setValues([[nowText(), no, eq.name, String(n), user.username, note, hours ? '' : name, hours ? '' : unit]]);
+  return { ok: true, last: n, previous: last, meter: hours ? HOURS_METER : name };
+}
+function meterList(user, no) {
+  if (!canSeeEquipment(user)) throw new Error('You do not have access to equipment');
+  no = String(no || '').trim();
+  // reversed first: readings saved in the same minute keep the newest row on top
+  const all = rowsOf(tasksBook().getSheetByName(METER_TAB), METER_COLS).filter(r => r['Equipment No'] === no).reverse().map(meterOut)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const meters = [], seen = {};
+  all.forEach(r => { const k = lc(r.meter); if (seen[k]) return; seen[k] = 1; meters.push({ name: r.meter, unit: r.unit, latest: r.reading, at: r.at }); });
+  return { ok: true, readings: all.slice(0, 40), meters: meters, latest: latestHourMeter(no) };
+}
+
+/* ---------- failure causes (the list people choose from when an asset goes offline) ---------- */
+function causeRows() {
+  const sh = tasksBook().getSheetByName(CAUSE_TAB);
+  let rows = rowsOf(sh, CAUSE_COLS).filter(r => String(r['Cause']).trim() !== '');
+  if (!rows.length) {   // first use: the starter list
+    sh.getRange(2, 1, DEFAULT_CAUSES.length, 2).setNumberFormat('@').setValues(DEFAULT_CAUSES.map(c => [c, 'Yes']));
+    rows = rowsOf(sh, CAUSE_COLS).filter(r => String(r['Cause']).trim() !== '');
+  }
+  return rows;
+}
+function causesList(user) {
+  if (!user) throw new Error('Sign in again');
+  const rows = causeRows();
+  const out = { ok: true, causes: rows.filter(r => r['Active'] !== 'No').map(r => r['Cause']) };
+  if (isManager(user)) out.all = rows.map(r => ({ name: r['Cause'], active: r['Active'] !== 'No' }));
+  return out;
+}
+function causesSave(user, list) {
+  if (!isManager(user)) throw new Error('Only a supervisor can change the failure causes');
+  if (!Array.isArray(list)) throw new Error('Nothing to save');
+  const seen = {}, out = [];
+  list.forEach(c => {
+    const name = clean(c && c.name, 60);
+    if (!name || seen[lc(name)]) return;
+    seen[lc(name)] = 1; out.push([name, c.active === false ? 'No' : 'Yes']);
+  });
+  if (!out.some(r => r[1] === 'Yes')) throw new Error('Keep at least one active failure cause');
+  if (out.length > 40) throw new Error('At most 40 failure causes');
+  const sh = tasksBook().getSheetByName(CAUSE_TAB);
+  const n = Math.max(sh.getLastRow() - 1, out.length);
+  const vals = []; for (let i = 0; i < n; i++) vals.push(out[i] || ['', '']);
+  sh.getRange(2, 1, n, 2).setNumberFormat('@').setValues(vals);
+  return { ok: true, causes: out.filter(r => r[1] === 'Yes').map(r => r[0]) };
+}
+
+/* ---------- downtime: an asset goes offline, then back online ---------- */
+const stampMs = s => Date.parse(String(s).replace(' ', 'T') + ':00Z');
+const minutesBetween = (a, b) => { const d = Math.round((stampMs(b) - stampMs(a)) / 60000); return isFinite(d) && d > 0 ? d : 0; };
+function downtimeOut(r) {
+  const open = r['Status'] === 'Offline';
+  return { id: r['Downtime ID'], no: r['Equipment No'], equipment: r['Equipment'], type: r['Type'], cause: r['Cause'], started: r['Started'],
+           ended: r['Ended'], minutes: open ? minutesBetween(r['Started'], nowText()) : (Number(r['Minutes']) || 0), note: r['Note'], order: r['Work Order'],
+           startedBy: r['Started By'], endedBy: r['Ended By'], open: open };
+}
+const downtimeRows = () => rowsOf(tasksBook().getSheetByName(DOWNTIME_TAB), DOWNTIME_COLS).filter(r => r['Downtime ID']);
+/** Assets that are offline right now: { "SH-1": { id, since, type, cause } }. */
+function offlineMap() {
+  const m = {};
+  downtimeRows().forEach(r => { if (r['Status'] === 'Offline') m[r['Equipment No']] = { id: r['Downtime ID'], since: r['Started'], type: r['Type'], cause: r['Cause'] }; });
+  return m;
+}
+const assetByNo = no => equipmentList(false).filter(e => e.no && e.no === String(no || '').trim())[0] || null;
+/** Who may switch an asset offline / online: supervisors, people with the equipment right, and a technician holding an open work order on it. */
+function canLogDowntime(user, eq) {
+  if (isManager(user) || canSeeEquipment(user)) return true;
+  return readTasks().some(t => lc(t['Assigned To']) === lc(user.username) && (t['Status'] === 'Open' || t['Status'] === 'In progress') &&
+    taskTouches(taskOut(t), eq));
+}
+function downtimeStart(user, f) {
+  f = f || {};
+  const eq = assetByNo(f.no);
+  if (!eq) throw new Error('Choose an asset that has a number');
+  if (!canLogDowntime(user, eq)) throw new Error('You do not have permission to change the status of this asset');
+  const type = DOWNTIME_TYPES.indexOf(f.type) >= 0 ? f.type : 'Unplanned';
+  let cause = clean(f.cause, 60);
+  if (type === 'Planned' && !cause) cause = 'Planned maintenance';
+  if (!cause) throw new Error('Choose the cause');
+  if (!causeRows().some(r => r['Active'] !== 'No' && lc(r['Cause']) === lc(cause))) throw new Error('Choose the cause from the list');
+  if (offlineMap()[eq.no]) throw new Error('This asset is already offline');
+  const order = clean(f.order, 30);
+  if (order && !readTasks().some(t => t['ID'] === order)) throw new Error('Work order not found');
+  const rows = downtimeRows();
+  const next = rows.reduce((m, r) => Math.max(m, Number(String(r['Downtime ID']).replace(/\D/g, '')) || 0), 0) + 1;
+  const id = 'D' + String(next).padStart(4, '0');
+  const sh = tasksBook().getSheetByName(DOWNTIME_TAB);
+  sh.getRange(sh.getLastRow() + 1, 1, 1, DOWNTIME_COLS.length).setNumberFormat('@')
+    .setValues([[id, eq.no, eq.name, type, cause, nowText(), '', '', clean(f.note, 300), order, user.username, '', 'Offline']]);
+  return { ok: true, id: id, since: nowText() };
+}
+function downtimeEnd(user, f) {
+  f = f || {};
+  const eq = assetByNo(f.no);
+  if (!eq) throw new Error('Choose an asset that has a number');
+  if (!canLogDowntime(user, eq)) throw new Error('You do not have permission to change the status of this asset');
+  const row = downtimeRows().filter(r => r['Equipment No'] === eq.no && r['Status'] === 'Offline')[0];
+  if (!row) throw new Error('This asset is not offline');
+  const now = nowText(), mins = minutesBetween(row['Started'], now);
+  const note = clean(f.note, 300), order = clean(f.order, 30) || row['Work Order'];
+  if (order && order !== row['Work Order'] && !readTasks().some(t => t['ID'] === order)) throw new Error('Work order not found');
+  const sh = tasksBook().getSheetByName(DOWNTIME_TAB), r = row._row, col = c => DOWNTIME_COLS.indexOf(c) + 1;
+  sh.getRange(r, col('Ended')).setNumberFormat('@').setValue(now);
+  sh.getRange(r, col('Minutes')).setNumberFormat('@').setValue(String(mins));
+  sh.getRange(r, col('Status')).setNumberFormat('@').setValue('Online');
+  sh.getRange(r, col('Ended By')).setNumberFormat('@').setValue(user.username);
+  if (note) sh.getRange(r, col('Note')).setNumberFormat('@').setValue(row['Note'] ? (row['Note'] + ' → ' + note).slice(0, 300) : note);
+  if (order) sh.getRange(r, col('Work Order')).setNumberFormat('@').setValue(order);
+  return { ok: true, minutes: mins };
+}
+/** Downtime of one asset: the open entry, the last 50 entries, and a 90-day summary with the causes ranked by lost minutes. */
+function downtimeList(user, no) {
+  if (!canSeeEquipment(user)) throw new Error('You do not have access to equipment');
+  no = String(no || '').trim();
+  const all = downtimeRows().filter(r => r['Equipment No'] === no).reverse().map(downtimeOut)
+    .sort((a, b) => String(b.started).localeCompare(String(a.started)));
+  const cutoff = Utilities.formatDate(new Date(Date.now() - 90 * 864e5), TZ, 'yyyy-MM-dd');
+  const recent = all.filter(d => String(d.started).slice(0, 10) >= cutoff);
+  const by = {};
+  recent.forEach(d => { const k = d.cause || '—'; by[k] = by[k] || { cause: k, minutes: 0, count: 0 }; by[k].minutes += d.minutes; by[k].count += 1; });
+  const closedUnplanned = recent.filter(d => !d.open && d.type === 'Unplanned');
+  return { ok: true, open: all.filter(d => d.open)[0] || null, entries: all.slice(0, 50),
+    summary: { days: 90, count: recent.length,
+      minutes: recent.reduce((a, d) => a + d.minutes, 0),
+      unplanned: recent.filter(d => d.type === 'Unplanned').reduce((a, d) => a + d.minutes, 0),
+      planned: recent.filter(d => d.type === 'Planned').reduce((a, d) => a + d.minutes, 0),
+      avgRepair: closedUnplanned.length ? Math.round(closedUnplanned.reduce((a, d) => a + d.minutes, 0) / closedUnplanned.length) : 0,
+      byCause: Object.keys(by).map(k => by[k]).sort((a, b) => b.minutes - a.minutes) } };
+}
+/** What anybody who scans an asset's QR code may see: its name, whether it is offline, and their own open work orders on it. */
+function assetCard(user, no) {
+  const eq = assetByNo(no);
+  if (!eq) throw new Error('Asset not found');
+  const mine = readTasks().filter(t => lc(t['Assigned To']) === lc(user.username) && (t['Status'] === 'Open' || t['Status'] === 'In progress') &&
+    taskTouches(taskOut(t), eq))
+    .map(t => ({ id: t['ID'], title: t['Title'], status: t['Status'], priority: t['Priority'] || 'Normal', due: t['Due'] }));
+  const off = offlineMap()[eq.no] || null;
+  return { ok: true, asset: { name: eq.name, no: eq.no, line: eq.line, loc: eq.loc, cat: eq.cat }, offline: off, orders: mine,
+           canDowntime: canLogDowntime(user, eq), canOpen: !!(isManager(user) || canSeeEquipment(user)) };
+}
+
+/* ---------- condition-based triggers: a reading outside its limit makes one work order ---------- */
+function limitOut(r) {
+  return { id: r['Limit ID'], page: r['Page'], row: Number(r['Row']), label: r['Label'], min: r['Min'], max: r['Max'], assignee: r['Assign To'],
+           priority: r['Priority'] || 'High', active: r['Active'] !== 'No', openTask: r['Open Task'] };
+}
+function limitRows() { return rowsOf(tasksBook().getSheetByName(LIMIT_TAB), LIMIT_COLS).filter(r => r['Active'] !== 'Deleted'); }
+function limitsList(user) {
+  if (!isManager(user)) throw new Error('Only a supervisor can see reading limits');
+  return { ok: true, limits: limitRows().map(limitOut), assignable: assignable() };
+}
+function cleanLimit(v) {
+  if (v == null || String(v).trim() === '') return '';
+  const n = Number(String(v).replace(',', '.'));
+  if (!isFinite(n)) throw new Error('Limits must be numbers');
+  return String(n);
+}
+function limitSave(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can set reading limits');
+  f = f || {};
+  const sh = tasksBook().getSheetByName(LIMIT_TAB);
+  const rows = rowsOf(sh, LIMIT_COLS);
+  const write = r => { const row = LIMIT_COLS.map(c => String(r[c] == null ? '' : r[c])); const at = r._row || sh.getLastRow() + 1; sh.getRange(at, 1, 1, row.length).setNumberFormat('@').setValues([row]); r._row = at; };
+  if (f.remove) {
+    const r = rows.filter(x => x['Limit ID'] === String(f.id) && x['Active'] !== 'Deleted')[0];
+    if (!r) throw new Error('Limit not found');
+    r['Active'] = 'Deleted'; r['Updated'] = nowText(); write(r);
+    return { ok: true };
+  }
+  if (AUTO_READINGS.indexOf(f.page) < 0) throw new Error('Choose a reading page');
+  const row = Number(f.row);
+  if (!(row >= RECORD_SHEETS[f.page].dataRow) || !isFinite(row)) throw new Error('Choose a reading row');
+  const min = cleanLimit(f.min), max = cleanLimit(f.max);
+  if (min === '' && max === '') throw new Error('Enter a minimum, a maximum, or both');
+  if (min !== '' && max !== '' && Number(min) > Number(max)) throw new Error('The minimum is higher than the maximum');
+  const who = assignable().filter(u => lc(u.username) === lc(f.assignee))[0];
+  if (!who) throw new Error('Choose who gets the work order');
+  let r = f.id ? rows.filter(x => x['Limit ID'] === String(f.id) && x['Active'] !== 'Deleted')[0] : null;
+  if (f.id && !r) throw new Error('Limit not found');
+  if (!r) {
+    const dup = rows.filter(x => x['Page'] === f.page && Number(x['Row']) === row && x['Active'] !== 'Deleted')[0];
+    if (dup) throw new Error('This reading already has a limit — edit it instead');
+    const p = props(), seq = Number(p.getProperty('LIMIT_SEQ') || 0) + 1;
+    p.setProperty('LIMIT_SEQ', String(seq));
+    r = { 'Limit ID': 'LM-' + ('00' + seq).slice(-3), 'Created By': user.username, 'Open Task': '' };
+  }
+  r['Page'] = f.page; r['Row'] = String(row); r['Label'] = String(f.label || '').slice(0, 120); r['Min'] = min; r['Max'] = max;
+  r['Assign To'] = who.username; r['Priority'] = PRIORITIES.indexOf(f.priority) >= 0 ? f.priority : 'High';
+  r['Active'] = f.active === false ? 'No' : 'Yes'; r['Updated'] = nowText();
+  write(r);
+  return { ok: true, limit: limitOut(r) };
+}
+/** Called after a reading is saved. Makes one work order when it is outside the limit; none while the last one is still open. */
+function limitCheck(user, page, row, value, iso) {
+  const sh = tasksBook().getSheetByName(LIMIT_TAB);
+  if (sh.getLastRow() < 2) return '';
+  const rows = rowsOf(sh, LIMIT_COLS);
+  const lim = rows.filter(r => r['Page'] === page && Number(r['Row']) === Number(row) && r['Active'] === 'Yes')[0];
+  if (!lim) return '';
+  const hi = lim['Max'] !== '' && value > Number(lim['Max']), lo = lim['Min'] !== '' && value < Number(lim['Min']);
+  if (!hi && !lo) return '';
+  const byId = {};
+  readTasks().forEach(t => { byId[t['ID']] = t; });
+  const cur = byId[lim['Open Task']];
+  if (cur && (cur['Status'] === 'Open' || cur['Status'] === 'In progress')) return cur['ID'];
+  const users = usersTable();
+  let who = users.filter(u => u.active && lc(u.username) === lc(lim['Assign To']))[0]
+         || users.filter(u => u.active && u.role === 'Supervisor')[0];
+  if (!who) return '';
+  const p = props(), seq = Number(p.getProperty('TASK_SEQ') || 0) + 1;
+  p.setProperty('TASK_SEQ', String(seq));
+  const now = nowText(), label = lim['Label'] || ('row ' + row);
+  const t = { 'ID': 'T-' + ('000' + seq).slice(-4), 'Created': now, 'Created By': 'automation', 'Creator Name': 'Automation',
+    'Assigned To': who.username, 'Assignee Name': who.name, 'Title': (page + ': ' + label + ' = ' + value).slice(0, 140),
+    'Details': 'Reading ' + value + ' is ' + (hi ? 'above the maximum ' + lim['Max'] : 'below the minimum ' + lim['Min']) + ' (' + iso + ', entered by ' + user.name + ').',
+    'Equipment': label, 'Priority': PRIORITIES.indexOf(lim['Priority']) >= 0 ? lim['Priority'] : 'High', 'Due': Utilities.formatDate(new Date(Date.now() + 864e5), TZ, 'yyyy-MM-dd'),
+    'Link': page, 'Status': 'Open', 'Updated': now, 'Updated By': 'automation', 'Source': 'Limit' };
+  writeTask(t);
+  history(t['ID'], 'Created', { username: 'automation' }, 'Limit ' + lim['Limit ID']);
+  lim['Open Task'] = t['ID'];
+  sh.getRange(lim._row, 1, 1, LIMIT_COLS.length).setNumberFormat('@').setValues([LIMIT_COLS.map(c => String(lim[c] == null ? '' : lim[c]))]);
+  notifyUser(who.username, { kind: 'assigned', id: t['ID'], title: t['Title'], equipment: label, priority: t['Priority'], by: 'Automation' });
+  return t['ID'];
+}
+
+/* ---------- preventive maintenance: calendar and compliance (work orders made by a repeat, a meter or a limit) ---------- */
+const isPM = t => PM_SOURCES.indexOf(t['Source']) >= 0;
+function pmCalendar(user, month) {
+  if (!isManager(user)) throw new Error('Only a supervisor can see the PM calendar');
+  const m = /^\d{4}-\d{2}$/.test(String(month || '')) ? month : todayIso().slice(0, 7);
+  const today = todayIso();
+  const tasks = readTasks().filter(t => isPM(t) && t['Due'] && t['Status'] !== 'Cancelled' &&
+    (t['Due'].slice(0, 7) === m || ((t['Status'] === 'Open' || t['Status'] === 'In progress') && t['Due'] < today && m === today.slice(0, 7))))
+    .map(t => Object.assign(taskOut(t), { overdue: (t['Status'] === 'Open' || t['Status'] === 'In progress') && t['Due'] < today }));
+  // planned: period repeats that are not due yet
+  const planned = [];
+  rulesOf().filter(r => r.Active === 'Yes' && r.Repeat === 'Period' && r.Started).forEach(r => {
+    const next = addPeriod(r.Started, autoPeriod(r.Period));
+    if (next.slice(0, 7) === m && next >= today) planned.push({ date: next, title: r.Title, equipment: r.Equipment || '', assignees: String(r.Assignees || '').split(',').map(x => x.trim()).filter(Boolean) });
+  });
+  return { ok: true, month: m, today: today, tasks: tasks.sort((a, b) => String(a.due).localeCompare(String(b.due))), planned: planned };
+}
+function pmCompliance(user, months) {
+  if (!isManager(user)) throw new Error('Only a supervisor can see the PM report');
+  const n = Math.min(Math.max(Number(months) || 6, 1), 24);
+  const today = todayIso();
+  const [ty, tm] = today.split('-').map(Number);
+  const keys = [];
+  for (let i = n - 1; i >= 0; i--) { const d = new Date(Date.UTC(ty, tm - 1 - i, 1)); keys.push(d.toISOString().slice(0, 7)); }
+  const tally = () => ({ due: 0, onTime: 0, late: 0, overdue: 0, pending: 0 });
+  const per = {}, eq = {};
+  keys.forEach(k => { per[k] = tally(); });
+  readTasks().filter(t => isPM(t) && t['Due'] && t['Status'] !== 'Cancelled' && per[t['Due'].slice(0, 7)]).forEach(t => {
+    const k = t['Due'].slice(0, 7), name = t['Equipment'] || '—', open = t['Status'] === 'Open' || t['Status'] === 'In progress';
+    [per[k], eq[name] || (eq[name] = tally())].forEach(c => {
+      if (open) { if (t['Due'] < today) { c.overdue++; c.due++; } else c.pending++; }
+      else { c.due++; if (String(t['Done']).slice(0, 10) <= t['Due']) c.onTime++; else c.late++; }
+    });
+  });
+  const pct = c => c.due ? Math.round(100 * c.onTime / c.due) : null;
+  return { ok: true,
+    months: keys.map(k => Object.assign({ month: k, pct: pct(per[k]) }, per[k])),
+    equipment: Object.keys(eq).map(k => Object.assign({ name: k, pct: pct(eq[k]) }, eq[k])).sort((a, b) => (a.pct == null) - (b.pct == null) || a.pct - b.pct || b.due - a.due) };
+}
+
+/* ---------- due-date reminders (run by the daily automationCycle) ---------- */
+/** One push per task per day to the person who has it: due today or overdue, not yet done. */
+function remindDue(today) {
+  let n = 0;
+  readTasks().forEach(t => {
+    if ((t['Status'] !== 'Open' && t['Status'] !== 'In progress') || !t['Due'] || t['Due'] > today || t['Reminded'] === today) return;
+    t['Reminded'] = today;
+    writeTask(t);
+    notifyUser(t['Assigned To'], { kind: 'reminder', id: t['ID'], title: t['Title'], due: t['Due'], overdue: t['Due'] < today });
+    n++;
+  });
+  return n;
 }
 
 /* ---------- equipment list ("Equipments and system in Holoul factory") ---------- */
@@ -1198,6 +1781,9 @@ function sparesList(fresh, withDeleted) {
 
 /** Does a task belong to this equipment row? Same number when both have one, otherwise same name;
  *  when both know the system (line), it must be the same system. */
+function taskTouches(t, e) {
+  return sameEquipment(t, e) || (t.assets || []).some(a => sameEquipment({ equipment: a.name, equipmentNo: a.no, line: '' }, e));
+}
 function sameEquipment(t, e) {
   if (e.line && t.line && lc(t.line) !== lc(e.line)) return false;
   if (e.no && t.equipmentNo) return lc(t.equipmentNo) === lc(e.no);
@@ -1208,7 +1794,7 @@ function sameEquipment(t, e) {
 function equipmentHistory(user, e) {
   if (!canSeeEquipment(user)) throw new Error('You do not have access to equipment');
   const eq = { name: String(e.name || ''), no: String(e.no || ''), line: String(e.line || ''), loc: String(e.loc || '') };
-  const tasks = readTasks().map(taskOut).filter(t => sameEquipment(t, eq));
+  const tasks = readTasks().map(taskOut).filter(t => taskTouches(t, eq));
   const ids = {}; tasks.forEach(t => { ids[t.id] = true; t.events = []; });
   const byId = {}; tasks.forEach(t => { byId[t.id] = t; });
   rowsOf(tasksBook().getSheetByName('Task History'), HISTORY_COLS).forEach(h => {
@@ -1221,7 +1807,7 @@ function equipmentHistory(user, e) {
 /** Adds job counts and the last finished date to each equipment row (for the Equipment list). */
 function equipmentWithStats(list, allTasks) {
   return list.map(e => {
-    const mine = allTasks.filter(t => sameEquipment(t, e));
+    const mine = allTasks.filter(t => taskTouches(t, e));
     const done = mine.filter(t => t.status === 'Done').map(t => String(t.done).slice(0, 10)).sort();
     return Object.assign({}, e, {
       jobs: mine.length,
@@ -1330,7 +1916,9 @@ function dashboard(user) {
   let equipment = [], equipmentError = '';
   try { equipment = equipmentWithStats(equipmentList(), all.map(taskOut)); } catch (err) { equipmentError = String(err.message || err); }
   return { ok: true, today: today, generatedAt: nowText(), people: people, assignable: assignees, equipment: equipment, equipmentError: equipmentError,
-           tasks: tasks, readings: readingsToday, checks: checks, faults: faults.slice(0, 40), workload: workload, months: summary };
+           tasks: tasks, readings: readingsToday, checks: checks, faults: faults.slice(0, 40), workload: workload, months: summary,
+           pendingRequests: requestRows().filter(r => r['Status'] === 'Pending').length,
+           pendingPOs: poRows().filter(r => r['Status'] === 'Requested').length };
 }
 function parseStamp(s) { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); return m ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4] - 3, +m[5]) : NaN; }
 
@@ -1903,32 +2491,35 @@ function addPeriod(day, p) {
   return new Date(Date.UTC(y, mm, Math.min(d, last))).toISOString().slice(0, 10);
 }
 
-/** Latest hour-meter reading for a unit, from the daily check logs (e.g. "Bobcat Log"). Null when none. */
+/** Latest hour-meter reading for a unit: the newest of the daily check logs ("Hour Meter Reading") and the
+ *  manual "Meter Readings" tab. Null when none. */
 function latestHourMeter(unit) {
   const u = String(unit || '').trim();
   if (!u) return null;
-  let best = null, sheets;
-  try { sheets = checksBook().getSheets(); } catch (err) { return null; }   // daily checks not set up yet: no hours, no hour-based tasks
+  let best = null, bestTs = '';
+  const take = (ts, raw) => {
+    const v = Number(String(raw).replace(',', '.'));
+    if (String(raw).trim() === '' || !isFinite(v)) return;
+    if (best === null || String(ts) >= bestTs) { best = v; bestTs = String(ts); }
+  };
+  let sheets = [];
+  try { sheets = checksBook().getSheets(); } catch (err) { sheets = []; }   // daily checks not set up yet
   sheets.forEach(sh => {
     if (!/ Log$/.test(sh.getName())) return;
     const data = sh.getDataRange().getDisplayValues();
     if (data.length < 2) return;
     const h = data[0].map(String);
-    const cU = h.indexOf('Unit'), cH = h.indexOf('Hour Meter Reading');
+    const cU = h.indexOf('Unit'), cH = h.indexOf('Hour Meter Reading'), cT = h.indexOf('Timestamp');
     if (cU < 0 || cH < 0) return;
-    // log rows are appended in time order, so the last matching row is the latest reading
-    for (let i = 1; i < data.length; i++) {
-      const r = data[i];
-      if (String(r[cU]).trim() !== u || String(r[cH]).trim() === '') continue;
-      const v = Number(String(r[cH]).replace(',', '.'));
-      if (isFinite(v)) best = v;
-    }
+    for (let i = 1; i < data.length; i++) if (String(data[i][cU]).trim() === u) take(cT >= 0 ? data[i][cT] : '', data[i][cH]);
   });
+  try {
+    rowsOf(tasksBook().getSheetByName(METER_TAB), METER_COLS).forEach(r => { if (String(r['Equipment No']).trim() === u && isHoursName(r['Meter'])) take(r['Timestamp'], r['Reading']); });
+  } catch (err) {}
   return best;
 }
 
 const autoLogSheet = () => tasksBook().getSheetByName(AUTO_LOG);
-
 function autoLogSave(row) {
   const sh = autoLogSheet();
   const values = AUTO_LOG_COLS.map(c => row[c] == null ? '' : String(row[c]));
@@ -1950,7 +2541,7 @@ function createAutoTask(eq, rule, who, today) {
     'Details': 'Scheduled automatically (' + rule.label + '). Record the reading in the ' + rule.reading + ' sheet.',
     'Equipment': eq.name, 'Priority': 'Normal', 'Due': addPeriod(today, { days: 7 }), 'Link': rule.reading, 'Status': 'Open',
     'Updated': now, 'Updated By': 'automation',
-    'Equipment No': eq.no || '', 'Line': eq.line || '', 'Location': eq.loc || ''
+    'Equipment No': eq.no || '', 'Line': eq.line || '', 'Location': eq.loc || '', 'Source': rule.basis === 'hours' ? 'Meter' : 'Repeat'
   };
   writeTask(t);
   history(t['ID'], 'Created', { username: 'automation' }, 'Scheduled: ' + rule.label);
@@ -2012,7 +2603,13 @@ function automationCycle() {
       autoLogSave(log);
     } catch (err) { errors.push(eq.name + ': ' + err.message); } });   // one bad rule does not stop the others
     taskRulesRun(today, created, errors);   // repeating tasks (any task), same run
-    return { ok: !errors.length, rules: rules.length, created: created, errors: errors };
+    let reminded = 0;
+    try { reminded = remindDue(today); } catch (err) { errors.push('reminders: ' + err.message); }
+    let weekly = 0;
+    try { weekly = weeklyReports(today); } catch (err) { errors.push('weekly report: ' + err.message); }
+    let lowStock = 0;
+    try { lowStock = lowStockSweep().length; } catch (err) { errors.push('low stock: ' + err.message); }
+    return { ok: !errors.length, rules: rules.length, created: created, errors: errors, reminded: reminded, lowStock: lowStock, weeklyReports: weekly };
   } finally { lock.releaseLock(); }
 }
 
@@ -2092,7 +2689,7 @@ function ruleTask(r, who, by, due, note) {
     'Equipment': r.Equipment || '', 'Priority': PRIORITIES.indexOf(r.Priority) >= 0 ? r.Priority : 'Normal',
     'Due': due, 'Link': TASK_LINKS.indexOf(r.Link || '') >= 0 ? (r.Link || '') : '', 'Status': 'Open',
     'Updated': now, 'Updated By': by.username,
-    'Equipment No': r['Equipment No'] || '', 'Line': r.Line || '', 'Location': r.Location || ''
+    'Equipment No': r['Equipment No'] || '', 'Line': r.Line || '', 'Location': r.Location || '', 'Source': r.Repeat === 'Hours' ? 'Meter' : 'Repeat'
   };
   writeTask(t);
   history(t['ID'], 'Created', { username: by.username }, note + ' (' + r['Rule ID'] + ')');
@@ -2285,6 +2882,1107 @@ function saveMechanical(sh, f, no, isNew) {
     put(cols.rec, 'Active');
   }
   return { row: row, oldKey: oldKey, key: spareKey('mechanical', no) };
+}
+
+/* ================= v16: Parts Inventory — stock movements, prices, vendors, low-stock alerts =================
+ * The original inventory sheet stays the place where the quantity lives (the app writes to it):
+ *   electrical: Quantity.   mechanical: Used Qty goes up when a part is used, Available Qty goes up when stock is received,
+ *   a count sets Available so that Available - Used = the counted amount (the sheet's own Remaining / Status formulas follow).
+ * Extra facts (unit cost, vendor, minimum quantity, bin) are in the "Part Stock" tab, every movement in "Part Usage",
+ * and suppliers in "Vendors" — all in the Maintenance Tasks book. A part is identified as "m:<no>" / "e:<no>". */
+const partKey = (kind, no) => (kind === 'mechanical' ? 'm:' : 'e:') + String(no || '').trim();
+const numOf = v => { const x = Number(String(v == null ? '' : v).replace(/,/g, '').trim()); return isFinite(x) ? x : 0; };
+const round3 = x => Math.round(x * 1000) / 1000;
+const canUseParts = u => !!u && (isManager(u) || canEditSpares(u));
+
+/** Quantity from a form: a number above 0 (up to 3 decimals). */
+function qtyOf(v, label) {
+  const raw = String(v == null ? '' : v).trim().replace(',', '.');
+  const n = Number(raw);
+  if (raw === '' || !isFinite(n) || n <= 0 || n > 1000000) throw new Error((label || 'Quantity') + ' must be a number above 0');
+  return round3(n);
+}
+function partFind(kind, no) {
+  kind = kind === 'mechanical' ? 'mechanical' : 'electrical';
+  no = String(no || '').trim();
+  const list = sparesList(true, true)[kind].filter(x => x.no === no && !x.deleted);
+  const p = list[0];
+  if (!p) throw new Error('Part not found');
+  const o = { kind: kind, no: no, row: p.row, key: partKey(kind, no) };
+  if (kind === 'electrical') { o.name = p.desc; o.onHand = numOf(p.qty); }
+  else {
+    o.name = p.name; o.required = p.required === '' ? null : numOf(p.required);
+    o.used = numOf(p.used); o.available = numOf(p.available);
+    o.onHand = round3(o.available - o.used);
+  }
+  return o;
+}
+const stockRows = () => rowsOf(tasksBook().getSheetByName(PART_STOCK_TAB), PART_STOCK_COLS).filter(r => r['Key']);
+function stockOut(r) {
+  return r ? { cost: r['Unit Cost'] === '' ? null : numOf(r['Unit Cost']), vendorId: r['Vendor ID'], min: r['Min Qty'] === '' ? null : numOf(r['Min Qty']), bin: r['Bin'] } : { cost: null, vendorId: '', min: null, bin: '' };
+}
+/** Is this part low? Mechanical: remaining below the required quantity. Electrical: at or under its minimum (no minimum: only when none is left). */
+function partIsLow(kind, onHand, required, min) {
+  if (kind === 'mechanical') return required !== null && required !== undefined && required !== '' && onHand < numOf(required);
+  return min !== null && min !== undefined && min !== '' ? onHand <= numOf(min) : onHand <= 0;
+}
+function onHandOf(kind, p) {
+  if (kind === 'electrical') return numOf(p.qty);
+  return round3(numOf(p.available) - numOf(p.used));
+}
+/** Everything the Parts list needs beyond the sheet: price, vendor, minimum, bin, and which parts are low. */
+function stockBundle() {
+  const by = {}; stockRows().forEach(r => { by[r['Key']] = stockOut(r); });
+  const sp = sparesList(false, false), low = [];
+  ['electrical', 'mechanical'].forEach(kind => sp[kind].forEach(p => {
+    const st = by[partKey(kind, p.no)];
+    if (partIsLow(kind, onHandOf(kind, p), kind === 'mechanical' ? p.required : null, st ? st.min : null)) low.push(partKey(kind, p.no));
+  }));
+  return { stock: by, low: low, vendors: vendorRows().filter(v => v['Active'] !== 'No').map(vendorOut) };
+}
+function stockUpsert(p, patch) {
+  const sh = tasksBook().getSheetByName(PART_STOCK_TAB);
+  const row = stockRows().filter(r => r['Key'] === p.key)[0];
+  const vals = PART_STOCK_COLS.map(c => row ? row[c] : '');
+  const set = (c, v) => { vals[PART_STOCK_COLS.indexOf(c)] = v == null ? '' : String(v); };
+  if (!row) { set('Key', p.key); set('Kind', p.kind); set('Part No', p.no); }
+  Object.keys(patch).forEach(k => set(k, patch[k]));
+  set('Updated', nowText());
+  const r = row ? row._row : sh.getLastRow() + 1;
+  sh.getRange(r, 1, 1, PART_STOCK_COLS.length).setNumberFormat('@').setValues([vals]);
+}
+/** Writes the new quantity to the inventory sheet. Returns the new on-hand figure. */
+function applyStock(p, type, q) {
+  const sh = spareSheet(p.kind);
+  let next;
+  if (p.kind === 'electrical') {
+    const cols = findCols(sh, SPARE_E_SPEC, false);
+    next = type === 'Used' ? p.onHand - q : type === 'Count' ? q : p.onHand + q;
+    sh.getRange(p.row, cols.qty).setValue(round3(next));
+  } else {
+    const cols = findCols(sh, SPARE_M_SPEC, false);
+    let used = p.used, avail = p.available;
+    if (type === 'Used') used = used + q;
+    else if (type === 'Returned') { if (q > used) avail = avail + (q - used); used = Math.max(0, used - q); }
+    else if (type === 'Received') avail = avail + q;
+    else avail = q + used;                                   // Count
+    sh.getRange(p.row, cols.used).setValue(round3(used));
+    sh.getRange(p.row, cols.available).setValue(round3(avail));
+    next = avail - used;
+  }
+  CacheService.getScriptCache().remove('spares_v1');
+  return round3(next);
+}
+function partLog(p, type, qty, balance, order, cost, user, note) {
+  const sh = tasksBook().getSheetByName(PART_LOG_TAB);
+  sh.getRange(sh.getLastRow() + 1, 1, 1, PART_LOG_COLS.length).setNumberFormat('@')
+    .setValues([[nowText(), p.key, p.kind, p.no, p.name, type, String(qty), String(balance), order || '', cost == null ? '' : String(cost), user.username, clean(note, 200)]]);
+}
+/** Parts that have just become low are announced once to the supervisors; a part that recovered can be announced again later. */
+function lowStockSweep() {
+  const by = {}; stockRows().forEach(r => { by[r['Key']] = r; });
+  const sp = sparesList(true, false), fresh = [];
+  const sh = tasksBook().getSheetByName(PART_STOCK_TAB), aCol = PART_STOCK_COLS.indexOf('Alerted') + 1;
+  ['electrical', 'mechanical'].forEach(kind => sp[kind].forEach(p => {
+    const key = partKey(kind, p.no), r = by[key], st = stockOut(r);
+    const low = partIsLow(kind, onHandOf(kind, p), kind === 'mechanical' ? p.required : null, st.min);
+    const was = !!(r && r['Alerted'] === 'Yes');
+    if (low && !was) {
+      fresh.push({ key: key, name: kind === 'mechanical' ? p.name : p.desc, onHand: onHandOf(kind, p) });
+      if (r) sh.getRange(r._row, aCol).setNumberFormat('@').setValue('Yes');
+      else stockUpsert({ key: key, kind: kind, no: p.no }, { 'Alerted': 'Yes' });
+    } else if (!low && was) sh.getRange(r._row, aCol).setNumberFormat('@').setValue('');
+  }));
+  if (fresh.length) {
+    const msg = { kind: 'lowstock', n: fresh.length, title: fresh.slice(0, 4).map(f => f.name).join(' · '), key: fresh.length === 1 ? fresh[0].key : '' };
+    usersTable(true).filter(u => u.active && MANAGER_ROLES.indexOf(u.role) >= 0).forEach(u => notifyUser(u.username, Object.assign({}, msg)));
+  }
+  return fresh;
+}
+
+/** May this person log parts on this work order? Supervisors, parts editors, and the technician it is assigned to. */
+function canPartsOnOrder(user, task) {
+  return canUseParts(user) || (lc(task['Assigned To']) === lc(user.username) && task['Status'] !== 'Cancelled');
+}
+function partUse(user, f) {
+  f = f || {};
+  const type = f.type === 'Returned' ? 'Returned' : 'Used';
+  const order = clean(f.order, 30);
+  let task = null;
+  if (order) { task = readTasks().filter(t => t['ID'] === order)[0]; if (!task) throw new Error('Work order not found'); }
+  if (task ? !canPartsOnOrder(user, task) : !canUseParts(user)) throw new Error('You do not have permission to log parts');
+  const p = partFind(f.kind, f.no), q = qtyOf(f.qty);
+  const st = stockOut(stockRows().filter(r => r['Key'] === p.key)[0]);
+  if (type === 'Used' && q > p.onHand) throw new Error('Only ' + p.onHand + ' in stock — count the stock first if that is wrong');
+  if (type === 'Returned') {
+    if (!order) throw new Error('Choose the work order the part came back from');
+    const net = partsOnOrder(order).filter(x => x.key === p.key).reduce((a, x) => a - x.qty, 0);
+    if (q > net) throw new Error('Only ' + round3(net) + ' of this part was used on that work order');
+  }
+  const balance = applyStock(p, type, q);
+  partLog(p, type, type === 'Used' ? -q : q, balance, order, st.cost, user, f.note);
+  lowStockSweep();
+  return { ok: true, balance: balance, name: p.name };
+}
+function partReceive(user, f) {
+  if (!canUseParts(user)) throw new Error('You do not have permission to change spare parts');
+  f = f || {};
+  const p = partFind(f.kind, f.no), q = qtyOf(f.qty);
+  const patch = {};
+  if (f.cost !== undefined && String(f.cost).trim() !== '') patch['Unit Cost'] = cleanCost(f.cost);
+  const st = stockOut(stockRows().filter(r => r['Key'] === p.key)[0]);
+  const balance = applyStock(p, 'Received', q);
+  if (Object.keys(patch).length) stockUpsert(p, patch);
+  partLog(p, 'Received', q, balance, '', patch['Unit Cost'] !== undefined ? patch['Unit Cost'] : st.cost, user, f.note);
+  lowStockSweep();
+  return { ok: true, balance: balance };
+}
+function partCount(user, f) {
+  if (!canUseParts(user)) throw new Error('You do not have permission to change spare parts');
+  f = f || {};
+  const p = partFind(f.kind, f.no);
+  const raw = String(f.counted == null ? '' : f.counted).trim().replace(',', '.'), n = Number(raw);
+  if (raw === '' || !isFinite(n) || n < 0 || n > 1000000) throw new Error('Counted quantity must be a number, 0 or more');
+  const counted = round3(n), diff = round3(counted - p.onHand);
+  const st = stockOut(stockRows().filter(r => r['Key'] === p.key)[0]);
+  const balance = applyStock(p, 'Count', counted);
+  partLog(p, 'Count', diff, balance, '', st.cost, user, f.note || 'Stock count');
+  lowStockSweep();
+  return { ok: true, balance: balance, difference: diff };
+}
+function cleanCost(v) {
+  const n = Number(String(v).replace(',', '.').trim());
+  if (!isFinite(n) || n < 0 || n > 10000000) throw new Error('Unit cost must be a number, 0 or more');
+  return String(round3(n));
+}
+function partDetails(user, f) {
+  if (!canUseParts(user)) throw new Error('You do not have permission to change spare parts');
+  f = f || {};
+  const p = partFind(f.kind, f.no), patch = {};
+  if (f.cost !== undefined) patch['Unit Cost'] = String(f.cost).trim() === '' ? '' : cleanCost(f.cost);
+  if (f.vendorId !== undefined) {
+    const v = clean(f.vendorId, 20);
+    if (v && !vendorRows().some(r => r['Vendor ID'] === v && r['Active'] !== 'No')) throw new Error('Vendor not found');
+    patch['Vendor ID'] = v;
+  }
+  if (f.min !== undefined) {
+    if (p.kind === 'mechanical') throw new Error('For mechanical parts the minimum is the Required qty');
+    const raw = String(f.min).trim().replace(',', '.');
+    if (raw !== '' && (!isFinite(Number(raw)) || Number(raw) < 0 || Number(raw) > 1000000)) throw new Error('Minimum must be a number, 0 or more');
+    patch['Min Qty'] = raw === '' ? '' : String(round3(Number(raw)));
+  }
+  if (f.bin !== undefined) patch['Bin'] = clean(f.bin, 40);
+  stockUpsert(p, patch);
+  lowStockSweep();
+  return { ok: true };
+}
+const moveOut = r => ({ at: r['Timestamp'], key: r['Key'], kind: r['Kind'], no: r['Part No'], name: r['Part Name'], type: r['Type'], qty: numOf(r['Qty']),
+                        balance: numOf(r['Balance']), order: r['Work Order'], cost: r['Unit Cost'] === '' ? null : numOf(r['Unit Cost']), by: r['By'], note: r['Note'] });
+const partsOnOrder = id => rowsOf(tasksBook().getSheetByName(PART_LOG_TAB), PART_LOG_COLS).filter(r => r['Work Order'] === id && (r['Type'] === 'Used' || r['Type'] === 'Returned')).map(moveOut);
+function partInfo(user, kind, no) {
+  if (!canSeeSpares(user)) throw new Error('You do not have access to spare parts');
+  const p = partFind(kind, no);
+  const st = stockOut(stockRows().filter(r => r['Key'] === p.key)[0]);
+  const v = st.vendorId ? vendorRows().filter(r => r['Vendor ID'] === st.vendorId)[0] : null;
+  const log = rowsOf(tasksBook().getSheetByName(PART_LOG_TAB), PART_LOG_COLS).filter(r => r['Key'] === p.key).reverse().map(moveOut)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const cutoff = Utilities.formatDate(new Date(Date.now() - 90 * 864e5), TZ, 'yyyy-MM-dd');
+  const used90 = log.filter(m => m.type === 'Used' && String(m.at).slice(0, 10) >= cutoff).reduce((a, m) => a - m.qty, 0);
+  const ret90 = log.filter(m => m.type === 'Returned' && String(m.at).slice(0, 10) >= cutoff).reduce((a, m) => a + m.qty, 0);
+  return { ok: true, part: { key: p.key, kind: p.kind, no: p.no, name: p.name, onHand: p.onHand, required: p.required === undefined ? null : p.required },
+    stock: st, vendor: v ? vendorOut(v) : null, low: partIsLow(p.kind, p.onHand, p.required, st.min),
+    value: st.cost === null ? null : round3(st.cost * Math.max(0, p.onHand)), used90: round3(used90 - ret90), moves: log.slice(0, 40) };
+}
+/** Search for the "add a part" picker on a work order. Anyone who can log parts somewhere may search; price is shown to parts people only. */
+function partsLookup(user, q) {
+  const mine = canUseParts(user) || readTasks().some(t => lc(t['Assigned To']) === lc(user.username) && (t['Status'] === 'Open' || t['Status'] === 'In progress'));
+  if (!mine) throw new Error('You do not have permission to log parts');
+  const s = lc(q), sp = sparesList(false, false), out = [];
+  ['mechanical', 'electrical'].forEach(kind => sp[kind].forEach(p => {
+    const name = kind === 'mechanical' ? p.name : p.desc;
+    if (s && [p.no, name, kind === 'mechanical' ? p.machine : p.brand].join(' ').toLowerCase().indexOf(s) < 0) return;
+    out.push({ kind: kind, no: p.no, name: name, onHand: onHandOf(kind, p), sub: kind === 'mechanical' ? p.machine : p.brand });
+  }));
+  return { ok: true, parts: out.slice(0, 25), more: Math.max(0, out.length - 25) };
+}
+function taskParts(user, id) {
+  const task = readTasks().filter(t => t['ID'] === String(id || ''))[0];
+  if (!task) throw new Error('Task not found');
+  if (!(canUseParts(user) || lc(task['Assigned To']) === lc(user.username) || lc(task['Created By']) === lc(user.username))) throw new Error('You do not have permission to see the parts of this work order');
+  const money = canSeeSpares(user);
+  const moves = partsOnOrder(task['ID']).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  const net = {};
+  moves.forEach(m => { const n = net[m.key] = net[m.key] || { key: m.key, kind: m.kind, no: m.no, name: m.name, qty: 0, cost: 0 }; n.qty += -m.qty; n.cost += -m.qty * (m.cost || 0); });
+  const lines = Object.keys(net).map(k => net[k]).filter(n => n.qty !== 0);
+  lines.forEach(n => { n.qty = round3(n.qty); n.cost = round3(n.cost); if (!money) delete n.cost; });
+  moves.forEach(m => { if (!money) m.cost = null; });
+  return { ok: true, lines: lines, moves: moves, total: money ? round3(lines.reduce((a, n) => a + n.cost, 0)) : null,
+           canAdd: canPartsOnOrder(user, task) && task['Status'] !== 'Cancelled' };
+}
+
+/* ---- vendors ---- */
+const vendorRows = () => rowsOf(tasksBook().getSheetByName(VENDOR_TAB), VENDOR_COLS).filter(r => r['Vendor ID']);
+const vendorOut = r => ({ id: r['Vendor ID'], name: r['Name'], phone: r['Phone'], email: r['Email'], notes: r['Notes'], active: r['Active'] !== 'No' });
+function vendorsList(user) {
+  if (!canSeeSpares(user)) throw new Error('You do not have access to spare parts');
+  return { ok: true, vendors: vendorRows().map(vendorOut), canEdit: canUseParts(user) };
+}
+function vendorSave(user, f) {
+  if (!canUseParts(user)) throw new Error('You do not have permission to change spare parts');
+  f = f || {};
+  const name = clean(f.name, 80);
+  if (!name) throw new Error('Enter the vendor name');
+  const email = clean(f.email, 80);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address');
+  const rows = vendorRows();
+  if (rows.some(r => lc(r['Name']) === lc(name) && r['Vendor ID'] !== f.id)) throw new Error('A vendor with this name already exists');
+  const sh = tasksBook().getSheetByName(VENDOR_TAB);
+  const old = f.id ? rows.filter(r => r['Vendor ID'] === f.id)[0] : null;
+  if (f.id && !old) throw new Error('Vendor not found');
+  const id = old ? old['Vendor ID'] : 'V' + String(rows.reduce((m, r) => Math.max(m, Number(String(r['Vendor ID']).replace(/\D/g, '')) || 0), 0) + 1).padStart(3, '0');
+  const vals = [id, name, clean(f.phone, 30), email, clean(f.notes, 300), f.active === false ? 'No' : 'Yes'];
+  sh.getRange(old ? old._row : sh.getLastRow() + 1, 1, 1, VENDOR_COLS.length).setNumberFormat('@').setValues([vals]);
+  return { ok: true, id: id };
+}
+
+/* ================= v17: Reporting — work orders, workload, downtime (MTTR / MTBF), parts cost; CSV and email ================= */
+const REPORT_MAX_DAYS = 366;
+const isoDay = ms => Utilities.formatDate(new Date(ms), TZ, 'yyyy-MM-dd');
+const addDays = (iso, n) => isoDay(isoToDate(iso).getTime() + n * 864e5);
+const dayDiff = (a, b) => Math.round((isoToDate(b).getTime() - isoToDate(a).getTime()) / 864e5);
+const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
+/** from / to as yyyy-MM-dd, or a number of days ending today. Default: the last 30 days. */
+function reportRange(f) {
+  f = f || {};
+  const today = todayIso();
+  let from, to;
+  if (f.from || f.to) {
+    from = cleanDate(f.from); to = cleanDate(f.to || today);
+    if (!from) throw new Error('Choose the start date');
+    if (!to) throw new Error('Choose the end date');
+  } else {
+    const n = Math.max(1, Math.min(REPORT_MAX_DAYS, Number(f.days) || 30));
+    to = today; from = addDays(today, -(n - 1));
+  }
+  if (from > to) throw new Error('The start date is after the end date');
+  if (dayDiff(from, to) + 1 > REPORT_MAX_DAYS) throw new Error('Choose a period of at most one year');
+  return { from: from, to: to, days: dayDiff(from, to) + 1 };
+}
+function report(user, f) {
+  if (!isManager(user)) throw new Error('Reports are for supervisors');
+  const rg = reportRange(f), today = todayIso();
+  const inR = d => { d = String(d || '').slice(0, 10); return d >= rg.from && d <= rg.to; };
+  const rangeStart = stampMs(rg.from + ' 00:00'), rangeEnd = Math.min(stampMs(rg.to + ' 23:59') + 60000, stampMs(nowText()));
+  const periodMin = Math.max(1, Math.round((rangeEnd - rangeStart) / 60000));
+
+  // ---- work orders
+  const all = readTasks().filter(t => t['Status'] !== 'Cancelled' || inR(t['Created']));
+  const created = all.filter(t => inR(t['Created']));
+  const done = all.filter(t => t['Status'] === 'Done' && inR(t['Done']));
+  const open = all.filter(t => t['Status'] === 'Open' || t['Status'] === 'In progress');
+  const overdue = open.filter(t => t['Due'] && t['Due'] < today);
+  const withDue = done.filter(t => t['Due']);
+  const onTime = withDue.filter(t => String(t['Done']).slice(0, 10) <= t['Due']).length;
+  const hoursToDone = done.map(t => (stampMs(t['Done']) - stampMs(t['Created'])) / 36e5).filter(h => isFinite(h) && h >= 0);
+  const countBy = (list, k) => { const m = {}; list.forEach(t => { const v = t[k] || '—'; m[v] = (m[v] || 0) + 1; }); return m; };
+  const byCat = {}; created.forEach(t => { const c = t['Category'] || '—'; (byCat[c] = byCat[c] || { created: 0, done: 0 }).created++; });
+  done.forEach(t => { const c = t['Category'] || '—'; (byCat[c] = byCat[c] || { created: 0, done: 0 }).done++; });
+  const workOrders = {
+    created: created.length, done: done.length, open: open.length, overdue: overdue.length,
+    onTimePct: withDue.length ? Math.round(onTime / withDue.length * 100) : null, avgHoursToDone: avg(hoursToDone),
+    hoursLogged: Math.round(done.reduce((a, t) => a + (Number(t['Hours']) || 0), 0) * 100) / 100,
+    byCategory: Object.keys(byCat).sort().map(k => ({ name: k, created: byCat[k].created, done: byCat[k].done })),
+    byPriority: PRIORITIES.map(p => ({ name: p, created: created.filter(t => (t['Priority'] || 'Normal') === p).length, done: done.filter(t => (t['Priority'] || 'Normal') === p).length }))
+  };
+
+  // ---- workload (everyone with a work order in the period or still open)
+  const names = {}; usersTable().forEach(u => { names[lc(u.username)] = u.name; });
+  const who = {};
+  const slot = t => { const k = lc(t['Assigned To']); return k ? (who[k] = who[k] || { username: t['Assigned To'], name: names[k] || t['Assignee Name'] || t['Assigned To'], open: 0, overdue: 0, done: 0, hours: 0, _h: [] }) : null; };
+  open.forEach(t => { const w = slot(t); if (w) { w.open++; if (t['Due'] && t['Due'] < today) w.overdue++; } });
+  done.forEach(t => { const w = slot(t); if (w) { w.done++; w.hours += Number(t['Hours']) || 0; const h = (stampMs(t['Done']) - stampMs(t['Created'])) / 36e5; if (isFinite(h) && h >= 0) w._h.push(h); } });
+  const workload = Object.keys(who).map(k => { const w = who[k]; return { username: w.username, name: w.name, open: w.open, overdue: w.overdue, done: w.done, hours: Math.round(w.hours * 100) / 100, avgHoursToDone: avg(w._h) }; })
+    .sort((a, b) => (b.open + b.done) - (a.open + a.done) || a.name.localeCompare(b.name));
+
+  // ---- assets: downtime, MTTR, MTBF (unplanned stops only)
+  const now = stampMs(nowText()), by = {};
+  downtimeRows().forEach(r => {
+    const a = stampMs(r['Started']), b = r['Status'] === 'Offline' ? now : stampMs(r['Ended']);
+    if (!isFinite(a) || !isFinite(b)) return;
+    const lo = Math.max(a, rangeStart), hi = Math.min(b, rangeEnd);
+    if (hi <= lo && !inR(r['Started'])) return;
+    const e = by[r['Equipment No']] = by[r['Equipment No']] || { no: r['Equipment No'], name: r['Equipment'], stops: 0, unplannedStops: 0, minutes: 0, unplannedMinutes: 0, plannedMinutes: 0, repair: [], causes: {} };
+    const mins = Math.max(0, Math.round((hi - lo) / 60000));
+    e.minutes += mins;
+    if (r['Type'] === 'Planned') e.plannedMinutes += mins; else e.unplannedMinutes += mins;
+    if (inR(r['Started'])) {
+      e.stops++;
+      if (r['Type'] !== 'Planned') {
+        e.unplannedStops++;
+        if (r['Status'] !== 'Offline') e.repair.push(Math.max(0, Math.round((b - a) / 60000)));
+        const c = r['Cause'] || '—'; e.causes[c] = (e.causes[c] || 0) + mins;
+      }
+    }
+  });
+  const assets = Object.keys(by).map(k => {
+    const e = by[k], up = Math.max(0, periodMin - e.minutes);
+    return { no: e.no, name: e.name, stops: e.stops, unplannedStops: e.unplannedStops, minutes: e.minutes, unplannedMinutes: e.unplannedMinutes, plannedMinutes: e.plannedMinutes,
+             mttrMin: e.repair.length ? Math.round(e.repair.reduce((x, y) => x + y, 0) / e.repair.length) : null,
+             mtbfHours: e.unplannedStops ? Math.round(up / e.unplannedStops / 60 * 10) / 10 : null,
+             availabilityPct: Math.round(Math.max(0, periodMin - e.minutes) / periodMin * 1000) / 10 };
+  }).sort((a, b) => b.minutes - a.minutes);
+  const allUnp = assets.reduce((x, a) => x + a.unplannedStops, 0), allRepair = [].concat.apply([], Object.keys(by).map(k => by[k].repair));
+  const causeTot = {}; Object.keys(by).forEach(k => Object.keys(by[k].causes).forEach(c => { causeTot[c] = (causeTot[c] || 0) + by[k].causes[c]; }));
+  const downtime = { stops: assets.reduce((x, a) => x + a.stops, 0), unplannedStops: allUnp, minutes: assets.reduce((x, a) => x + a.minutes, 0), unplannedMinutes: assets.reduce((x, a) => x + a.unplannedMinutes, 0),
+    plannedMinutes: assets.reduce((x, a) => x + a.plannedMinutes, 0), mttrMin: allRepair.length ? Math.round(allRepair.reduce((x, y) => x + y, 0) / allRepair.length) : null,
+    byCause: Object.keys(causeTot).map(c => ({ name: c, minutes: causeTot[c] })).sort((a, b) => b.minutes - a.minutes) };
+
+  // ---- parts
+  const parts = {}; let partsCost = 0;
+  rowsOf(tasksBook().getSheetByName(PART_LOG_TAB), PART_LOG_COLS).forEach(r => {
+    if ((r['Type'] !== 'Used' && r['Type'] !== 'Returned') || !inR(r['Timestamp'])) return;
+    const q = -numOf(r['Qty']), c = q * numOf(r['Unit Cost']);
+    partsCost += c;
+    const e = parts[r['Key']] = parts[r['Key']] || { no: r['Part No'], name: r['Part Name'], qty: 0, cost: 0 };
+    e.qty += q; e.cost += c;
+  });
+  const topParts = Object.keys(parts).map(k => ({ no: parts[k].no, name: parts[k].name, qty: round3(parts[k].qty), cost: round3(parts[k].cost) })).filter(x => x.qty !== 0).sort((a, b) => b.cost - a.cost || b.qty - a.qty).slice(0, 10);
+
+  const out = { ok: true, range: rg, generated: nowText(), workOrders: workOrders, workload: workload, assets: assets, downtime: downtime, parts: { cost: round3(partsCost), top: topParts } };
+  if (f && f.csv) out.csv = reportCsv(out);
+  return out;
+}
+const csvCell = v => { const x = v == null ? '' : String(v); return /[",\n\r]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
+const csvRow = a => a.map(csvCell).join(',');
+function reportCsv(r) {
+  const w = r.workOrders, d = r.downtime, L = [];
+  L.push(csvRow(['Holoul maintenance report', r.range.from, r.range.to, 'Generated ' + r.generated]));
+  L.push(''); L.push(csvRow(['WORK ORDERS'])); L.push(csvRow(['Created', 'Done', 'Open now', 'Overdue now', 'On time %', 'Avg hours to finish', 'Hours logged']));
+  L.push(csvRow([w.created, w.done, w.open, w.overdue, w.onTimePct, w.avgHoursToDone, w.hoursLogged]));
+  L.push(''); L.push(csvRow(['By category', 'Created', 'Done'])); w.byCategory.forEach(c => L.push(csvRow([c.name, c.created, c.done])));
+  L.push(''); L.push(csvRow(['By priority', 'Created', 'Done'])); w.byPriority.forEach(c => L.push(csvRow([c.name, c.created, c.done])));
+  L.push(''); L.push(csvRow(['WORKLOAD'])); L.push(csvRow(['Person', 'Open now', 'Overdue now', 'Done', 'Hours logged', 'Avg hours to finish']));
+  r.workload.forEach(p => L.push(csvRow([p.name, p.open, p.overdue, p.done, p.hours, p.avgHoursToDone])));
+  L.push(''); L.push(csvRow(['ASSETS']));
+  L.push(csvRow(['Asset no', 'Asset', 'Stops', 'Unplanned stops', 'Downtime min', 'Unplanned min', 'Planned min', 'MTTR min', 'MTBF hours', 'Availability %']));
+  r.assets.forEach(a => L.push(csvRow([a.no, a.name, a.stops, a.unplannedStops, a.minutes, a.unplannedMinutes, a.plannedMinutes, a.mttrMin, a.mtbfHours, a.availabilityPct])));
+  L.push(''); L.push(csvRow(['Lost time by cause (unplanned)', 'Minutes'])); d.byCause.forEach(c => L.push(csvRow([c.name, c.minutes])));
+  L.push(''); L.push(csvRow(['PARTS', 'Total cost', r.parts.cost])); L.push(csvRow(['Part no', 'Part', 'Net qty used', 'Cost'])); r.parts.top.forEach(p => L.push(csvRow([p.no, p.name, p.qty, p.cost])));
+  return L.join('\n');
+}
+const reportEmailOk = e => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(e);
+const mins2 = m => m == null ? '—' : (m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min');
+const htmlEsc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function reportHtml(r) {
+  const w = r.workOrders, d = r.downtime;
+  const tbl = (head, rows) => '<table style="border-collapse:collapse;margin:6px 0 16px;font-size:13px"><tr>' + head.map(h => '<th style="text-align:left;border-bottom:1px solid #ccc;padding:4px 10px">' + htmlEsc(h) + '</th>').join('') + '</tr>' +
+    rows.map(x => '<tr>' + x.map(c => '<td style="padding:4px 10px;border-bottom:1px solid #eee">' + htmlEsc(c == null ? '—' : c) + '</td>').join('') + '</tr>').join('') + '</table>';
+  return '<div style="font-family:Arial,sans-serif;color:#222"><h2 style="margin:0">Maintenance report</h2><p style="color:#666;margin:4px 0 16px">' + htmlEsc(r.range.from + ' to ' + r.range.to) + '</p>' +
+    '<h3>Work orders</h3>' + tbl(['Created', 'Done', 'Open now', 'Overdue now', 'On time', 'Avg time to finish'], [[w.created, w.done, w.open, w.overdue, w.onTimePct == null ? '—' : w.onTimePct + '%', w.avgHoursToDone == null ? '—' : w.avgHoursToDone + ' h']]) +
+    '<h3>Workload</h3>' + tbl(['Person', 'Open', 'Overdue', 'Done', 'Hours'], r.workload.map(p => [p.name, p.open, p.overdue, p.done, p.hours])) +
+    '<h3>Downtime</h3><p style="font-size:13px">Stops: ' + d.stops + ' (unplanned ' + d.unplannedStops + ') · Total: ' + htmlEsc(mins2(d.minutes)) + ' · Average repair (MTTR): ' + htmlEsc(mins2(d.mttrMin)) + '</p>' +
+    tbl(['Asset', 'Stops', 'Downtime', 'MTTR', 'MTBF', 'Availability'], r.assets.map(a => [a.name + ' (' + a.no + ')', a.stops, mins2(a.minutes), mins2(a.mttrMin), a.mtbfHours == null ? '—' : a.mtbfHours + ' h', a.availabilityPct + '%'])) +
+    '<h3>Parts</h3><p style="font-size:13px">Cost of parts used: ' + htmlEsc(r.parts.cost) + '</p>' + tbl(['Part', 'Qty', 'Cost'], r.parts.top.map(p => [p.name + ' (' + p.no + ')', p.qty, p.cost])) +
+    '<p style="color:#888;font-size:12px">Full detail is in the attached CSV file. Sent by the Holoul Maintenance app.</p></div>';
+}
+function sendReport(to, r, by) {
+  MailApp.sendEmail({ to: to, subject: 'Holoul maintenance report ' + r.range.from + ' to ' + r.range.to, htmlBody: reportHtml(r), body: 'Maintenance report ' + r.range.from + ' to ' + r.range.to + ' — see the attached CSV.',
+    attachments: [Utilities.newBlob(reportCsv(r), 'text/csv', 'holoul-report-' + r.range.from + '_' + r.range.to + '.csv')], name: 'Holoul Maintenance' });
+}
+function reportEmail(user, f) {
+  if (!isManager(user)) throw new Error('Reports are for supervisors');
+  const to = clean(f && f.email, 120).toLowerCase();
+  if (!reportEmailOk(to)) throw new Error('Enter one valid email address');
+  const r = report(user, f);
+  sendReport(to, r, user.username);
+  return { ok: true, sentTo: to };
+}
+const reportRows = () => rowsOf(tasksBook().getSheetByName(REPORT_TAB), REPORT_COLS).filter(r => r['Email']);
+function reportRecipients(user) {
+  if (!isManager(user)) throw new Error('Reports are for supervisors');
+  return { ok: true, recipients: reportRows().map(r => ({ email: r['Email'], active: r['Active'] !== 'No', addedBy: r['Added By'], lastSent: r['Last Sent'] })) };
+}
+function reportRecipientSave(user, email, active) {
+  if (!isManager(user)) throw new Error('Reports are for supervisors');
+  email = clean(email, 120).toLowerCase();
+  if (!reportEmailOk(email)) throw new Error('Enter one valid email address');
+  const sh = tasksBook().getSheetByName(REPORT_TAB), old = reportRows().filter(r => r['Email'] === email)[0];
+  if (!old && reportRows().length >= 10) throw new Error('At most 10 recipients');
+  const vals = [email, active ? 'Yes' : 'No', old ? old['Added By'] : user.username, old ? old['Added'] : nowText(), old ? old['Last Sent'] : ''];
+  sh.getRange(old ? old._row : sh.getLastRow() + 1, 1, 1, REPORT_COLS.length).setNumberFormat('@').setValues([vals]);
+  return { ok: true };
+}
+/** Every Sunday (first working day) the last 7 days go to each active recipient, once. */
+function weeklyReports(today) {
+  if (isoToDate(today).getUTCDay() !== 0) return 0;
+  const list = reportRows().filter(r => r['Active'] !== 'No' && r['Last Sent'] !== today);
+  if (!list.length) return 0;
+  const boss = { username: 'system', role: 'Supervisor' };
+  const r = report(boss, { from: addDays(today, -7), to: addDays(today, -1) });
+  const sh = tasksBook().getSheetByName(REPORT_TAB), col = REPORT_COLS.indexOf('Last Sent') + 1;
+  let n = 0;
+  list.forEach(x => { try { sendReport(x['Email'], r, 'system'); sh.getRange(x._row, col).setNumberFormat('@').setValue(today); n++; } catch (err) {} });
+  return n;
+}
+
+/* ================= v18: Work requests, comments with @mentions, several assets, signatures, voice notes ================= */
+function parseAssets(v) { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a.filter(x => x && x.no) : []; } catch (e) { return []; } }
+/** Extra assets on a work order (besides the main one): up to 8, each looked up by number. */
+function cleanAssets(list, t) {
+  if (!Array.isArray(list)) throw new Error('Assets must be a list');
+  const out = [], seen = {}; seen[lc(t['Equipment No'])] = true;
+  list.forEach(x => {
+    const no = clean(x && x.no, 60);
+    if (!no || seen[lc(no)]) return;
+    seen[lc(no)] = true;
+    let found = null; try { found = assetByNo(no); } catch (e) {}
+    out.push({ no: no, name: found ? found.name : clean(x.name, 120) || no });
+  });
+  if (out.length > 8) throw new Error('At most 8 extra assets');
+  return out.length ? JSON.stringify(out) : '';
+}
+function cleanSignature(v) {
+  if (v == null || v === '') return '';
+  const x = String(v);
+  if (!/^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(x)) throw new Error('The signature is not a valid image');
+  if (x.length > 45000) throw new Error('The signature is too large');
+  return x;
+}
+function taskSignature(user, id) {
+  const t = findTask(id);
+  if (!(isManager(user) || lc(t['Assigned To']) === lc(user.username) || lc(t['Created By']) === lc(user.username))) throw new Error('You do not have permission to see this signature');
+  if (!t['Signature']) return { ok: true, signature: '' };
+  return { ok: true, signature: t['Signature'], name: t['Signed Name'] || '', at: t['Done'] };
+}
+function assetsLookup(user, q) {
+  const s = lc(q), out = [];
+  equipmentList(false).forEach(e => {
+    if (!e.no) return;
+    if (s && [e.no, e.name, e.line].join(' ').toLowerCase().indexOf(s) < 0) return;
+    out.push({ no: e.no, name: e.name, line: e.line });
+  });
+  return { ok: true, assets: out.slice(0, 30), more: Math.max(0, out.length - 30) };
+}
+
+/* ---- work requests ---- */
+const requestRows = () => rowsOf(tasksBook().getSheetByName(REQ_TAB), REQ_COLS).filter(r => r['Request ID']);
+const requestOut = r => ({ id: r['Request ID'], created: r['Created'], by: r['By'], name: r['Name'], title: r['Title'], details: r['Details'], assetNo: r['Asset No'], asset: r['Asset'],
+  urgency: r['Urgency'] || 'Normal', photo: r['Photo'], status: r['Status'], decidedBy: r['Decided By'], decided: r['Decided'], note: r['Decision Note'], order: r['Work Order'] });
+function requestCreate(user, f) {
+  f = f || {};
+  const title = clean(f.title, 140);
+  if (!title) throw new Error('Describe the problem in a few words');
+  if (requestRows().filter(r => lc(r['By']) === lc(user.username) && r['Status'] === 'Pending').length >= 10) throw new Error('You already have 10 requests waiting — wait for the supervisor to answer');
+  let asset = null; const no = clean(f.assetNo, 60);
+  if (no) { try { asset = assetByNo(no); } catch (e) {} }
+  const photo = String(f.photo || '').trim();
+  if (photo && !/^https:\/\/[^\s]+$/.test(photo)) throw new Error('The photo link is not valid');
+  const p = props(), seq = Number(p.getProperty('REQ_SEQ') || 0) + 1;
+  p.setProperty('REQ_SEQ', String(seq));
+  const id = 'R-' + ('000' + seq).slice(-4), now = nowText();
+  const urgency = PRIORITIES.indexOf(f.urgency) >= 0 ? f.urgency : 'Normal';
+  const vals = [id, now, user.username, user.name, title, clean(f.details, 1000), no, asset ? asset.name : clean(f.asset, 120), urgency, photo.slice(0, 300), 'Pending', '', '', '', ''];
+  const sh = tasksBook().getSheetByName(REQ_TAB);
+  sh.getRange(sh.getLastRow() + 1, 1, 1, REQ_COLS.length).setNumberFormat('@').setValues([vals]);
+  usersTable().filter(u => u.active && MANAGER_ROLES.indexOf(u.role) >= 0 && lc(u.username) !== lc(user.username))
+    .forEach(u => notifyUser(u.username, { kind: 'request', id: id, title: title, by: user.name, priority: urgency }));
+  return { ok: true, id: id };
+}
+function requestList(user) {
+  const mgr = isManager(user);
+  const rows = requestRows().filter(r => mgr || lc(r['By']) === lc(user.username)).map(requestOut)
+    .sort((a, b) => (a.status === 'Pending' ? 0 : 1) - (b.status === 'Pending' ? 0 : 1) || String(b.created).localeCompare(String(a.created)));
+  return { ok: true, requests: rows.slice(0, 200), canDecide: mgr };
+}
+function requestDecide(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can answer requests');
+  f = f || {};
+  const r = requestRows().filter(x => x['Request ID'] === String(f.id || ''))[0];
+  if (!r) throw new Error('Request not found');
+  if (r['Status'] !== 'Pending') throw new Error('This request was already answered');
+  const sh = tasksBook().getSheetByName(REQ_TAB), set = (c, v) => { r[c] = v; };
+  let order = '';
+  if (f.decision === 'approve') {
+    const out = taskCreate(user, { title: r['Title'], assignee: f.assignee, priority: f.priority || r['Urgency'], due: f.due, category: f.category,
+      details: ('Request ' + r['Request ID'] + ' from ' + r['Name'] + (r['Details'] ? ': ' + r['Details'] : '') + (r['Photo'] ? '\nPhoto: ' + r['Photo'] : '')).slice(0, 2000),
+      equipment: r['Asset'], equipmentNo: r['Asset No'] });
+    order = out.task.id; set('Status', 'Approved');
+  } else if (f.decision === 'decline') {
+    const note = clean(f.note, 300);
+    if (!note) throw new Error('Write the reason for declining');
+    set('Status', 'Declined'); set('Decision Note', note);
+  } else throw new Error('Choose approve or decline');
+  set('Decided By', user.username); set('Decided', nowText()); set('Work Order', order);
+  sh.getRange(r._row, 1, 1, REQ_COLS.length).setNumberFormat('@').setValues([REQ_COLS.map(c => r[c] == null ? '' : String(r[c]))]);
+  notifyUser(r['By'], { kind: 'requestDecision', id: r['Request ID'], title: r['Title'], status: r['Status'], order: order, by: user.name });
+  return { ok: true, status: r['Status'], order: order };
+}
+
+/* ---- comments and @mentions ---- */
+const commentRows = id => rowsOf(tasksBook().getSheetByName(COMMENT_TAB), COMMENT_COLS).filter(r => r['Task ID'] === id);
+function canCommentOn(user, t) {
+  return isManager(user) || lc(t['Assigned To']) === lc(user.username) || lc(t['Created By']) === lc(user.username) ||
+    commentRows(t['ID']).some(r => String(r['Mentions']).split(',').map(lc).indexOf(lc(user.username)) >= 0);
+}
+const commentOut = r => ({ id: r['Comment ID'], at: r['Timestamp'], by: r['By'], name: r['Name'], text: r['Text'], mentions: String(r['Mentions'] || '').split(',').filter(Boolean), audio: r['Audio'] });
+function commentsList(user, id) {
+  const t = findTask(id);
+  if (!canCommentOn(user, t)) throw new Error('You do not have permission to see the comments of this work order');
+  const list = commentRows(t['ID']).map(commentOut).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  return { ok: true, comments: list, people: usersTable().filter(u => u.active).map(u => ({ username: u.username, name: u.name })) };
+}
+function uploadVoice(user, taskId, dataUrl) {
+  const m = String(dataUrl || '').match(/^data:audio\/([\w.+-]+)(?:;codecs=[\w.,+-]+)?;base64,([A-Za-z0-9+\/=]+)$/);
+  if (!m) throw new Error('Not a voice note');
+  const bytes = Utilities.base64Decode(m[2]);
+  if (bytes.length > 3 * 1024 * 1024) throw new Error('The voice note is too long');
+  const root = DriveApp.getFolderById(props().getProperty('PHOTOS_FOLDER_ID'));
+  const it = root.getFoldersByName('Voice');
+  const folder = it.hasNext() ? it.next() : root.createFolder('Voice');
+  const ext = /mp4|aac/.test(m[1]) ? 'm4a' : /ogg/.test(m[1]) ? 'ogg' : /wav/.test(m[1]) ? 'wav' : /mpeg/.test(m[1]) ? 'mp3' : 'webm';
+  const name = [String(taskId).replace(/[^\w.-]+/g, '-'), Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd_HHmmss'), String(user.username).replace(/[^\w.-]+/g, '-')].join('_') + '.' + ext;
+  const file = folder.createFile(Utilities.newBlob(bytes, 'audio/' + m[1], name));
+  return file.getUrl();
+}
+function commentAdd(user, f) {
+  f = f || {};
+  const t = findTask(f.id);
+  if (!canCommentOn(user, t)) throw new Error('You do not have permission to comment on this work order');
+  const text = clean(f.text, 1000), audio = f.audio ? uploadVoice(user, t['ID'], f.audio) : '';
+  if (!text && !audio) throw new Error('Write a comment');
+  if (commentRows(t['ID']).length >= 300) throw new Error('This work order has too many comments');
+  const users = usersTable().filter(u => u.active), byName = {}; users.forEach(u => { byName[lc(u.username)] = u; });
+  const ment = []; (text.match(/@[\w.-]+/g) || []).forEach(x => { const u = byName[lc(x.slice(1).replace(/[.-]+$/, ''))]; if (u && lc(u.username) !== lc(user.username) && ment.indexOf(u.username) < 0) ment.push(u.username); });
+  const sh = tasksBook().getSheetByName(COMMENT_TAB), id = 'C' + String(sh.getLastRow()).padStart(4, '0');
+  sh.getRange(sh.getLastRow() + 1, 1, 1, COMMENT_COLS.length).setNumberFormat('@').setValues([[id, nowText(), t['ID'], user.username, user.name, text, ment.join(','), audio]]);
+  const notify = {}; ment.forEach(u => { notify[u] = 'mention'; });
+  [t['Assigned To'], t['Created By']].forEach(u => { if (u && lc(u) !== lc(user.username) && !notify[u]) notify[u] = 'comment'; });
+  Object.keys(notify).forEach(u => notifyUser(u, { kind: notify[u], id: t['ID'], title: t['Title'], by: user.name, text: text.slice(0, 80) }));
+  return { ok: true, id: id, mentions: ment };
+}
+
+/* ================= Release 7: procedures, purchase orders, scheduling ================= */
+const PROC_TAB = 'Procedures';
+const PROC_COLS = ['Procedure ID', 'Name', 'Category', 'Steps', 'Active', 'Fail Assignee', 'Created By', 'Created', 'Updated'];
+const RUN_TAB = 'Procedure Runs';
+const RUN_COLS = ['Run ID', 'Procedure ID', 'Procedure', 'Task ID', 'Asset No', 'Asset', 'By', 'Name', 'Completed', 'Answers', 'Failed', 'Result', 'Failure Order'];
+const PO_TAB = 'Purchase Orders';
+const PO_COLS = ['PO ID', 'Created', 'By', 'Name', 'Vendor ID', 'Vendor', 'Lines', 'Total', 'Status', 'Note', 'Decided By', 'Decided', 'Decision Note', 'Ordered', 'Received'];
+const AVAIL_TAB = 'Availability';
+const AVAIL_COLS = ['User', 'Work Days', 'Hours Per Day', 'Updated'];
+const OFF_TAB = 'Time Off';
+const OFF_COLS = ['Off ID', 'User', 'Name', 'From', 'To', 'Type', 'Note', 'By', 'Created'];
+const OFF_TYPES = ['Leave', 'Sick', 'Off shift', 'Training'];
+const STEP_TYPES = ['passfail', 'check', 'number', 'text'];
+const DEFAULT_WORK_DAYS = [0, 1, 2, 3, 4];   // Sunday to Thursday
+const nextSeq = (key, prefix, pad) => {
+  const p = props(), n = Number(p.getProperty(key) || 0) + 1;
+  p.setProperty(key, String(n));
+  return prefix + ('0000' + n).slice(-pad);
+};
+const putRow = (tab, cols, o) => {
+  const sh = tasksBook().getSheetByName(tab), r = o._row || sh.getLastRow() + 1;
+  sh.getRange(r, 1, 1, cols.length).setNumberFormat('@').setValues([cols.map(c => o[c] == null ? '' : String(o[c]))]);
+  o._row = r; return o;
+};
+const addDaysIso = (iso, n) => Utilities.formatDate(new Date(isoToDate(iso).getTime() + n * 864e5), TZ, 'yyyy-MM-dd');
+const weekdayOf = iso => isoToDate(iso).getUTCDay();
+
+/* ---- procedures (checklists with pass/fail, numbers and conditional steps) ---- */
+const procRows = () => rowsOf(tasksBook().getSheetByName(PROC_TAB), PROC_COLS).filter(r => r['Procedure ID']);
+function parseJson(s, fallback) { try { const v = JSON.parse(s || ''); return v == null ? fallback : v; } catch (e) { return fallback; } }
+const procOut = r => ({ id: r['Procedure ID'], name: r['Name'], category: r['Category'], steps: parseJson(r['Steps'], []), active: r['Active'] !== 'No', failAssignee: r['Fail Assignee'], updated: r['Updated'] });
+function cleanSteps(list) {
+  if (!Array.isArray(list) || !list.length) throw new Error('Add at least one step');
+  if (list.length > 40) throw new Error('A procedure can have up to 40 steps');
+  return list.map((s, i) => {
+    s = s || {};
+    const text = clean(s.text, 200);
+    if (!text) throw new Error('Step ' + (i + 1) + ' needs some text');
+    const st = { id: 's' + (i + 1), text: text, type: STEP_TYPES.indexOf(s.type) >= 0 ? s.type : 'passfail', required: !(s.required === false || s.required === 'false') };
+    if (st.type === 'number') {
+      st.unit = clean(s.unit, 12);
+      ['min', 'max'].forEach(k => {
+        if (s[k] === undefined || s[k] === null || String(s[k]).trim() === '') return;
+        const n = Number(String(s[k]).replace(',', '.'));
+        if (!isFinite(n)) throw new Error('Step ' + (i + 1) + ': ' + k + ' must be a number');
+        st[k] = n;
+      });
+      if (st.min !== undefined && st.max !== undefined && st.min > st.max) throw new Error('Step ' + (i + 1) + ': the minimum is above the maximum');
+    }
+    if (s.showIf && s.showIf.step) {
+      const n = Number(String(s.showIf.step).replace(/^s/, ''));
+      if (!(n >= 1 && n <= i) || !isFinite(n)) throw new Error('Step ' + (i + 1) + ': a condition must depend on an earlier step');
+      if ((list[n - 1].type || 'passfail') !== 'passfail') throw new Error('Step ' + (i + 1) + ': a condition can depend only on a pass/fail step');
+      st.showIf = { step: 's' + n, when: s.showIf.when === 'pass' ? 'pass' : 'fail' };
+    }
+    return st;
+  });
+}
+/** Checks a run's answers against the steps (hidden steps are skipped) and lists what failed. */
+function procEvaluate(steps, answers) {
+  answers = answers && typeof answers === 'object' ? answers : {};
+  const shown = {}, result = {}, out = {}, failed = [];
+  steps.forEach(s => {
+    if (s.showIf && !(shown[s.showIf.step] && result[s.showIf.step] === s.showIf.when)) { shown[s.id] = false; return; }
+    shown[s.id] = true;
+    const a = answers[s.id] && typeof answers[s.id] === 'object' ? answers[s.id] : {}, note = clean(a.note, 300);
+    let v = a.v, res = 'pass';
+    if (s.type === 'passfail') {
+      if (v !== 'pass' && v !== 'fail') { if (s.required) throw new Error('Answer this step: ' + s.text); res = 'skip'; v = ''; }
+      else if (v === 'fail') { if (!note) throw new Error('Write a note for the failed step: ' + s.text); res = 'fail'; failed.push({ id: s.id, text: s.text, why: note }); }
+    } else if (s.type === 'check') {
+      v = v === true || v === 'true';
+      if (!v) { if (s.required) throw new Error('Tick this step: ' + s.text); res = 'skip'; }
+    } else if (s.type === 'number') {
+      const raw = String(v == null ? '' : v).trim().replace(',', '.');
+      if (raw === '') { if (s.required) throw new Error('Enter a value: ' + s.text); res = 'skip'; v = ''; }
+      else {
+        const n = Number(raw);
+        if (!isFinite(n)) throw new Error('Enter a number: ' + s.text);
+        v = n;
+        if ((s.min !== undefined && n < s.min) || (s.max !== undefined && n > s.max)) {
+          res = 'fail'; failed.push({ id: s.id, text: s.text, why: n + (s.unit ? ' ' + s.unit : '') + ' is outside ' + (s.min !== undefined ? s.min : '…') + ' – ' + (s.max !== undefined ? s.max : '…') });
+        }
+      }
+    } else {
+      v = clean(v, 500);
+      if (!v && s.required) throw new Error('Write an answer: ' + s.text);
+      if (!v) res = 'skip';
+    }
+    result[s.id] = res; out[s.id] = { v: v, note: note };
+  });
+  return { answers: out, failed: failed, result: result, shown: shown };
+}
+function procedureList(user) {
+  const mgr = isManager(user);
+  return { ok: true, procedures: procRows().map(procOut).filter(p => mgr || p.active), canEdit: mgr };
+}
+function procedureSave(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can change procedures');
+  f = f || {};
+  const name = clean(f.name, 80);
+  if (!name) throw new Error('Enter a procedure name');
+  const steps = cleanSteps(f.steps);
+  let fail = clean(f.failAssignee, 60);
+  if (fail && !assignable().some(u => lc(u.username) === lc(fail))) throw new Error('Choose who gets the work order when a step fails');
+  let r = f.id ? procRows().filter(x => x['Procedure ID'] === String(f.id))[0] : null;
+  if (f.id && !r) throw new Error('Procedure not found');
+  const now = nowText();
+  if (!r) r = { 'Procedure ID': nextSeq('PROC_SEQ', 'P-', 3), 'Created By': user.username, 'Created': now };
+  Object.assign(r, { 'Name': name, 'Category': CATEGORIES.indexOf(f.category) >= 0 ? f.category : '', 'Steps': JSON.stringify(steps), 'Active': f.active === false || f.active === 'false' ? 'No' : 'Yes', 'Fail Assignee': fail, 'Updated': now });
+  putRow(PROC_TAB, PROC_COLS, r);
+  return { ok: true, procedure: procOut(r) };
+}
+const runRows = () => rowsOf(tasksBook().getSheetByName(RUN_TAB), RUN_COLS).filter(r => r['Run ID']);
+const runOut = r => ({ id: r['Run ID'], procedureId: r['Procedure ID'], procedure: r['Procedure'], taskId: r['Task ID'], assetNo: r['Asset No'], asset: r['Asset'], by: r['By'], name: r['Name'], at: r['Completed'], failed: Number(r['Failed'] || 0), result: r['Result'], order: r['Failure Order'] });
+function procedureRun(user, f) {
+  f = f || {};
+  const pr = procRows().filter(r => r['Procedure ID'] === String(f.procedureId || ''))[0];
+  if (!pr || pr['Active'] === 'No') throw new Error('Procedure not found');
+  const steps = parseJson(pr['Steps'], []);
+  let t = null;
+  if (f.taskId) {
+    t = findTask(f.taskId);
+    if (lc(t['Assigned To']) !== lc(user.username) && !isManager(user)) throw new Error('This work order is assigned to someone else');
+    if (t['Status'] === 'Done' || t['Status'] === 'Cancelled') throw new Error('This work order is finished');
+    if (t['Procedure'] && t['Procedure'] !== pr['Procedure ID']) throw new Error('This work order uses another procedure');
+    if (runRows().some(r => r['Task ID'] === t['ID'])) throw new Error('This procedure was already completed for this work order');
+  }
+  const no = clean(f.assetNo, 60) || (t ? t['Equipment No'] : '');
+  let asset = null; if (no) { try { asset = assetByNo(no); } catch (e) {} }
+  const ev = procEvaluate(steps, f.answers);
+  const id = nextSeq('RUN_SEQ', 'RN-', 4), now = nowText();
+  let order = '';
+  if (ev.failed.length) {
+    const pool = assignable();
+    const pick = [pr['Fail Assignee'], t ? t['Assigned To'] : '', user.username].filter(Boolean).map(lc)
+      .map(n => pool.filter(u => lc(u.username) === n)[0]).filter(Boolean)[0] || pool[0];
+    if (pick) {
+      const made = taskCreateCore(user, {
+        title: ('Failed check: ' + pr['Name'] + (asset ? ' — ' + asset.name : '')).slice(0, 140), assignee: pick.username, priority: 'High', category: pr['Category'],
+        details: ('Run ' + id + (t ? ' (work order ' + t['ID'] + ')' : '') + ' found ' + ev.failed.length + ' problem(s):\n' + ev.failed.map(x => '- ' + x.text + ': ' + x.why).join('\n')).slice(0, 2000),
+        equipment: asset ? asset.name : (t ? t['Equipment'] : ''), equipmentNo: no, source: 'Procedure'
+      }, false);
+      order = made.task.id;
+    }
+  }
+  putRow(RUN_TAB, RUN_COLS, { 'Run ID': id, 'Procedure ID': pr['Procedure ID'], 'Procedure': pr['Name'], 'Task ID': t ? t['ID'] : '', 'Asset No': no, 'Asset': asset ? asset.name : (t ? t['Equipment'] : ''),
+    'By': user.username, 'Name': user.name, 'Completed': now, 'Answers': JSON.stringify(ev.answers), 'Failed': ev.failed.length, 'Result': ev.failed.length ? 'Failed' : 'Passed', 'Failure Order': order });
+  if (ev.failed.length) usersTable().filter(u => u.active && isManager(u) && lc(u.username) !== lc(user.username))
+    .forEach(u => notifyUser(u.username, { kind: 'procedureFail', id: id, title: pr['Name'], by: user.name, count: ev.failed.length }));
+  return { ok: true, run: id, failed: ev.failed.length, order: order, problems: ev.failed };
+}
+function procedureRuns(user, f) {
+  f = f || {};
+  const mgr = isManager(user);
+  let rows = runRows().filter(r => mgr || lc(r['By']) === lc(user.username));
+  if (f.taskId) rows = rows.filter(r => r['Task ID'] === String(f.taskId));
+  if (f.procedureId) rows = rows.filter(r => r['Procedure ID'] === String(f.procedureId));
+  if (f.assetNo) rows = rows.filter(r => r['Asset No'] === String(f.assetNo));
+  rows.sort((a, b) => String(b['Completed']).localeCompare(String(a['Completed'])));
+  return { ok: true, runs: rows.slice(0, 100).map(runOut) };
+}
+/** Everything a printed audit sheet needs for one run: answers, the work order, its photo and signature. */
+function procedureAudit(user, f) {
+  const r = runRows().filter(x => x['Run ID'] === String((f || {}).id || ''))[0];
+  if (!r) throw new Error('Run not found');
+  if (!isManager(user) && lc(r['By']) !== lc(user.username)) throw new Error('You do not have permission to see this run');
+  const pr = procRows().filter(x => x['Procedure ID'] === r['Procedure ID'])[0];
+  const steps = pr ? parseJson(pr['Steps'], []) : [], answers = parseJson(r['Answers'], {});
+  const rows = steps.filter(s => answers[s.id] !== undefined).map(s => {
+    const a = answers[s.id], v = a.v;
+    const res = s.type === 'passfail' ? (v === 'pass' || v === 'fail' ? v : 'skip') : s.type === 'check' ? (v ? 'pass' : 'skip')
+      : s.type === 'number' ? (v === '' ? 'skip' : ((s.min !== undefined && v < s.min) || (s.max !== undefined && v > s.max) ? 'fail' : 'pass')) : (v ? 'pass' : 'skip');
+    return { text: s.text, type: s.type, unit: s.unit || '', answer: s.type === 'check' ? (v ? 'Done' : '') : v, note: a.note || '', result: res };
+  });
+  let task = null;
+  if (r['Task ID']) { try { const t = findTask(r['Task ID']); task = { id: t['ID'], title: t['Title'], status: t['Status'], done: t['Done'], photo: /^https:/.test(t['Done Photo']) ? t['Done Photo'] : '', signature: t['Signature'] || '', signedName: t['Signed Name'] || '', assignee: t['Assignee Name'] }; } catch (e) {} }
+  return { ok: true, run: runOut(r), steps: rows, task: task };
+}
+
+/* ---- purchase orders ---- */
+const poRows = () => rowsOf(tasksBook().getSheetByName(PO_TAB), PO_COLS).filter(r => r['PO ID']);
+const poOut = r => ({ id: r['PO ID'], created: r['Created'], by: r['By'], name: r['Name'], vendorId: r['Vendor ID'], vendor: r['Vendor'], lines: parseJson(r['Lines'], []), total: numOf(r['Total']),
+  status: r['Status'], note: r['Note'], decidedBy: r['Decided By'], decided: r['Decided'], decisionNote: r['Decision Note'], ordered: r['Ordered'], received: r['Received'] });
+const poFind = id => { const r = poRows().filter(x => x['PO ID'] === String(id || ''))[0]; if (!r) throw new Error('Purchase order not found'); return r; };
+const poTotal = lines => round3(lines.reduce((s, l) => s + l.qty * (l.cost || 0), 0));
+const poSummary = lines => lines.length + ' part' + (lines.length === 1 ? '' : 's');
+function poList(user) {
+  if (!canUseParts(user)) throw new Error('You do not have permission to see purchase orders');
+  const open = s => (s === 'Requested' ? 0 : s === 'Approved' ? 1 : s === 'Ordered' || s === 'Partly received' ? 2 : 3);
+  const list = poRows().map(poOut).sort((a, b) => open(a.status) - open(b.status) || String(b.created).localeCompare(String(a.created)));
+  return { ok: true, orders: list.slice(0, 200), canDecide: isManager(user) };
+}
+function poCreate(user, f) {
+  if (!canUseParts(user)) throw new Error('You do not have permission to request parts');
+  f = f || {};
+  if (!Array.isArray(f.lines) || !f.lines.length) throw new Error('Add at least one part');
+  if (f.lines.length > 30) throw new Error('A purchase order can have up to 30 parts');
+  const seen = {}, st = {}; stockRows().forEach(r => { st[r['Key']] = stockOut(r); });
+  const lines = f.lines.map(l => {
+    l = l || {};
+    const p = partFind(l.kind, l.no);
+    if (seen[p.key]) throw new Error('Part ' + p.no + ' is listed twice');
+    seen[p.key] = true;
+    const known = st[p.key] && st[p.key].cost !== null ? st[p.key].cost : 0;
+    return { kind: p.kind, no: p.no, name: p.name, qty: qtyOf(l.qty), cost: l.cost === undefined || String(l.cost).trim() === '' ? known : numOf(cleanCost(l.cost)), got: 0 };
+  });
+  let vendor = null;
+  if (f.vendorId) { vendor = vendorRows().filter(v => v['Vendor ID'] === String(f.vendorId))[0]; if (!vendor) throw new Error('Supplier not found'); }
+  const id = nextSeq('PO_SEQ', 'PO-', 4);
+  const r = putRow(PO_TAB, PO_COLS, { 'PO ID': id, 'Created': nowText(), 'By': user.username, 'Name': user.name, 'Vendor ID': vendor ? vendor['Vendor ID'] : '', 'Vendor': vendor ? vendor['Name'] : '',
+    'Lines': JSON.stringify(lines), 'Total': poTotal(lines), 'Status': 'Requested', 'Note': clean(f.note, 300) });
+  usersTable().filter(u => u.active && isManager(u) && lc(u.username) !== lc(user.username))
+    .forEach(u => notifyUser(u.username, { kind: 'po', id: id, title: poSummary(lines) + (r['Vendor'] ? ' · ' + r['Vendor'] : ''), by: user.name }));
+  return { ok: true, id: id, order: poOut(r) };
+}
+function poDecide(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can approve purchase orders');
+  f = f || {};
+  const r = poFind(f.id);
+  if (r['Status'] !== 'Requested') throw new Error('This purchase order was already answered');
+  if (f.decision === 'approve') r['Status'] = 'Approved';
+  else if (f.decision === 'reject') {
+    const note = clean(f.note, 300);
+    if (!note) throw new Error('Write the reason for rejecting');
+    r['Status'] = 'Rejected'; r['Decision Note'] = note;
+  } else throw new Error('Choose approve or reject');
+  r['Decided By'] = user.username; r['Decided'] = nowText();
+  putRow(PO_TAB, PO_COLS, r);
+  notifyUser(r['By'], { kind: 'poDecision', id: r['PO ID'], title: poSummary(parseJson(r['Lines'], [])), status: r['Status'], by: user.name });
+  return { ok: true, order: poOut(r) };
+}
+function poOrder(user, f) {
+  if (!canUseParts(user)) throw new Error('You do not have permission to change purchase orders');
+  const r = poFind((f || {}).id);
+  if (r['Status'] !== 'Approved') throw new Error('Only an approved purchase order can be marked as ordered');
+  r['Status'] = 'Ordered'; r['Ordered'] = nowText();
+  putRow(PO_TAB, PO_COLS, r);
+  return { ok: true, order: poOut(r) };
+}
+function poReceive(user, f) {
+  if (!canUseParts(user)) throw new Error('You do not have permission to receive parts');
+  f = f || {};
+  const r = poFind(f.id);
+  if (r['Status'] !== 'Ordered' && r['Status'] !== 'Partly received') throw new Error('This purchase order is not waiting for delivery');
+  const lines = parseJson(r['Lines'], []);
+  const take = Array.isArray(f.lines) && f.lines.length ? f.lines.map(x => ({ i: Number(x && x.index), q: qtyOf(x && x.qty, 'Received quantity') }))
+    : lines.map((l, i) => ({ i: i, q: round3(l.qty - l.got) })).filter(x => x.q > 0);
+  if (!take.length) throw new Error('Nothing left to receive');
+  take.forEach(x => {
+    const l = lines[x.i];
+    if (!l) throw new Error('Line not found');
+    if (x.q > round3(l.qty - l.got)) throw new Error(l.no + ': only ' + round3(l.qty - l.got) + ' still expected');
+    partFind(l.kind, l.no);   // stop before anything changes if a part was deleted
+  });
+  take.forEach(x => { const l = lines[x.i]; partReceive(user, { kind: l.kind, no: l.no, qty: x.q, cost: l.cost, note: 'PO ' + r['PO ID'] }); l.got = round3(l.got + x.q); });
+  const all = lines.every(l => l.got >= l.qty);
+  r['Lines'] = JSON.stringify(lines); r['Status'] = all ? 'Received' : 'Partly received'; if (all) r['Received'] = nowText();
+  putRow(PO_TAB, PO_COLS, r);
+  return { ok: true, order: poOut(r) };
+}
+function poCancel(user, f) {
+  const r = poFind((f || {}).id);
+  const lines = parseJson(r['Lines'], []);
+  if (['Received', 'Rejected', 'Cancelled'].indexOf(r['Status']) >= 0) throw new Error('This purchase order is already closed');
+  if (lines.some(l => l.got > 0)) throw new Error('Some parts were already received — it cannot be cancelled');
+  if (!(isManager(user) || (r['Status'] === 'Requested' && lc(r['By']) === lc(user.username)))) throw new Error('You do not have permission to cancel this purchase order');
+  r['Status'] = 'Cancelled'; r['Decided By'] = user.username; r['Decided'] = nowText(); r['Decision Note'] = clean((f || {}).note, 300);
+  putRow(PO_TAB, PO_COLS, r);
+  return { ok: true, order: poOut(r) };
+}
+
+/* ---- scheduling: shifts, time off, workload, job time estimates ---- */
+const availRows = () => rowsOf(tasksBook().getSheetByName(AVAIL_TAB), AVAIL_COLS).filter(r => r['User']);
+const offRows = () => rowsOf(tasksBook().getSheetByName(OFF_TAB), OFF_COLS).filter(r => r['Off ID']);
+function availOf(username, rows) {
+  const r = (rows || availRows()).filter(x => lc(x['User']) === lc(username))[0];
+  const days = r ? String(r['Work Days']).split(',').filter(s => s !== '').map(Number).filter(n => n >= 0 && n <= 6) : DEFAULT_WORK_DAYS;
+  const h = r && r['Hours Per Day'] !== '' ? numOf(r['Hours Per Day']) : 8;
+  return { days: days, hours: h };
+}
+/** 'work', or why the person is not available that day. */
+function dayStatus(username, iso, av, offs) {
+  const o = (offs || offRows()).filter(x => lc(x['User']) === lc(username) && x['From'] <= iso && x['To'] >= iso)[0];
+  if (o) return { status: 'off', reason: o['Type'] };
+  if ((av || availOf(username)).days.indexOf(weekdayOf(iso)) < 0) return { status: 'rest', reason: 'Day off' };
+  return { status: 'work', reason: '' };
+}
+function offWarning(username, iso) {
+  if (!iso) return '';
+  const s = dayStatus(username, iso);
+  return s.status === 'work' ? '' : (usersTable().filter(u => lc(u.username) === lc(username)).map(u => u.name)[0] || username) + ' is not working on ' + iso + ' (' + s.reason + ')';
+}
+function availabilitySave(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can change shifts');
+  f = f || {};
+  const who = assignable().filter(u => lc(u.username) === lc(f.username))[0];
+  if (!who) throw new Error('Choose a person');
+  const days = (Array.isArray(f.workDays) ? f.workDays : []).map(Number).filter((n, i, a) => n >= 0 && n <= 6 && a.indexOf(n) === i).sort();
+  const hours = Number(f.hours);
+  if (!isFinite(hours) || hours < 0 || hours > 24) throw new Error('Hours per day must be between 0 and 24');
+  const old = availRows().filter(x => lc(x['User']) === lc(who.username))[0] || { 'User': who.username };
+  Object.assign(old, { 'Work Days': days.join(','), 'Hours Per Day': String(hours), 'Updated': nowText() });
+  putRow(AVAIL_TAB, AVAIL_COLS, old);
+  return { ok: true };
+}
+function timeOffAdd(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can record time off');
+  f = f || {};
+  const who = assignable().filter(u => lc(u.username) === lc(f.username))[0];
+  if (!who) throw new Error('Choose a person');
+  const from = cleanDate(f.from), to = cleanDate(f.to || f.from);
+  if (!from || !to) throw new Error('Choose the dates');
+  if (to < from) throw new Error('The end date is before the start date');
+  if (dayDiff(from, to) > 366) throw new Error('Time off can be up to a year');
+  const id = nextSeq('OFF_SEQ', 'O-', 3);
+  putRow(OFF_TAB, OFF_COLS, { 'Off ID': id, 'User': who.username, 'Name': who.name, 'From': from, 'To': to, 'Type': OFF_TYPES.indexOf(f.type) >= 0 ? f.type : 'Leave', 'Note': clean(f.note, 200), 'By': user.username, 'Created': nowText() });
+  const clash = readTasks().filter(t => (t['Status'] === 'Open' || t['Status'] === 'In progress') && lc(t['Assigned To']) === lc(who.username) && t['Due'] >= from && t['Due'] <= to).map(t => t['ID']);
+  return { ok: true, id: id, clashes: clash };
+}
+function timeOffDelete(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can record time off');
+  const r = offRows().filter(x => x['Off ID'] === String((f || {}).id || ''))[0];
+  if (!r) throw new Error('Time off not found');
+  tasksBook().getSheetByName(OFF_TAB).deleteRow(r._row);
+  return { ok: true };
+}
+function availabilityList(user) {
+  if (!isManager(user)) throw new Error('Only a supervisor can see shifts');
+  const av = availRows(), today = todayIso();
+  return { ok: true,
+    people: assignable().map(u => { const a = availOf(u.username, av); return { username: u.username, name: u.name, role: u.role, workDays: a.days, hours: a.hours }; }),
+    timeOff: offRows().filter(r => r['To'] >= today).sort((a, b) => a['From'].localeCompare(b['From']))
+      .map(r => ({ id: r['Off ID'], username: r['User'], name: r['Name'], from: r['From'], to: r['To'], type: r['Type'], note: r['Note'] })) };
+}
+/** Typical hours for a job like this one, from finished work orders: same machine and title, then machine, title, category. */
+function estimateFor(t, done) {
+  const hrs = r => Number(r['Hours']);
+  const ok = r => r['Status'] === 'Done' && r['Hours'] !== '' && isFinite(hrs(r)) && hrs(r) > 0 && r['ID'] !== t['ID'];
+  const pools = [
+    ['same machine and job', r => t['Equipment No'] && r['Equipment No'] === t['Equipment No'] && lc(r['Title']) === lc(t['Title'])],
+    ['same machine', r => t['Equipment No'] && r['Equipment No'] === t['Equipment No']],
+    ['same job', r => t['Title'] && lc(r['Title']) === lc(t['Title'])],
+    ['same category', r => t['Category'] && r['Category'] === t['Category']]
+  ];
+  for (let i = 0; i < pools.length; i++) {
+    const m = done.filter(r => ok(r) && pools[i][1](r));
+    if (m.length) return { hours: Math.round(m.reduce((s, r) => s + hrs(r), 0) / m.length * 4) / 4, n: m.length, basis: pools[i][0] };
+  }
+  return { hours: null, n: 0, basis: '' };
+}
+function estimate(user, f) {
+  if (!isManager(user) && !canCreateTasks(user)) throw new Error('You do not have permission to create tasks');
+  f = f || {};
+  const e = estimateFor({ 'ID': '', 'Equipment No': clean(f.equipmentNo, 60), 'Title': clean(f.title, 140), 'Category': clean(f.category, 40) }, readTasks().filter(r => r['Status'] === 'Done'));
+  return Object.assign({ ok: true }, e);
+}
+function weekStart(iso) { return addDaysIso(iso, -weekdayOf(iso)); }
+function schedule(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can see the schedule');
+  f = f || {};
+  const today = todayIso(), from = cleanDate(f.from) || weekStart(today);
+  const days = []; for (let i = 0; i < 7; i++) days.push(addDaysIso(from, i));
+  const all = readTasks(), done = all.filter(t => t['Status'] === 'Done'), open = all.filter(t => t['Status'] === 'Open' || t['Status'] === 'In progress');
+  const av = availRows(), offs = offRows();
+  const est = {}; open.forEach(t => { est[t['ID']] = estimateFor(t, done); });
+  const card = t => ({ id: t['ID'], title: t['Title'], priority: t['Priority'] || 'Normal', status: t['Status'], equipment: t['Equipment'], hours: est[t['ID']].hours, basis: est[t['ID']].basis, due: t['Due'], assignee: t['Assigned To'] });
+  const people = assignable().map(u => {
+    const a = availOf(u.username, av), mine = open.filter(t => lc(t['Assigned To']) === lc(u.username));
+    const cells = days.map(d => {
+      const s = dayStatus(u.username, d, a, offs), here = mine.filter(t => t['Due'] === d);
+      return { date: d, status: s.status, reason: s.reason, capacity: s.status === 'work' ? a.hours : 0, load: round3(here.reduce((n, t) => n + (est[t['ID']].hours || 1), 0)), tasks: here.map(card) };
+    });
+    return { username: u.username, name: u.name, role: u.role, hours: a.hours, cells: cells,
+      overdue: mine.filter(t => t['Due'] && t['Due'] < today).map(card), unscheduled: mine.filter(t => !t['Due']).map(card),
+      later: mine.filter(t => t['Due'] > days[6]).length };
+  });
+  return { ok: true, from: from, days: days, today: today, people: people };
+}
+function scheduleMove(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can change the schedule');
+  f = f || {};
+  const t = findTask(f.id);
+  if (t['Status'] !== 'Open' && t['Status'] !== 'In progress') throw new Error('Only open work orders can be moved');
+  const due = f.due === '' ? '' : cleanDate(f.due);
+  if (f.due !== '' && !due) throw new Error('Choose a date');
+  const who = f.assignee || t['Assigned To'];
+  if (due) {
+    const s = dayStatus(who, due);
+    if (s.status !== 'work' && !f.force) return { ok: false, conflict: true, reason: s.reason, error: offWarning(who, due) };
+  }
+  const out = taskEdit(user, { id: t['ID'], due: due, assignee: lc(who) !== lc(t['Assigned To']) ? who : undefined });
+  return { ok: true, task: out.task, warning: due ? offWarning(who, due) : '' };
+}
+
+/* ===================== Release 8: cost per machine, public fault form, settings ===================== */
+const SET_LABOR = 'COST_LABOR_RATE', SET_DOWN = 'COST_DOWN_RATE', SET_PUBLIC = 'PUBLIC_FORM';
+const PUBLIC_BY = '(public)';
+function settingsGet(user) {
+  if (!isManager(user)) throw new Error('Only a supervisor can see the settings');
+  const p = props();
+  return { ok: true, laborRate: numOf(p.getProperty(SET_LABOR)), downtimeRate: numOf(p.getProperty(SET_DOWN)), publicForm: p.getProperty(SET_PUBLIC) === 'on',
+           publicPending: requestRows().filter(r => r['By'] === PUBLIC_BY && r['Status'] === 'Pending').length, currency: 'SAR' };
+}
+function cleanRate(v) {
+  if (v == null || String(v).trim() === '') return 0;
+  const n = Number(String(v).replace(',', '.'));
+  if (!isFinite(n) || n < 0 || n > 100000) throw new Error('A rate must be a number from 0 to 100000');
+  return Math.round(n * 100) / 100;
+}
+function settingsSave(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can change the settings');
+  f = f || {};
+  const p = props();
+  if (f.laborRate !== undefined) p.setProperty(SET_LABOR, String(cleanRate(f.laborRate)));
+  if (f.downtimeRate !== undefined) p.setProperty(SET_DOWN, String(cleanRate(f.downtimeRate)));
+  if (f.publicForm !== undefined) p.setProperty(SET_PUBLIC, f.publicForm ? 'on' : 'off');
+  return settingsGet(user);
+}
+
+/** Cost per machine for a period: spare parts used on its work orders (at the price stored when they were taken),
+ *  labor hours x the hourly rate, and downtime hours x the downtime rate. Work orders that cover several machines share their cost equally. */
+function costReport(user, f) {
+  if (!isManager(user)) throw new Error('Only a supervisor can see maintenance cost');
+  f = f || {};
+  const today = todayIso();
+  let to = cleanDate(f.to) || today, from = cleanDate(f.from);
+  if (f.period) {                                         // presets are worked out here, so a phone in another time zone cannot shift the days
+    to = today;
+    from = f.period === 'month' ? today.slice(0, 8) + '01' : f.period === 'year' ? today.slice(0, 5) + '01-01'
+         : addDaysIso(today, -(Math.max(1, Math.min(Number(f.period) || 90, 800)) - 1));
+  }
+  from = from || addDaysIso(to, -89);
+  if (from > to) throw new Error('The start date is after the end date');
+  if (addDaysIso(from, 800) < to) throw new Error('Choose a period of up to about 2 years');
+  const p = props(), labor = numOf(p.getProperty(SET_LABOR)), downRate = numOf(p.getProperty(SET_DOWN));
+  const tasks = readTasks(), byId = {};
+  tasks.forEach(t => { byId[t['ID']] = t; });
+  const rows = {}, bucket = (no, name) => {
+    const k = no || ('n:' + lc(name || '')) ;
+    return rows[k] || (rows[k] = { no: no || '', name: name || (no ? no : 'No machine'), parts: 0, labor: 0, hours: 0, downHours: 0, downCost: 0, orders: {}, unpriced: 0 });
+  };
+  const assetsOf = t => {
+    const o = taskOut(t), list = [], seen = {};
+    [{ no: o.equipmentNo, name: o.equipment }].concat((o.assets || []).map(a => ({ no: a.no, name: a.name }))).forEach(a => {
+      const k = a.no || ('n:' + lc(a.name)); if ((a.no || a.name) && !seen[k]) { seen[k] = 1; list.push(a); }
+    });
+    return list.length ? list : [{ no: '', name: '' }];
+  };
+  const order = (b, t) => b.orders[t['ID']] || (b.orders[t['ID']] = { id: t['ID'], title: t['Title'], date: String(t['Done'] || t['Created'] || '').slice(0, 10), parts: 0, labor: 0, hours: 0 });
+  rowsOf(tasksBook().getSheetByName(PART_LOG_TAB), PART_LOG_COLS).forEach(r => {
+    if ((r['Type'] !== 'Used' && r['Type'] !== 'Returned') || !r['Work Order']) return;
+    const d = String(r['Timestamp']).slice(0, 10); if (d < from || d > to) return;
+    const t = byId[r['Work Order']]; if (!t) return;
+    const qty = -numOf(r['Qty']), priced = r['Unit Cost'] !== '', amount = qty * numOf(r['Unit Cost']);
+    const as = assetsOf(t);
+    as.forEach(a => { const b = bucket(a.no, a.name); b.parts += amount / as.length; order(b, t).parts += amount / as.length; if (!priced && qty > 0) b.unpriced++; });
+  });
+  tasks.forEach(t => {
+    if (t['Status'] !== 'Done') return;
+    const h = numOf(t['Hours']); if (!(h > 0)) return;
+    const d = String(t['Done'] || '').slice(0, 10); if (!d || d < from || d > to) return;
+    const as = assetsOf(t);
+    as.forEach(a => { const b = bucket(a.no, a.name); b.hours += h / as.length; b.labor += h * labor / as.length; const o = order(b, t); o.hours += h / as.length; o.labor += h * labor / as.length; });
+  });
+  const now = nowText();
+  downtimeRows().forEach(r => {
+    const d = String(r['Started']).slice(0, 10); if (d < from || d > to) return;
+    const mins = r['Ended'] ? numOf(r['Minutes']) : minutesBetween(r['Started'], now);
+    const b = bucket(r['Equipment No'], r['Equipment']);
+    b.downHours += mins / 60; b.downCost += mins / 60 * downRate;
+  });
+  const list = Object.keys(rows).map(k => rows[k]).map(b => {
+    const o = { no: b.no, name: b.name, parts: round2(b.parts), labor: round2(b.labor), hours: round2(b.hours), downHours: round2(b.downHours), downCost: round2(b.downCost),
+                unpriced: b.unpriced, orderCount: Object.keys(b.orders).length };
+    o.total = round2(o.parts + o.labor + o.downCost);
+    if (f.no && b.no === String(f.no)) o.orders = Object.keys(b.orders).map(k => b.orders[k]).map(x => ({ id: x.id, title: x.title, date: x.date, parts: round2(x.parts), labor: round2(x.labor), hours: round2(x.hours) }))
+      .sort((x, y) => String(y.date).localeCompare(String(x.date)));
+    return o;
+  }).filter(o => o.total > 0 || o.hours > 0 || o.downHours > 0 || o.orderCount > 0).sort((a, b) => b.total - a.total || b.downHours - a.downHours);
+  const sum = k => round2(list.reduce((a, x) => a + x[k], 0));
+  return { ok: true, from: from, to: to, laborRate: labor, downtimeRate: downRate, currency: 'SAR', rows: list,
+           totals: { parts: sum('parts'), labor: sum('labor'), downCost: sum('downCost'), total: sum('total'), hours: sum('hours'), downHours: sum('downHours') } };
+}
+const round2 = x => Math.round(x * 100) / 100;
+
+/* ---- public fault form (no account) ---- */
+const publicOn = () => props().getProperty(SET_PUBLIC) === 'on';
+function publicAsset(f) {
+  if (!publicOn()) throw new Error('The fault form is switched off');
+  const eq = assetByNo(clean(f && f.no, 60));
+  if (!eq) throw new Error('Machine not found');
+  return { ok: true, asset: { no: eq.no, name: eq.name, line: eq.line } };
+}
+/** Anyone with the link can send a fault. It lands in the normal request inbox, as "(public)". Spam protection: the supervisor must switch it on,
+ *  a hidden field bots fill in, at most 20 a hour in total / 4 a hour per machine / 3 an hour per phone, and no more than 40 waiting. */
+function publicReport(f) {
+  if (!publicOn()) throw new Error('The fault form is switched off');
+  f = f || {};
+  if (String(f.website || '').trim()) return { ok: true, id: 'R-0000' };         // honeypot: look successful, store nothing
+  const title = clean(f.title, 140);
+  if (title.length < 4) throw new Error('Describe the problem in a few words');
+  const no = clean(f.assetNo, 60);
+  let asset = null; if (no) asset = assetByNo(no);
+  const machine = asset ? asset.name : clean(f.asset, 80);
+  if (machine.length < 2) throw new Error('Say which machine it is');
+  const cache = CacheService.getScriptCache();
+  const keys = [['pub_all', 20], ['pub_m_' + lc(asset ? asset.no : machine).slice(0, 60), 4]];
+  const dev = clean(f.device, 40).replace(/[^A-Za-z0-9_-]/g, ''); if (dev) keys.push(['pub_d_' + dev, 3]);
+  keys.forEach(k => { if (Number(cache.get(k[0]) || 0) >= k[1]) throw new Error('Too many reports right now. Please call the supervisor, or try again in an hour.'); });
+  if (requestRows().filter(r => r['By'] === PUBLIC_BY && r['Status'] === 'Pending').length >= 40) throw new Error('The inbox is full. Please call the supervisor.');
+  const pp = props(), seq = Number(pp.getProperty('REQ_SEQ') || 0) + 1;
+  pp.setProperty('REQ_SEQ', String(seq));
+  const id = 'R-' + ('000' + seq).slice(-4), name = clean(f.name, 60) || 'Not signed in';
+  const urgency = PRIORITIES.indexOf(f.urgency) >= 0 && f.urgency !== 'Urgent' ? f.urgency : 'Normal';   // an open form cannot claim Urgent
+  const vals = [id, nowText(), PUBLIC_BY, name, title, clean(f.details, 600), asset ? asset.no : '', machine, urgency, '', 'Pending', '', '', '', ''];
+  const sh = tasksBook().getSheetByName(REQ_TAB);
+  sh.getRange(sh.getLastRow() + 1, 1, 1, REQ_COLS.length).setNumberFormat('@').setValues([vals]);
+  keys.forEach(k => cache.put(k[0], String(Number(cache.get(k[0]) || 0) + 1), 3600));
+  usersTable().filter(u => u.active && MANAGER_ROLES.indexOf(u.role) >= 0)
+    .forEach(u => notifyUser(u.username, { kind: 'request', id: id, title: title, by: name, priority: urgency }));
+  return { ok: true, id: id };
 }
 
 function spareStatus(user, kind, row, status) {

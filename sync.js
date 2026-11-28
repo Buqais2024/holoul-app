@@ -245,7 +245,7 @@
   /** What gets sent for one change. Daily checks get the Drive links of photos uploaded before them. */
   async function prepare(op) {
     const payload = { id: op.id, action: op.action, date: op.date };
-    ['sheet', 'row', 'value', 'type', 'unit', 'task', 'status', 'note', 'photo', 'at'].forEach(k => { if (op[k] !== undefined) payload[k] = op[k]; });
+    ['sheet', 'row', 'value', 'type', 'unit', 'task', 'status', 'note', 'photo', 'hours', 'signature', 'signedName', 'at'].forEach(k => { if (op[k] !== undefined) payload[k] = op[k]; });
     if (op.action === 'taskUpdate' && String(op.photo || '').indexOf('local:') === 0) {      // task photo taken on the phone
       const pid = String(op.photo).slice(6), url = await kv.get('photo:' + pid);
       if (url) payload.photo = url;

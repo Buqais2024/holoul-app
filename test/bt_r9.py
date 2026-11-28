@@ -1,0 +1,73 @@
+import sys
+from bt_common import *
+R={'pass':0,'fail':0,'f':[]}
+def check(n,c,x=''):
+    if c: R['pass']+=1
+    else: R['fail']+=1; R['f'].append(n+(' :: '+str(x)[:300] if x else ''))
+with sync_playwright() as p:
+    ctl('/ctl/reset')
+    # ---- technician on phone
+    b,ctx,pg,errs=newpage(p, mobile=True); login(pg,'tech1','2222'); pg.wait_for_selector('#tiles .tile', timeout=10000)
+    names=pg.eval_on_selector_all('#tiles .tile','els=>els.map(e=>e.innerText)')
+    check('no reading modules among tiles', not any(w in ' '.join(names) for w in ['Amp','Vibration','Thermo','Forklift','Bobcat']) or any('Readings' in n for n in names), names)
+    check('readings single tile', any('Readings' in n for n in names), names)
+    check('more features shown', len(names)>=3, names)
+    check('welcome strip gone', pg.locator('.welcome').count()==0)
+    check('bubble hidden at first', pg.is_hidden('#pBubble'))
+    check('header update text small', pg.locator('#hUpd').count()==1)
+    pg.click('#openProfile'); pg.wait_for_selector('#pBubble:not(.hidden)')
+    txt=pg.inner_text('#pBubble')
+    check('bubble shows name+role+id', all(w in txt for w in ['ID','Today','My work orders','Last update']) and len(pg.inner_text('#uName'))>0 and len(pg.inner_text('#uRole'))>0, txt)
+    bb=pg.eval_on_selector('#pBubble','e=>{const r=e.getBoundingClientRect();return [r.left,r.right,r.top]}'); ab=pg.eval_on_selector('#openProfile','e=>{const r=e.getBoundingClientRect();return [r.left,r.right,r.bottom]}')
+    ar=pg.eval_on_selector('#pArrow','e=>{const r=e.getBoundingClientRect();return (r.left+r.right)/2}')
+    check('bubble inside screen', bb[0]>=0 and bb[1]<=390, bb)
+    check('bubble below icon', bb[2]>=ab[2], (bb,ab))
+    check('arrow points at icon', ab[0]-4<=ar<=ab[1]+4, (ar,ab))
+    check('aria-expanded true', pg.get_attribute('#openProfile','aria-expanded')=='true')
+    pg.mouse.click(30,600); check('outside tap closes', pg.is_hidden('#pBubble'))
+    pg.click('#openProfile'); pg.keyboard.press('Escape'); check('Escape closes', pg.is_hidden('#pBubble'))
+    pg.click('#openProfile'); pg.click('#openProfile'); check('icon toggles', pg.is_hidden('#pBubble'))
+    # hide a feature
+    first=pg.eval_on_selector_all('#tiles .tile','els=>els.map(e=>e.dataset.ft)')
+    n0=len(first)
+    pg.click('#customize'); pg.wait_for_selector('#xSheet:not(.hidden)')
+    boxes=pg.locator('#xBody input[data-ft]'); check('customize lists all', boxes.count()==n0, (boxes.count(),n0))
+    boxes.nth(1).uncheck()
+    check('hide removes tile', pg.locator('#tiles .tile').count()==n0-1)
+    pg.click('#xClose'); pg.reload(); pg.wait_for_selector('#tiles .tile', timeout=10000)
+    check('hidden choice persists', pg.locator('#tiles .tile').count()==n0-1)
+    pg.click('#customize'); pg.wait_for_selector('#xSheet:not(.hidden)'); pg.click('#ftAll')
+    check('show all restores', pg.locator('#tiles .tile').count()==n0)
+    pg.click('#xClose')
+    # readings picker
+    pg.click('#tiles .tile[data-ft="readings"]'); pg.wait_for_selector('#xBody .tile')
+    check('picker has modules', pg.locator('#xBody .tile').count()>=1)
+    pg.click('#xBody .tile >> nth=0'); pg.wait_for_selector('#rec:not(.hidden), #chk:not(.hidden)', timeout=8000)
+    check('module opens', True)
+    check('no page errors tech', not errs, errs)
+    ctx.close(); b.close()
+    # ---- different user keeps own choices
+    b,ctx,pg,errs=newpage(p, mobile=True); login(pg,'tech2','2223'); pg.wait_for_selector('#tiles .tile', timeout=10000)
+    check('other user has no hidden', pg.evaluate("Object.keys(localStorage).filter(k=>k.indexOf('holoul_hidden')==0).length")==0)
+    ctx.close(); b.close()
+    # ---- supervisor desktop: dashboard buttons per tab
+    b,ctx,pg,errs=newpage(p, mobile=False); login(pg,'sup','1111'); pg.wait_for_selector('#dash .dsh', timeout=10000)
+    def has_new(): return pg.locator('#dash .dhead [data-act="new"]').count()
+    def goto(sec): pg.click('#dash .dside [data-sec="%s"]'%sec); pg.wait_for_timeout(250)
+    check('Overview: new shown', has_new()==1)
+    goto('tasks'); check('Tasks: new shown', has_new()==1)
+    for s in ['equipment','spares','team','reports','costs','pm','requests','purchasing']:
+        goto(s); check('%s: no new button'%s, has_new()==0)
+    check('refresh always (icon)', pg.locator('#dRefresh').count()==1)
+    check('update text in header', pg.locator('#dash .dhead .hupd').count()==1 and 'Updated' in pg.inner_text('#dash .dhead .hupd'), pg.inner_text('#dash .dhead'))
+    pg.click('#dash .dhead [data-act="profile"]'); pg.wait_for_selector('#pBubble:not(.hidden)')
+    check('dash bubble has name', 'Supervisor' in pg.inner_text('#pBubble') or len(pg.inner_text('#uName'))>0)
+    check('dash bubble last update set', pg.inner_text('#pUpd').strip() not in ('','Not yet'), pg.inner_text('#pUpd'))
+    pg.keyboard.press('Escape')
+    # mobile dashboard
+    ctx.close(); b.close()
+    b,ctx,pg,errs=newpage(p, mobile=True); login(pg,'sup','1111'); pg.wait_for_selector('#tiles .tile, #dash .dsh', timeout=10000)
+    check('no page errors sup', not errs, errs)
+    ctx.close(); b.close()
+print('bt_r9: %d passed, %d failed'%(R['pass'],R['fail']))
+for f in R['f']: print('FAIL',f)
