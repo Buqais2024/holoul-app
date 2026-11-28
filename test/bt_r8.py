@@ -1,0 +1,115 @@
+import sys, json, subprocess, datetime
+from bt_common import *
+R={'pass':0,'fail':0,'f':[]}
+def check(n,c,x=''):
+    if c: R['pass']+=1
+    else: R['fail']+=1; R['f'].append(n+(' :: '+str(x)[:400] if x else ''))
+def call(tok,b): return json.loads(ctl('/ctl/call', json.dumps(dict(b,token=tok))))
+def pub(b): return json.loads(ctl('/ctl/call', json.dumps(b)))
+def tok(u,p): return json.loads(ctl('/ctl/call', json.dumps({'action':'login','username':u,'pin':p})))['token']
+def signin(pg,u,pin,url='/'):
+    pg.add_init_script("window.__prints=0; window.print=()=>{window.__prints++}"); pg.goto(BASE+url); pg.fill('#username',u); pg.fill('#pin',pin); pg.click('#btn')
+def decode(svg): return subprocess.run(['node','/tmp/qrlib/decode.js'],input=svg,capture_output=True,text=True).stdout.strip()
+def closed(pg): pg.wait_for_function("!document.getElementById('taskModal').classList.contains('open')", timeout=15000)
+with sync_playwright() as p:
+    ctl('/ctl/reset'); st=tok('sup','1111'); t1=tok('tech1','2222'); t2=tok('tech2','2223')
+    # ================= public fault form: off by default
+    b,ctx,pg,errs0=newpage(p, mobile=True); pg.goto(BASE+'/#report=SH-1'); pg.wait_for_selector('#pub:not(.hidden)', timeout=10000)
+    pg.wait_for_function("document.getElementById('pubMsg').textContent.trim()!==''", timeout=10000)
+    check('form off: says so, cannot send', 'switched off' in pg.inner_text('#pubMsg') and pg.is_disabled('#pubGo'), pg.inner_text('#pubMsg'))
+    check('no login form shown', pg.is_hidden('#login'))
+    ctx.close(); b.close()
+    # ================= supervisor: settings from the Requests screen
+    b,ctx,pg,errs1=newpage(p, mobile=False); signin(pg,'sup','1111'); pg.wait_for_selector('[data-sec=requests]', timeout=20000)
+    pg.click('[data-sec=requests]'); pg.wait_for_selector('#rqSet'); pg.click('#rqSet'); pg.wait_for_selector('#stF')
+    check('settings start off', not pg.is_checked('#stP') and pg.input_value('#stL')=='')
+    pg.fill('#stL','45'); pg.fill('#stD','300'); pg.check('#stP'); pg.click('#stF button[type=submit]'); closed(pg)
+    s=call(st,{'action':'settings'}); check('settings saved', s['laborRate']==45 and s['downtimeRate']==300 and s['publicForm'] is True, s)
+    pg.click('#rqSet'); pg.wait_for_selector('#stF'); pg.fill('#stL','-3'); pg.click('#stF button[type=submit]'); pg.wait_for_function("document.getElementById('stM').textContent.trim()!==''", timeout=8000)
+    check('bad rate refused with a message', 'rate' in pg.inner_text('#stM').lower(), pg.inner_text('#stM')); pg.evaluate("document.getElementById('taskModal').classList.remove('open')")
+    # ================= public form on
+    b2,ctx2,pg2,errs2=newpage(p, mobile=True); pg2.goto(BASE+'/#report=SH-1'); pg2.wait_for_selector('#pubMach:not(.hidden)', timeout=15000)
+    check('machine known from the QR', 'Shredder' in pg2.inner_text('#pubMach') and 'SH-1' in pg2.inner_text('#pubMach') and pg2.is_hidden('#pubAssetBox'), pg2.inner_text('#pubMach'))
+    pg2.click('#pubGo'); check('needs a description', 'few words' in pg2.inner_text('#pubMsg'), pg2.inner_text('#pubMsg'))
+    pg2.fill('#pubTitleIn','Guard is loose'); pg2.fill('#pubDetailsIn','Rattles when running'); pg2.fill('#pubNameIn','Ali'); pg2.select_option('#pubUrg','High'); pg2.click('#pubGo'); pg2.wait_for_selector('#pubDone:not(.hidden)', timeout=15000)
+    check('thank-you with the request number', 'R-' in pg2.inner_text('#pubThanks'), pg2.inner_text('#pubThanks'))
+    q=call(st,{'action':'requestList'})['requests']; check('lands in the supervisor inbox as (public)', len(q)==1 and q[0]['by']=='(public)' and q[0]['name']=='Ali' and q[0]['assetNo']=='SH-1' and q[0]['urgency']=='High' and q[0]['details']=='Rattles when running', q)
+    pg2.click('#pubAgain'); pg2.fill('#pubTitleIn','Another issue here'); pg2.click('#pubGo'); pg2.wait_for_selector('#pubDone:not(.hidden)', timeout=15000)
+    pg2.click('#pubAgain'); pg2.fill('#pubTitleIn','Third issue here'); pg2.click('#pubGo'); pg2.wait_for_selector('#pubDone:not(.hidden)', timeout=15000)
+    pg2.click('#pubAgain'); pg2.fill('#pubTitleIn','Fourth one too'); pg2.click('#pubGo'); pg2.wait_for_function("document.getElementById('pubMsg').textContent.trim()!==''", timeout=15000)
+    check('4th report from the same phone in an hour refused', 'Too many' in pg2.inner_text('#pubMsg') and len(call(st,{'action':'requestList'})['requests'])==3, pg2.inner_text('#pubMsg'))
+    # bot: hidden field filled in -> looks fine, stores nothing
+    pg2.evaluate("localStorage.setItem('holoul_dev','other1')"); pg2.reload(); pg2.wait_for_selector('#pubMach:not(.hidden)', timeout=15000)
+    pg2.evaluate("document.getElementById('pubWeb').value='http://spam'"); pg2.fill('#pubTitleIn','Buy cheap watches'); pg2.click('#pubGo'); pg2.wait_for_selector('#pubDone:not(.hidden)', timeout=15000)
+    check('honeypot: nothing stored', len(call(st,{'action':'requestList'})['requests'])==3)
+    # unknown machine in the QR: typed machine name works
+    pg2.goto(BASE+'/#report=NOPE'); pg2.reload(); pg2.wait_for_selector('#pub:not(.hidden)'); pg2.wait_for_timeout(1500)
+    check('unknown machine: asks which machine', pg2.is_visible('#pubAsset'))
+    pg2.click('#pubStaff'); check('staff sign in link shows the login', pg2.is_visible('#login'))
+    ctx2.close(); b2.close()
+    # ================= supervisor: the request shows with a "No account" chip
+    pg.click('[data-sec=tasks]'); pg.click('[data-sec=requests]'); pg.click('#dRefresh'); pg.wait_for_selector('.rprow:has-text("Guard is loose")', timeout=15000)
+    check('shows No account', 'No account' in pg.inner_text('.rprow:has-text("Guard is loose")'), pg.inner_text('.rprow:has-text("Guard is loose")'))
+    # ================= fault QR label from the machine page + bulk print
+    pg.click('[data-sec=equipment]'); pg.wait_for_selector('[data-eqi]'); pg.click('[data-eqi="0"]'); pg.wait_for_selector('[data-qrf]'); pg.click('[data-qrf]'); pg.wait_for_selector('#qrBox svg')
+    got=decode(pg.eval_on_selector('#qrBox svg','e=>e.outerHTML')); check('fault QR decodes to #report=', got.endswith('#report=SH-1') or got.endswith('#report=BC-16'), got)
+    check('fault QR modal explains', 'Scan to report a fault' in pg.inner_text('#qrBox')); pg.evaluate("document.getElementById('taskModal').classList.remove('open')")
+    pg.click('[data-eqback]'); pg.wait_for_selector('[data-act=printFault]'); pg.click('[data-act=printFault]'); pg.wait_for_selector('#printLabels .plabel svg', state='attached', timeout=8000)
+    codes=sorted(decode(h).split('#')[1] for h in pg.eval_on_selector_all('#printLabels svg','els=>els.map(e=>e.outerHTML)'))
+    check('bulk labels are fault links', codes==['report=BC-16','report=SH-1'], codes)
+    # ================= costs
+    for h in (3,1):
+        i=call(st,{'action':'taskCreate','task':{'title':'Fix belt','assignee':'tech1','equipment':'Shredder','equipmentNo':'SH-1'}})['task']['id']; call(t1,{'action':'taskUpdate','id':i,'status':'In progress'})
+        if h==3: call(st,{'action':'partReceive','part':{'kind':'mechanical','no':'M-7','qty':10,'cost':100}}); call(st,{'action':'partUse','part':{'kind':'mechanical','no':'M-7','qty':2,'order':i}})
+        call(t1,{'action':'taskUpdate','id':i,'status':'Done','note':'ok','hours':h})
+    call(st,{'action':'downtimeStart','downtime':{'no':'SH-1','type':'Unplanned','cause':'Mechanical wear'}}); ctl('/ctl/advance','5400000'); call(st,{'action':'downtimeEnd','downtime':{'no':'SH-1'}})
+    pg.click('[data-sec=costs]'); pg.wait_for_selector('.audtbl', timeout=15000)
+    tx=pg.inner_text('.dcard'); check('totals: parts 200, labor 4h x 45 = 180, downtime 1.5 h', '200 SAR' in tx and '180 SAR' in tx and '1.5 h' in tx, tx[:300])
+    row=pg.locator('tr[data-cod="SH-1"]'); rt=row.inner_text(); check('machine row: parts, labor, downtime, total 830', '200 SAR' in rt and '180 SAR' in rt and '450 SAR' in rt and '830 SAR' in rt, rt)
+    row.click(); pg.wait_for_selector('#coDetClose'); dt=pg.inner_text('#taskBody'); check('detail lists both work orders', dt.count('T-')==2 and 'Fix belt' in dt, dt[:300]); pg.click('#coDetClose')
+    pg.select_option('#coPer','month'); pg.wait_for_timeout(2500); pg.wait_for_selector('.audtbl'); check('period switch reloads', pg.locator('tr[data-cod="SH-1"]').count()==1)
+    pg.select_option('#coPer','custom'); pg.wait_for_selector('#coFrom'); pg.fill('#coFrom','2026-01-01'); pg.fill('#coTo','2026-01-31'); pg.wait_for_selector('text=No cost or downtime recorded', timeout=10000)
+    check('empty period says so', True)
+    pg.click('#coRates'); pg.wait_for_selector('#stF'); check('rates button opens settings with saved values', pg.input_value('#stL')=='45'); pg.evaluate("document.getElementById('taskModal').classList.remove('open')")
+    ctx.close(); b.close()
+    # technician cannot see Costs
+    b,ctx,pg,errs3=newpage(p, mobile=True); login(pg,'tech1','2222'); pg.wait_for_selector('#tiles .tile', timeout=10000)
+    check('no costs for technicians', call(t1,{'action':'costReport'})['ok'] is False)
+    # ================= signed-in scan of a fault QR: request form pre-filled with the machine
+    pg.evaluate("location.hash='#report=BC-16'"); pg.wait_for_selector('#rqF', timeout=15000); pg.wait_for_timeout(500)
+    check('request form opens with the machine filled in', 'Conveyor' in pg.inner_text('#rqAs') and 'BC-16' in pg.inner_text('#rqAs'), pg.inner_text('#rqAs'))
+    pg.fill('#rqT','Belt slipping'); pg.click('#rqGo'); closed(pg)
+    r=[x for x in call(st,{'action':'requestList'})['requests'] if x['title']=='Belt slipping']; check('request saved for that machine, by the technician', len(r)==1 and r[0]['assetNo']=='BC-16' and r[0]['by']=='tech1', r)
+    ctx.close(); b.close()
+    # ================= unusual readings
+    ctl('/ctl/reset'); st=tok('sup','1111'); t2=tok('tech2','2223')
+    for d,v in [('2026-11-23','40'),('2026-11-24','41'),('2026-11-25','39'),('2026-11-26','40'),('2026-11-27','42')]: call(t2,{'action':'saveReading','sheet':'Amp Rec','row':3,'value':v,'date':d})
+    call(st,{'action':'limitSave','limit':{'page':'Amp Rec','row':4,'label':'Fan motor','max':'12','assignee':'tech2'}})
+    b,ctx,pg,errs4=newpage(p, mobile=True); pg.clock.set_fixed_time('2026-11-29T09:00:00Z'); login(pg,'tech2','2223'); pg.wait_for_selector('#tiles .tile', timeout=10000)
+    pg.click("#tiles .tile[data-ft=readings]"); pg.click("#xBody .tile:has-text(\"Amp\")"); pg.wait_for_selector('.rin', timeout=15000); ins=pg.locator('.rin')
+    ins.nth(0).fill('44'); ins.nth(0).blur(); pg.wait_for_timeout(500); check('a little above the usual range: no warning', 'odd' not in (ins.nth(0).get_attribute('class') or ''))
+    ins.nth(0).fill('4.1'); ins.nth(0).blur(); pg.wait_for_function("document.querySelectorAll('.rin')[0].classList.contains('odd')", timeout=5000)
+    tl=ins.nth(0).get_attribute('title') or ''; check('far from usual (and a decimal slip): amber + explains', 'decimal' in tl and '39 to 42' in tl, tl)
+    pg.wait_for_timeout(3000); check('it is still saved (a warning, not a block)', call(t2,{'action':'getSheet','sheet':'Amp Rec'})['rows'][0]['value'] in ('4.1','4.1'), call(t2,{'action':'getSheet','sheet':'Amp Rec'})['rows'][0])
+    ins.nth(0).fill('55'); ins.nth(0).blur(); pg.wait_for_function("document.querySelectorAll('.rin')[0].classList.contains('odd')", timeout=5000); check('55 when it is usually 40: odd, no decimal hint', 'looks unusual' in (ins.nth(0).get_attribute('title') or '') and 'decimal' not in (ins.nth(0).get_attribute('title') or ''))
+    ins.nth(0).fill('40'); ins.nth(0).blur(); pg.wait_for_function("!document.querySelectorAll('.rin')[0].classList.contains('odd')", timeout=5000); check('back to normal clears the warning', True)
+    ins.nth(1).fill('13'); ins.nth(1).blur(); pg.wait_for_function("document.querySelectorAll('.rin')[1].classList.contains('odd')", timeout=5000)
+    check('over the supervisor limit: says so', 'above the limit 12' in (ins.nth(1).get_attribute('title') or ''), ins.nth(1).get_attribute('title'))
+    pg.wait_for_timeout(3000); pg.reload(); pg.wait_for_selector('#tiles .tile', timeout=15000); pg.click("#tiles .tile[data-ft=readings]"); pg.click("#xBody .tile:has-text(\"Amp\")"); pg.wait_for_selector('.rin', timeout=15000); pg.wait_for_timeout(500)
+    check('odd value is still flagged after reopening the page', 'odd' in (pg.locator('.rin').nth(1).get_attribute('class') or ''))
+    ctx.close(); b.close()
+    # ================= voice dictation (speech recognition faked)
+    FAKE="""window.SpeechRecognition=class{constructor(){window.__sr=this}start(){window.__srStarted=(window.__srStarted||0)+1;this.lang0=this.lang;setTimeout(()=>{this.onresult&&this.onresult({results:[[{transcript:'bearing replaced'}]]})},50)}stop(){this.onend&&this.onend()}}"""
+    wid=call(st,{'action':'taskCreate','task':{'title':'Replace bearing','assignee':'tech1'}})['task']['id']
+    b,ctx,pg,errs5=newpage(p, mobile=True); pg.add_init_script(FAKE); login(pg,'tech1','2222'); pg.wait_for_selector('[data-task="%s"]'%wid, timeout=10000); pg.click('[data-task="%s"]'%wid)
+    pg.click('#taskStart'); pg.wait_for_selector('#taskDoneOpen'); pg.click('#taskDoneOpen'); pg.wait_for_selector('#taskNote'); check('Dictate button next to the note', pg.locator('.micbtn').count()==1)
+    pg.fill('#taskNote','Done:'); pg.click('.micbtn'); pg.wait_for_function("document.getElementById('taskNote').value.includes('bearing replaced')", timeout=5000)
+    check('dictated words are added to what was typed', pg.input_value('#taskNote')=='Done: bearing replaced', pg.input_value('#taskNote'))
+    check('recognition language follows the app (English)', pg.evaluate("window.__sr.lang")=='en-US')
+    ctx.close(); b.close()
+    b,ctx,pg,errs6=newpage(p, mobile=True); pg.add_init_script('delete window.SpeechRecognition; delete window.webkitSpeechRecognition'); login(pg,'tech1','2222'); pg.wait_for_selector('[data-task="%s"]'%wid, timeout=10000); pg.click('[data-task="%s"]'%wid); pg.wait_for_selector('#taskDoneOpen'); pg.click('#taskDoneOpen'); pg.wait_for_selector('#taskNote')
+    check('no Dictate button when the browser has no speech recognition (headless)', pg.locator('.micbtn').count()==0); ctx.close(); b.close()
+    allerr=errs0+errs1+errs2+errs3+errs4+errs5+errs6; check('no page errors', not [e for e in allerr if 'Too many' not in e], allerr)
+print('bt_r8: %d passed, %d failed'%(R['pass'],R['fail']))
+for f in R['f']: print('  FAIL',f)
+sys.exit(1 if R['fail'] else 0)

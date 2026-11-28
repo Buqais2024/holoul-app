@@ -3,11 +3,11 @@
 // - Fonts are kept on the phone after the first visit.
 // - Android: uploads waiting changes in the background, even after the app is closed (Background Sync).
 // - Phone notifications: new task assigned / task done (Web Push).
-importScripts('sync.js?v=16');
+importScripts('sync.js?v=25');
 
-const CACHE = 'holoul-v16';
+const CACHE = 'holoul-v25';
 const FONTS = 'holoul-fonts';
-const SHELL = ['./', 'index.html', 'sync.js?v=16', 'dash.js?v=16', 'manifest.json', 'icon.svg', 'icon-512.png', 'apple-touch-icon.png', 'badge-96.png'];
+const SHELL = ['./', 'index.html', 'sync.js?v=25', 'dash.js?v=25', 'qr.js?v=25', 'manifest.json', 'icon.svg', 'icon-512.png', 'apple-touch-icon.png', 'badge-96.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE)
@@ -60,22 +60,25 @@ self.addEventListener('message', e => {
  * The server sends an empty push; we ask it what happened (pushInbox) and show it.
  * A notification is always shown (required by iPhone), even if the question fails. */
 const WORDS = {
-  en: { app: 'Holoul Maintenance', newTask: 'New task', newTasks: n => n + ' new tasks', done: 'Task done', generic: 'You have new tasks — open the app',
+  en: { newRequest: 'New work request', reqDecision: 'Your request was answered', mention: 'You were mentioned', comment: 'New comment', newPo: 'Purchase request', poDecision: 'Purchase request answered', procFail: 'A procedure found problems',
+        app: 'Holoul Maintenance', newTask: 'New work order', newTasks: n => n + ' new work orders', done: 'Work order done', reminder: 'Work order due', lowStock: n => n + (n === 1 ? ' part is low on stock' : ' parts are low on stock'), generic: 'You have new work orders — open the app',
         test: 'Notifications work on this phone ✓', prio: { High: 'High priority', Urgent: 'URGENT' } },
-  ar: { app: 'صيانة حلول', newTask: 'مهمة جديدة', newTasks: n => n + ' مهام جديدة', done: 'تم إنجاز مهمة', generic: 'لديك مهام جديدة — افتح التطبيق',
+  ar: { app: 'صيانة حلول', newTask: 'مهمة جديدة', newTasks: n => n + ' مهام جديدة', done: 'تم إنجاز مهمة', reminder: 'موعد مهمة', lowStock: n => n + ' قطع منخفضة المخزون', generic: 'لديك مهام جديدة — افتح التطبيق',
         test: 'الإشعارات تعمل على هذا الجوال ✓', prio: { High: 'أولوية عالية', Urgent: 'عاجلة' } }
 };
 function withTimeout(p, ms) { return Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]); }
 
 async function handlePush() {
   const lang = (await self.HoloulSync.kv.get('lang').catch(() => 'en')) === 'ar' ? 'ar' : 'en';
-  const W = WORDS[lang];
+  const W = Object.assign({}, WORDS.en, WORDS[lang]);   // newer messages fall back to English until translated
   let msgs = [], open = null;
   try {
     const r = await withTimeout(self.HoloulSync.api('pushInbox', {}, 8000), 9000);
     if (r && r.ok) { msgs = r.messages || []; open = r.openTasks; }
   } catch (e) {}
   const assigned = msgs.filter(m => m.kind === 'assigned'), done = msgs.filter(m => m.kind === 'done');
+  const reminders = msgs.filter(m => m.kind === 'reminder'), lows = msgs.filter(m => m.kind === 'lowstock');
+  const kinds = k => msgs.filter(m => m.kind === k);
   let title = W.app, body = W.generic, url = './#tasks', tag = 'holoul-tasks';
   if (assigned.length === 1) {
     const m = assigned[0];
@@ -83,6 +86,24 @@ async function handlePush() {
     body = m.title + (m.equipment ? ' — ' + m.equipment : '');
   } else if (assigned.length > 1) {
     title = W.newTasks(assigned.length); body = assigned.map(m => m.title).join(' · ');
+  } else if (reminders.length) {
+    title = W.reminder + (reminders.some(m => m.overdue) ? ' ⚠' : ''); body = reminders.map(m => m.title).join(' · ');
+  } else if (lows.length) {
+    const n = lows.reduce((a, m) => a + (m.n || 1), 0);
+    title = W.lowStock(n); body = lows.map(m => m.title).join(' · '); tag = 'holoul-lowstock';
+    url = lows.length === 1 && lows[0].key ? './#part=' + lows[0].key : './#part=low';
+  } else if (kinds('mention').length || kinds('comment').length) {
+    const ms = kinds('mention').concat(kinds('comment'));
+    title = kinds('mention').length ? W.mention : W.comment; body = ms.map(m => m.by + ' · ' + m.title + (m.text ? ': ' + m.text : '')).join('\n'); tag = 'holoul-comment';
+  } else if (kinds('request').length || kinds('requestDecision').length) {
+    const rq = kinds('request');
+    title = rq.length ? W.newRequest : W.reqDecision; body = (rq.length ? rq : kinds('requestDecision')).map(m => m.title + (m.status ? ' — ' + m.status : '') + (m.by ? ' (' + m.by + ')' : '')).join('\n'); url = rq.length ? './#dash' : './#tasks'; tag = 'holoul-request';
+  } else if (kinds('po').length || kinds('poDecision').length) {
+    const po = kinds('po');
+    title = po.length ? W.newPo : W.poDecision; body = (po.length ? po : kinds('poDecision')).map(m => m.id + ' · ' + m.title + (m.status ? ' — ' + m.status : '') + (m.by ? ' (' + m.by + ')' : '')).join('\n'); url = './#dash'; tag = 'holoul-po';
+  } else if (kinds('procedureFail').length) {
+    const pf = kinds('procedureFail');
+    title = W.procFail; body = pf.map(m => m.title + ' · ' + m.count + ' · ' + m.by).join('\n'); url = './#dash'; tag = 'holoul-proc';
   } else if (done.length) {
     title = W.done; body = done.map(m => m.by + ': ' + m.title).join('\n'); url = './#dash'; tag = 'holoul-done';
   } else if (msgs.some(m => m.kind === 'test')) {
